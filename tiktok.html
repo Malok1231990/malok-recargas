@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Recargar TikTok - Malok Recargas</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+</head>
+<body>
+    <header>
+        <div class="header-left">
+            <a href="index.html" class="logo-link">
+                <img src="images/malok_logo.png" alt="Malok Recargas Logo" class="logo-img">
+            </a>
+        </div>
+        <div class="header-right">
+            <div class="search-bar">
+                <input type="text" placeholder="Buscar juego...">
+                <i class="fas fa-search"></i>
+            </div>
+            <div class="custom-currency-selector" id="custom-currency-selector">
+                <div class="selected-currency" id="selected-currency">
+                    <img src="images/flag_ve.png" alt="Venezuela Flag"> <span>Bs. (VES)</span> <i class="fas fa-chevron-down"></i>
+                </div>
+                <div class="currency-options" id="currency-options">
+                    <div class="option" data-value="VES">
+                        <img src="images/flag_ve.png" alt="Venezuela Flag"> <span>Bs. (VES)</span>
+                    </div>
+                    <div class="option" data-value="USD">
+                        <img src="images/flag_us.png" alt="USA Flag"> <span>$ (USD)</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="tiktok-main">
+        <div class="form-container">
+            <img src="images/tiktok_banner.jpg" alt="TikTok Banner" class="game-banner">
+            <h2>Recargar TikTok</h2>
+            <div class="game-info">
+                <p>Moneda actual: <span id="currency-display">USD</span></p>
+                <p>Tu ID de Usuario lo encuentras en tu perfil de TikTok.</p>
+            </div>
+
+            <form id="tiktok-recharge-form">
+                <div class="form-group">
+                    <label for="player-id">1. Ingresa tu ID de Usuario de TikTok:</label>
+                    <input type="text" id="player-id" name="playerId" placeholder="Ej: user123456" required>
+                </div>
+
+                <div class="form-group">
+                    <label>2. Selecciona un plan:</label>
+                    <div class="package-list" id="package-list">
+                    </div>
+                </div>
+                
+                <button type="submit" class="btn-primary" id="confirm-recharge-btn" disabled>Confirmar Recarga</button>
+            </form>
+        </div>
+    </main>
+
+    <footer>
+        <div class="footer-content">
+            <p>&copy; 2025 Malok Recargas. Todos los derechos reservados.</p>
+            <div class="footer-links">
+                <a href="privacy.html">Políticas de Privacidad</a>
+                <a href="terms.html">Términos de Servicio</a>
+            </div>
+            <a href="https://wa.me/584126949631" target="_blank" class="whatsapp-link">
+                <i class="fab fa-whatsapp"></i> Contáctanos por WhatsApp
+            </a>
+        </div>
+    </footer>
+
+    <script src="script.js"></script>
+    <script>
+        // Paquetes de TikTok con precios en USD y VES fijos
+        const tiktokPackages = [
+            { id: 1, name: '70 Monedas', priceUSD: 1.03, priceVES: 185.00 },
+            { id: 2, name: '140 Monedas', priceUSD: 1.96, priceVES: 337.00 },
+            { id: 3, name: '350 Monedas', priceUSD: 4.15, priceVES: 712.00 },
+            { id: 4, name: '700 Monedas', priceUSD: 8.00, priceVES: 1310.00 },
+            { id: 5, name: '1400 Monedas', priceUSD: 15.80, priceVES: 2575.00 },
+            { id: 6, name: '3500 Monedas', priceUSD: 47.00, priceVES: 7115.00 },
+            { id: 6, name: '7000 Monedas', priceUSD: 83.00, priceVES: 13010.00 }
+        ];
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const playerIdInput = document.getElementById('player-id');
+            const packageListDiv = document.getElementById('package-list');
+            const confirmBtn = document.getElementById('confirm-recharge-btn');
+            const currencyDisplaySpan = document.getElementById('currency-display');
+            
+            let selectedPackage = null;
+
+            function formatPrice(price, currency) {
+                if (currency === 'VES') {
+                    return `Bs. ${price.toFixed(2)}`;
+                } else {
+                    return `$${price.toFixed(2)}`;
+                }
+            }
+
+            function updatePackages(currentCurrency) {
+                currencyDisplaySpan.textContent = currentCurrency;
+
+                packageListDiv.innerHTML = '';
+                tiktokPackages.forEach(pkg => {
+                    let displayPrice;
+                    if (currentCurrency === 'VES') {
+                        displayPrice = pkg.priceVES;
+                    } else {
+                        displayPrice = pkg.priceUSD;
+                    }
+
+                    const packageItem = document.createElement('div');
+                    packageItem.classList.add('package-item');
+                    packageItem.dataset.id = pkg.id;
+                    packageItem.dataset.priceUsd = pkg.priceUSD;
+                    packageItem.dataset.priceVes = pkg.priceVES;
+                    packageItem.innerHTML = `
+                        <span>${pkg.name}</span>
+                        <span class="price">${formatPrice(displayPrice, currentCurrency)}</span>
+                    `;
+                    packageItem.addEventListener('click', () => {
+                        if (selectedPackage) {
+                            selectedPackage.classList.remove('selected');
+                        }
+                        packageItem.classList.add('selected');
+                        selectedPackage = packageItem;
+                        checkFormValidity();
+                    });
+                    packageListDiv.appendChild(packageItem);
+                });
+                checkFormValidity();
+            }
+
+            function checkFormValidity() {
+                const playerIdValid = playerIdInput.value.trim() !== '';
+                confirmBtn.disabled = !(playerIdValid && selectedPackage);
+            }
+
+            const initialCurrency = localStorage.getItem('selectedCurrency') || 'VES';
+            updatePackages(initialCurrency);
+
+            playerIdInput.addEventListener('input', checkFormValidity);
+
+            window.addEventListener('currencyChanged', (event) => {
+                const newCurrency = event.detail.currency;
+                updatePackages(newCurrency);
+            });
+
+            document.getElementById('tiktok-recharge-form').addEventListener('submit', (e) => {
+                e.preventDefault();
+                if (selectedPackage) {
+                    const playerId = playerIdInput.value.trim();
+                    const packageName = selectedPackage.querySelector('span:first-child').textContent;
+                    const basePriceUSD = parseFloat(selectedPackage.dataset.priceUsd);
+                    const basePriceVES = parseFloat(selectedPackage.dataset.priceVes);
+                    const selectedCurrency = localStorage.getItem('selectedCurrency') || 'VES';
+                    let finalPrice;
+
+                    if (selectedCurrency === 'VES') {
+                        finalPrice = basePriceVES;
+                    } else {
+                        finalPrice = basePriceUSD;
+                    }
+                    
+                    const transactionDetails = {
+                        game: "TikTok",
+                        playerId: playerId,
+                        package: packageName,
+                        priceUSD: basePriceUSD.toFixed(2),
+                        finalPrice: finalPrice.toFixed(2),
+                        currency: selectedCurrency
+                    };
+
+                    localStorage.setItem('transactionDetails', JSON.stringify(transactionDetails));
+                    window.location.href = 'payment.html';
+                } else {
+                    alert('Por favor, selecciona un plan de recarga.');
+                }
+            });
+        });
+    </script>
+</body>
+</html>

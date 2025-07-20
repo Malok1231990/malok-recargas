@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Recargar Free Fire - Malok Recargas</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+</head>
+<body>
+    <header>
+        <div class="header-left">
+            <a href="index.html" class="logo-link">
+                <img src="images/malok_logo.png" alt="Malok Recargas Logo" class="logo-img">
+            </a>
+        </div>
+        <div class="header-right">
+            <div class="search-bar">
+                <input type="text" placeholder="Buscar juego...">
+                <i class="fas fa-search"></i>
+            </div>
+            <div class="custom-currency-selector" id="custom-currency-selector">
+                <div class="selected-currency" id="selected-currency">
+                    <img src="images/flag_ve.png" alt="Venezuela Flag"> <span>Bs. (VES)</span> <i class="fas fa-chevron-down"></i>
+                </div>
+                <div class="currency-options" id="currency-options">
+                    <div class="option" data-value="VES">
+                        <img src="images/flag_ve.png" alt="Venezuela Flag"> <span>Bs. (VES)</span>
+                    </div>
+                    <div class="option" data-value="USD">
+                        <img src="images/flag_us.png" alt="USA Flag"> <span>$ (USD)</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="freefire-main">
+        <div class="form-container">
+            <img src="images/freefire_banner.jpg" alt="Free Fire Banner" class="game-banner">
+            <h2>Recargar Free Fire</h2>
+            <div class="game-info">
+                <p>Moneda actual: <span id="currency-display">USD</span></p>
+                <p>Tu ID de Usuario lo encuentras en tu perfil de Free Fire.</p>
+            </div>
+
+            <form id="freefire-recharge-form">
+                <div class="form-group">
+                    <label for="player-id">1. Ingresa tu ID de Jugador:</label>
+                    <input type="text" id="player-id" name="playerId" placeholder="Ej: 123456789" required>
+                </div>
+
+                <div class="form-group">
+                    <label>2. Selecciona tus Diamantes o Pase:</label>
+                    <div class="package-list" id="package-list">
+                        </div>
+                </div>
+
+                <button type="submit" class="btn-primary" id="confirm-recharge-btn" disabled>Confirmar Recarga</button>
+            </form>
+        </div>
+    </main>
+
+    <footer>
+        <div class="footer-content">
+            <p>&copy; 2025 Malok Recargas. Todos los derechos reservados.</p>
+            <div class="footer-links">
+                <a href="privacy.html">Políticas de Privacidad</a>
+                <a href="terms.html">Términos de Servicio</a>
+            </div>
+            <a href="https://wa.me/584126949631" target="_blank" class="whatsapp-link">
+                <i class="fab fa-whatsapp"></i> Contáctanos por WhatsApp
+            </a>
+        </div>
+    </footer>
+
+    <script src="script.js"></script>
+    <script>
+        // Paquetes de Free Fire con precios en USD y VES fijos
+        const freefirePackages = [
+            { id: 1, name: '100+10 Diamantes', priceUSD: 0.80, priceVES: 155.00 },
+            { id: 2, name: '310+31 Diamantes', priceUSD: 2.40, priceVES: 420.00 },
+            { id: 3, name: '520+52 Diamantes', priceUSD: 3.90, priceVES: 715.00 },
+            { id: 4, name: '1050+105 Diamantes', priceUSD: 7.90, priceVES: 1395.00 },
+            { id: 5, name: '2180+218 Diamantes', priceUSD: 14.50, priceVES: 2635.00 },
+            { id: 6, name: '5600+560 Diamantes', priceUSD: 37.00, priceVES: 5735.00 },
+            { id: 7, name: 'Tarjeta Semanal', priceUSD: 1.80, priceVES: 350.00 },
+            { id: 8, name: 'Tarjeta Mensual', priceUSD: 7.90, priceVES: 1550.00 }
+        ];
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const playerIdInput = document.getElementById('player-id');
+            const packageListDiv = document.getElementById('package-list');
+            const confirmBtn = document.getElementById('confirm-recharge-btn');
+            const currencyDisplaySpan = document.getElementById('currency-display');
+            
+            let selectedPackage = null;
+
+            function formatPrice(price, currency) {
+                if (currency === 'VES') {
+                    return `Bs. ${price.toFixed(2)}`;
+                } else {
+                    return `$${price.toFixed(2)}`;
+                }
+            }
+
+            function updatePackages(currentCurrency) {
+                currencyDisplaySpan.textContent = currentCurrency;
+
+                packageListDiv.innerHTML = ''; // Limpiar lista existente
+                freefirePackages.forEach(pkg => {
+                    let displayPrice;
+                    if (currentCurrency === 'VES') {
+                        displayPrice = pkg.priceVES; // Usar precio VES directo
+                    } else {
+                        displayPrice = pkg.priceUSD; // Usar precio USD directo
+                    }
+
+                    const packageItem = document.createElement('div');
+                    packageItem.classList.add('package-item');
+                    packageItem.dataset.id = pkg.id;
+                    packageItem.dataset.priceUsd = pkg.priceUSD; // Mantener priceUSD para referencia
+                    packageItem.dataset.priceVes = pkg.priceVES; // Guardar priceVES también
+                    packageItem.innerHTML = `
+                        <span>${pkg.name}</span>
+                        <span class="price">${formatPrice(displayPrice, currentCurrency)}</span>
+                    `;
+                    packageItem.addEventListener('click', () => {
+                        if (selectedPackage) {
+                            selectedPackage.classList.remove('selected');
+                        }
+                        packageItem.classList.add('selected');
+                        selectedPackage = packageItem;
+                        checkFormValidity();
+                    });
+                    packageListDiv.appendChild(packageItem);
+                });
+                checkFormValidity();
+            }
+
+            function checkFormValidity() {
+                const playerIdValid = playerIdInput.value.trim() !== '';
+                confirmBtn.disabled = !(playerIdValid && selectedPackage);
+            }
+
+            // Inicializar con la moneda guardada o por defecto
+            const initialCurrency = localStorage.getItem('selectedCurrency') || 'VES';
+            updatePackages(initialCurrency);
+
+            // Escuchar cambios en el input del ID de jugador
+            playerIdInput.addEventListener('input', checkFormValidity);
+
+            // Escuchar el evento de cambio de moneda desde script.js (header global)
+            window.addEventListener('currencyChanged', (event) => {
+                const newCurrency = event.detail.currency;
+                updatePackages(newCurrency);
+            });
+
+            // Manejar el envío del formulario
+            document.getElementById('freefire-recharge-form').addEventListener('submit', (e) => {
+                e.preventDefault();
+                if (selectedPackage) {
+                    const playerId = playerIdInput.value.trim();
+                    const packageName = selectedPackage.querySelector('span:first-child').textContent;
+                    const basePriceUSD = parseFloat(selectedPackage.dataset.priceUsd); // Precio base en USD
+                    const basePriceVES = parseFloat(selectedPackage.dataset.priceVes); // Precio base en VES
+                    const selectedCurrency = localStorage.getItem('selectedCurrency') || 'VES';
+                    let finalPrice;
+
+                    if (selectedCurrency === 'VES') {
+                        finalPrice = basePriceVES; // Usar precio VES directo
+                    } else {
+                        finalPrice = basePriceUSD; // Usar precio USD directo
+                    }
+                    
+                    const transactionDetails = {
+                        game: "Free Fire",
+                        playerId: playerId,
+                        package: packageName,
+                        priceUSD: basePriceUSD.toFixed(2), // Siempre guardar el USD como referencia
+                        finalPrice: finalPrice.toFixed(2), // Precio final en la moneda seleccionada
+                        currency: selectedCurrency // Moneda en la que se realizó la transacción
+                    };
+
+                    localStorage.setItem('transactionDetails', JSON.stringify(transactionDetails));
+                    window.location.href = 'payment.html';
+                } else {
+                    console.error('Por favor, selecciona un plan de recarga.');
+                }
+            });
+        });
+    </script>
+</body>
+</html>
