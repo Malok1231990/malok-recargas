@@ -1044,3 +1044,113 @@ footer p {
         min-height: unset; /* Permitir que la altura se ajuste al contenido */
     }
 }
+
+/* ... (todo tu CSS anterior) ... */
+
+/* Estilos específicos para la página de Pago (payment.html) */
+
+/* Contenedor del botón de copiar y texto */
+.copy-container {
+    display: flex;
+    align-items: center;
+    gap: 10px; /* Espacio entre la etiqueta, el botón y el feedback */
+    flex-wrap: wrap; /* Permite que los elementos se envuelvan en pantallas pequeñas */
+    justify-content: flex-start; /* Alinea los elementos al inicio */
+    margin-bottom: 10px; /* Pequeño margen debajo del contenedor de copiar */
+}
+
+/* La dirección de billetera que permanece oculta */
+.copy-container .wallet-address {
+    display: none; /* Oculta la dirección real */
+}
+
+/* Etiqueta "Dirección de Billetera BEP20:" */
+.address-label {
+    font-weight: 600; /* Hace la etiqueta más negrita */
+    color: var(--text-color); /* Usa tu color de texto principal */
+    font-size: 0.95em; /* Ligeramente más pequeño para no dominar */
+    white-space: nowrap; /* Evita que el texto se rompa */
+}
+
+/* Botón de copiar */
+.copy-button {
+    background: var(--button-gradient); /* Usa el gradiente de tus botones principales */
+    color: var(--white); /* Texto blanco para el botón */
+    border: none;
+    padding: 8px 15px; /* Padding similar al de otros botones pequeños */
+    border-radius: 20px; /* Bordes más redondeados para que coincida con el estilo de botón */
+    cursor: pointer;
+    font-size: 0.9em; /* Tamaño de fuente ligeramente más pequeño */
+    font-weight: 600; /* Un poco más de peso para el texto */
+    transition: all 0.3s ease; /* Transición suave para hover */
+    box-shadow: 0 2px 8px var(--shadow-dark); /* Sombra similar a tus botones */
+    display: inline-flex; /* Permite alinear el texto y el posible ícono si se añade */
+    align-items: center;
+    gap: 5px; /* Espacio si hubiera un icono */
+}
+
+.copy-button:hover {
+    background: var(--button-hover-gradient); /* Gradiente de hover de tus botones */
+    transform: translateY(-1px); /* Ligerísimo efecto de elevación */
+    box-shadow: 0 4px 12px var(--shadow-dark); /* Sombra más pronunciada en hover */
+}
+
+.copy-button:active {
+    transform: translateY(0); /* Vuelve a la posición normal al hacer clic */
+    box-shadow: 0 1px 5px var(--shadow-dark); /* Sombra más pequeña al hacer clic */
+}
+
+
+/* Mensaje de feedback "¡Copiado!" */
+.copy-feedback {
+    display: none; /* Oculto por defecto, se muestra con JS */
+    margin-left: 10px;
+    color: var(--accent-green); /* Usa tu verde de acento para el éxito */
+    font-size: 0.9em;
+    font-weight: bold;
+    white-space: nowrap; /* Evita que se rompa el mensaje */
+}
+
+/* Asegúrate de que los estilos específicos de .payment-details-card
+   no entren en conflicto con .copy-container.
+   Puedes añadir un margen inferior si el copy-container no lo tiene ya.
+*/
+.payment-details-card ul {
+    list-style: none; /* Quita los puntos de lista predeterminados */
+    padding: 0; /* Elimina el padding predeterminado */
+    margin: 0; /* Elimina el margen predeterminado */
+}
+
+.payment-details-card ul li {
+    margin-bottom: 8px; /* Espacio entre los elementos de la lista */
+}
+
+/* Ajustes para que los campos de referencia no afecten el espaciado
+   cuando se muestran o se ocultan dinámicamente */
+.payment-fields-container {
+    margin-top: 20px; /* Espacio por encima de los campos de referencia */
+    padding-top: 15px;
+    border-top: 1px solid var(--border-color); /* Línea divisoria */
+}
+
+.payment-fields-container p {
+    text-align: left; /* Alinea el texto de las instrucciones de los campos */
+    margin-bottom: 15px;
+}
+
+/* Responsive adjustments */
+@media (max-width: 480px) {
+    .copy-container {
+        flex-direction: column; /* Apila la etiqueta y el botón en pantallas muy pequeñas */
+        align-items: flex-start; /* Alinea los elementos apilados a la izquierda */
+        gap: 8px; /* Reduce el espacio entre elementos apilados */
+    }
+    .copy-button {
+        width: auto; /* Permite que el botón se ajuste a su contenido */
+        padding: 8px 12px;
+        font-size: 0.85em;
+    }
+    .address-label, .copy-feedback {
+        font-size: 0.85em;
+    }
+}

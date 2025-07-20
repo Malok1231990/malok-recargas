@@ -6,6 +6,43 @@
     <title>Detalles de Pago - Malok Recargas</title>
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        /* Estilos para el botón de copiar y el mensaje */
+        .copy-container {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        .copy-container .wallet-address {
+            display: none; /* Oculta la dirección real */
+        }
+        .copy-button {
+            background-color: var(--primary-color);
+            color: var(--button-text-color);
+            border: none;
+            padding: 8px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 0.9em;
+            transition: background-color 0.3s ease;
+        }
+        .copy-button:hover {
+            background-color: #0056b3;
+        }
+        .copy-feedback {
+            display: none;
+            margin-left: 10px;
+            color: #28a745;
+            font-size: 0.9em;
+            font-weight: bold;
+        }
+        /* Estilo para la etiqueta de la dirección */
+        .address-label {
+            font-weight: bold;
+            color: var(--text-color);
+        }
+    </style>
 </head>
 <body>
     <header>
@@ -52,6 +89,7 @@
                         (Por favor, no olvides incluir tus datos de TikTok en el mensaje de WhatsApp).
                     </p>
                 </div>
+
                 <button type="submit" class="btn-primary" id="finalize-recharge-btn" disabled>Finalizar Recarga</button>
             </form>
         </div>
@@ -72,8 +110,6 @@
 
     <script src="script.js"></script>
     <script>
-        // Definición de los detalles completos de los métodos de pago
-        // (incluyendo campos de referencia para juegos que NO sean TikTok)
         const paymentDetailsTemplates = {
             'pago-movil': `
                 <p><strong>Paso 1:</strong> Realiza el Pago Móvil a los siguientes datos:</p>
@@ -82,7 +118,8 @@
                     <li><strong>Cédula/RIF:</strong> V-30258234</li>
                     <li><strong>Teléfono:</strong> 0412-6949631</li>
                 </ul>
-                <div class="payment-fields-container"> <p><strong>Paso 2:</strong> Completa los siguientes campos para verificar tu pago:</p>
+                <div class="payment-fields-container">
+                    <p><strong>Paso 2:</strong> Completa los siguientes campos para verificar tu pago:</p>
                     <label for="pm-phone">Número de Teléfono desde el que pagaste:</label>
                     <input type="text" id="pm-phone" name="pmPhone" placeholder="Ej: 04121234567" required>
                     <label for="pm-reference">Referencia del Pago Móvil:</label>
@@ -93,12 +130,20 @@
                 <p><strong>Paso 1:</strong> Realiza la transferencia a nuestra cuenta Binance (USDT BEP20) O (Binance Pay).</p>
                 <ul>
                     <p><strong>USDT (BEP20):</strong></p>
-                    <li><strong>Direccion de Billetera BEP 20:</strong> 0xd8e6d7a73f6d30519793b8e67d76c5945730dc46</li>
+                    <li>
+                        <div class="copy-container">
+                            <span class="address-label">Dirección de Billetera BEP20:</span>
+                            <span class="wallet-address" id="binance-address">0xd8e6d7a73f6d30519793b8e67d76c5945730dc46</span>
+                            <button type="button" class="copy-button" data-copy-target="binance-address">Copiar</button>
+                            <span class="copy-feedback" id="binance-copy-feedback">¡Copiado!</span>
+                        </div>
+                    </li>
                     <li><strong>Moneda:</strong> USDT (BEP20)</li>
                     <p><strong>Binance Pay:</strong></p>
                     <li><strong>ID Binance Pay:</strong> 91149377</li>
                 </ul>
-                <div class="payment-fields-container"> <p><strong>Paso 2:</strong> Completa el siguiente campo con tu ID de Transacción:</p>
+                <div class="payment-fields-container">
+                    <p><strong>Paso 2:</strong> Completa el siguiente campo con tu ID de Transacción:</p>
                     <label for="binance-txid">ID de Transacción de Binance:</label>
                     <input type="text" id="binance-txid" name="binanceTxid" placeholder="Ej: abc123def456..." required>
                 </div>
@@ -108,20 +153,18 @@
                 <ul>
                     <li><strong>Usuario Zinli:</strong> miladelarocaedwar04@gmail.com</li>
                 </ul>
-                <div class="payment-fields-container"> <p><strong>Paso 2:</strong> Completa el siguiente campo con la referencia de tu pago en Zinli:</p>
+                <div class="payment-fields-container">
+                    <p><strong>Paso 2:</strong> Completa el siguiente campo con la referencia de tu pago en Zinli:</p>
                     <label for="zinli-reference">Referencia de Pago Zinli:</label>
                     <input type="text" id="zinli-reference" name="zinliReference" placeholder="Ej: #123456" required>
                 </div>
             `
         };
 
-
-        // Métodos de pago en VES (solo id, name, type, icon)
         const paymentMethodsVES = [
             { id: 'pago-movil', name: 'Pago Móvil', type: 'ves', icon: 'fas fa-mobile-alt' }
         ];
 
-        // Métodos de pago en USD (solo id, name, type, icon)
         const paymentMethodsUSD = [
             { id: 'binance', name: 'Binance', type: 'usd', icon: 'fab fa-bitcoin' },
             { id: 'zinli', name: 'Zinli', type: 'usd', icon: 'fas fa-wallet' }
@@ -146,10 +189,10 @@
 
                 if (transactionDetails.game === "TikTok") {
                     whatsappMessageContainer.style.display = 'block';
-                    finalizeBtn.style.display = 'none'; // Ocultar el botón para TikTok
+                    finalizeBtn.style.display = 'none';
                 } else {
                     whatsappMessageContainer.style.display = 'none';
-                    finalizeBtn.style.display = 'block'; // Mostrar el botón para otros juegos
+                    finalizeBtn.style.display = 'block';
                 }
 
             } else {
@@ -212,30 +255,66 @@
                 checkFormValidity();
             }
 
-            // MODIFICACIÓN CLAVE AQUÍ: loadPaymentDetails
             function loadPaymentDetails(methodId) {
-                let methodHtml = paymentDetailsTemplates[methodId]; // Obtener el HTML completo del template
+                let methodHtml = paymentDetailsTemplates[methodId];
 
                 if (methodHtml) {
                     paymentDetailsFormDiv.innerHTML = methodHtml;
 
-                    // Ocultar la sección de campos de referencia si es TikTok
                     if (transactionDetails.game === "TikTok") {
                         const fieldsContainer = paymentDetailsFormDiv.querySelector('.payment-fields-container');
                         if (fieldsContainer) {
                             fieldsContainer.style.display = 'none';
                         }
                     } else {
-                        // Para otros juegos, añadir listeners a los inputs requeridos
                         paymentDetailsFormDiv.querySelectorAll('input[required]').forEach(input => {
                             input.addEventListener('input', checkFormValidity);
                         });
                     }
+
+                    const copyButton = paymentDetailsFormDiv.querySelector('.copy-button');
+                    if (copyButton) {
+                        copyButton.addEventListener('click', handleCopyButtonClick);
+                    }
+
                 } else {
                     paymentDetailsFormDiv.innerHTML = '<p>Selecciona un método de pago para ver los detalles.</p>';
                 }
                 checkFormValidity();
             }
+
+            async function handleCopyButtonClick(event) {
+                const button = event.currentTarget;
+                const targetId = button.dataset.copyTarget;
+                const textToCopyElement = document.getElementById(targetId);
+                const feedbackElement = document.getElementById(`${targetId}-copy-feedback`);
+
+                if (textToCopyElement && navigator.clipboard) {
+                    try {
+                        await navigator.clipboard.writeText(textToCopyElement.textContent);
+                        if (feedbackElement) {
+                            feedbackElement.textContent = '¡Copiado!';
+                            feedbackElement.style.display = 'inline-block';
+                            setTimeout(() => {
+                                feedbackElement.style.display = 'none';
+                            }, 1500);
+                        }
+                    } catch (err) {
+                        console.error('Error al copiar: ', err);
+                        if (feedbackElement) {
+                            feedbackElement.textContent = 'Error al copiar';
+                            feedbackElement.style.display = 'inline-block';
+                            setTimeout(() => {
+                                feedbackElement.style.display = 'none';
+                            }, 1500);
+                        }
+                        alert('No se pudo copiar el texto. Por favor, cópialo manualmente.');
+                    }
+                } else {
+                    alert('Tu navegador no soporta la copia automática o no se encontró el elemento. Por favor, selecciona y copia la dirección manualmente.');
+                }
+            }
+
 
             function checkFormValidity() {
                 const selectedRadio = document.querySelector('input[name="paymentMethod"]:checked');
@@ -243,7 +322,7 @@
                 let areDetailsFilled = true;
 
                 if (transactionDetails && transactionDetails.game === "TikTok") {
-                    areDetailsFilled = true; // Para TikTok, la validez no depende de campos de referencia aquí
+                    areDetailsFilled = true;
                 } else if (isMethodSelected) {
                     const requiredInputs = paymentDetailsFormDiv.querySelectorAll('input[required]');
                     requiredInputs.forEach(input => {
@@ -286,7 +365,6 @@
                     currency: transactionDetails.currency
                 };
 
-                // Recopilar datos específicos del formulario SOLO si NO es TikTok
                 if (transactionDetails.game !== "TikTok") {
                     if (selectedMethodId === 'pago-movil') {
                         paymentData.phone = document.getElementById('pm-phone').value;
