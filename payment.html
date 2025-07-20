@@ -38,18 +38,18 @@
                 <div id="payment-details-form" class="payment-details-form">
                     </div>
                 
-                <div class="payment-confirmation-message" style="margin-top: 30px; margin-bottom: 20px; text-align: center;">
+                <div id="whatsapp-message-container" class="payment-confirmation-message" style="margin-top: 30px; margin-bottom: 20px; text-align: center; display: none;">
                     <p style="font-size: 1.1em; color: var(--text-color); margin-bottom: 15px;">
-                        ¡Importante! Una vez realizado el pago con el método seleccionado y completado los campos de referencia, <strong>envía la captura de tu comprobante y tu ID de usuario de TikTok</strong> al siguiente número de WhatsApp para que tu recarga sea procesada rápidamente:
+                        ¡Importante! Una vez realizado el pago con el método seleccionado, <strong>envía la captura de tu comprobante y tus datos de TikTok</strong> al siguiente número de WhatsApp para que tu recarga sea procesada rápidamente:
                     </p>
-                    <a href="https://wa.me/584126949631?text=Hola%2C%20acabo%20de%20realizar%20un%20pago%20para%20recarga%20de%20TikTok.%20Mi%20ID%20de%20usuario%20es%3A%20%5BAQUI_TU_ID%5D."
+                    <a href="https://wa.me/584126949631?text=Hola%2C%20acabo%20de%20realizar%20un%20pago%20para%20recarga%20de%20TikTok.%20Mis%20datos%20de%20TikTok%20son%3A%20%5BAQUI_TUS_DATOS%5D."
                        class="whatsapp-link"
                        target="_blank"
                        style="font-size: 1.1em; padding: 12px 25px;">
                         <i class="fab fa-whatsapp"></i> Enviar Captura al WhatsApp
                     </a>
                     <p class="small-text" style="margin-top: 15px;">
-                        (Por favor, no olvides incluir tu ID de usuario de TikTok en el mensaje de WhatsApp).
+                        (Por favor, no olvides incluir tus datos de TikTok en el mensaje de WhatsApp).
                     </p>
                 </div>
                 <button type="submit" class="btn-primary" id="finalize-recharge-btn" disabled>Finalizar Recarga</button>
@@ -72,26 +72,24 @@
 
     <script src="script.js"></script>
     <script>
-        // Métodos de pago en VES
-        const paymentMethodsVES = [
-            { id: 'pago-movil', name: 'Pago Móvil', type: 'ves', icon: 'fas fa-mobile-alt', details: `
+        // Definición de los detalles completos de los métodos de pago
+        // (incluyendo campos de referencia para juegos que NO sean TikTok)
+        const paymentDetailsTemplates = {
+            'pago-movil': `
                 <p><strong>Paso 1:</strong> Realiza el Pago Móvil a los siguientes datos:</p>
                 <ul>
                     <li><strong>Banco:</strong> Banco de Mercantil (0105)</li>
                     <li><strong>Cédula/RIF:</strong> V-30258234</li>
                     <li><strong>Teléfono:</strong> 0412-6949631</li>
                 </ul>
-                <p><strong>Paso 2:</strong> Completa los siguientes campos para verificar tu pago:</p>
-                <label for="pm-phone">Número de Teléfono desde el que pagaste:</label>
-                <input type="text" id="pm-phone" name="pmPhone" placeholder="Ej: 04121234567" required>
-                <label for="pm-reference">Referencia del Pago Móvil:</label>
-                <input type="text" id="pm-reference" name="pmReference" placeholder="Ej: 12345678" required>
-            ` }
-        ];
-
-        // Métodos de pago en USD
-        const paymentMethodsUSD = [
-            { id: 'binance', name: 'Binance', type: 'usd', icon: 'fab fa-bitcoin', details: `
+                <div class="payment-fields-container"> <p><strong>Paso 2:</strong> Completa los siguientes campos para verificar tu pago:</p>
+                    <label for="pm-phone">Número de Teléfono desde el que pagaste:</label>
+                    <input type="text" id="pm-phone" name="pmPhone" placeholder="Ej: 04121234567" required>
+                    <label for="pm-reference">Referencia del Pago Móvil:</label>
+                    <input type="text" id="pm-reference" name="pmReference" placeholder="Ej: 12345678" required>
+                </div>
+            `,
+            'binance': `
                 <p><strong>Paso 1:</strong> Realiza la transferencia a nuestra cuenta Binance (USDT BEP20) O (Binance Pay).</p>
                 <ul>
                     <p><strong>USDT (BEP20):</strong></p>
@@ -100,42 +98,66 @@
                     <p><strong>Binance Pay:</strong></p>
                     <li><strong>ID Binance Pay:</strong> 91149377</li>
                 </ul>
-                <p><strong>Paso 2:</strong> Completa el siguiente campo con tu ID de Transacción:</p>
-                <label for="binance-txid">ID de Transacción de Binance:</label>
-                <input type="text" id="binance-txid" name="binanceTxid" placeholder="Ej: abc123def456..." required>
-            ` },
-            { id: 'zinli', name: 'Zinli', type: 'usd', icon: 'fas fa-wallet', details: `
+                <div class="payment-fields-container"> <p><strong>Paso 2:</strong> Completa el siguiente campo con tu ID de Transacción:</p>
+                    <label for="binance-txid">ID de Transacción de Binance:</label>
+                    <input type="text" id="binance-txid" name="binanceTxid" placeholder="Ej: abc123def456..." required>
+                </div>
+            `,
+            'zinli': `
                 <p><strong>Paso 1:</strong> Transfiere el monto exacto a nuestra cuenta Zinli.</p>
                 <ul>
                     <li><strong>Usuario Zinli:</strong> miladelarocaedwar04@gmail.com</li>
                 </ul>
-                <p><strong>Paso 2:</strong> Completa el siguiente campo con la referencia de tu pago en Zinli:</p>
-                <label for="zinli-reference">Referencia de Pago Zinli:</label>
-                <input type="text" id="zinli-reference" name="zinliReference" placeholder="Ej: #123456" required>
-            ` }
+                <div class="payment-fields-container"> <p><strong>Paso 2:</strong> Completa el siguiente campo con la referencia de tu pago en Zinli:</p>
+                    <label for="zinli-reference">Referencia de Pago Zinli:</label>
+                    <input type="text" id="zinli-reference" name="zinliReference" placeholder="Ej: #123456" required>
+                </div>
+            `
+        };
+
+
+        // Métodos de pago en VES (solo id, name, type, icon)
+        const paymentMethodsVES = [
+            { id: 'pago-movil', name: 'Pago Móvil', type: 'ves', icon: 'fas fa-mobile-alt' }
+        ];
+
+        // Métodos de pago en USD (solo id, name, type, icon)
+        const paymentMethodsUSD = [
+            { id: 'binance', name: 'Binance', type: 'usd', icon: 'fab fa-bitcoin' },
+            { id: 'zinli', name: 'Zinli', type: 'usd', icon: 'fas fa-wallet' }
         ];
 
         let transactionDetails = null;
         const paymentForm = document.getElementById('payment-form');
+        const whatsappMessageContainer = document.getElementById('whatsapp-message-container');
+        const finalizeBtn = document.getElementById('finalize-recharge-btn');
 
         document.addEventListener('DOMContentLoaded', () => {
             const transactionSummaryDiv = document.getElementById('transaction-summary');
             const paymentMethodsDiv = document.getElementById('payment-methods');
             const paymentDetailsFormDiv = document.getElementById('payment-details-form');
-            const finalizeBtn = document.getElementById('finalize-recharge-btn');
+            
 
-            // 1. Cargar detalles de la transacción desde localStorage
             const storedDetails = localStorage.getItem('transactionDetails');
             if (storedDetails) {
                 transactionDetails = JSON.parse(storedDetails);
                 updateTransactionSummary();
-                updatePaymentMethods(); // Cargar métodos de pago según la moneda de la transacción
+                updatePaymentMethods();
+
+                if (transactionDetails.game === "TikTok") {
+                    whatsappMessageContainer.style.display = 'block';
+                    finalizeBtn.style.display = 'none'; // Ocultar el botón para TikTok
+                } else {
+                    whatsappMessageContainer.style.display = 'none';
+                    finalizeBtn.style.display = 'block'; // Mostrar el botón para otros juegos
+                }
+
             } else {
                 transactionSummaryDiv.innerHTML = '<p>No se encontraron detalles de la transacción. Por favor, regresa a la página de inicio.</p>';
-                finalizeBtn.disabled = true;
+                finalizeBtn.style.display = 'none';
+                whatsappMessageContainer.style.display = 'none';
             }
 
-            // 2. Función para actualizar el resumen de la transacción
             function updateTransactionSummary() {
                 if (!transactionDetails) return;
 
@@ -143,8 +165,6 @@
                 const displayCurrency = transactionDetails.currency;
                 
                 let otherCurrencyDisplay = '';
-                // Asegurarse de que transactionDetails.priceUSD y transactionDetails.priceVES existan
-                // y sean números válidos para mostrar la conversión.
                 if (transactionDetails.priceUSD && transactionDetails.priceVES) {
                     if (displayCurrency === 'VES') {
                         otherCurrencyDisplay = ` (~ $${parseFloat(transactionDetails.priceUSD).toFixed(2)} USD)`;
@@ -153,9 +173,6 @@
                     }
                 }
 
-                // Aquí, el playerId ya NO se captura en tiktok.html.
-                // Si lo necesitas, deberás agregarlo de nuevo en tiktok.html o cambiar el flujo.
-                // Por ahora, lo mostramos si existe, pero para TikTok, no lo hará.
                 const playerIdHtml = transactionDetails.playerId ? `<p><strong>ID de Jugador:</strong> ${transactionDetails.playerId}</p>` : '';
 
                 transactionSummaryDiv.innerHTML = `
@@ -167,9 +184,8 @@
                 `;
             }
 
-            // 3. Función para actualizar los métodos de pago disponibles (con radio buttons)
             function updatePaymentMethods() {
-                paymentMethodsDiv.innerHTML = ''; // Limpiar métodos existentes
+                paymentMethodsDiv.innerHTML = '';
                 const currentCurrency = transactionDetails.currency;
                 const methods = currentCurrency === 'VES' ? paymentMethodsVES : paymentMethodsUSD;
 
@@ -186,48 +202,49 @@
                     paymentMethodsDiv.appendChild(methodItem);
                 });
 
-                // Añadir listener para los cambios en los radio buttons
                 paymentMethodsDiv.querySelectorAll('input[name="paymentMethod"]').forEach(radio => {
                     radio.addEventListener('change', (event) => {
                         const selectedMethodId = event.target.value;
                         loadPaymentDetails(selectedMethodId);
                         checkFormValidity();
-
-                        // Actualizar la clase 'selected' visualmente
-                        paymentMethodsDiv.querySelectorAll('.payment-method-option').forEach(item => {
-                            item.classList.remove('selected');
-                        });
-                        event.target.closest('.payment-method-option').classList.add('selected');
                     });
                 });
                 checkFormValidity();
             }
 
-            // 4. Cargar los campos de detalle para el método de pago seleccionado
+            // MODIFICACIÓN CLAVE AQUÍ: loadPaymentDetails
             function loadPaymentDetails(methodId) {
-                let methodDetailsHtml = '';
-                // Buscar el método en los arrays
-                let method = paymentMethodsVES.find(m => m.id === methodId) || paymentMethodsUSD.find(m => m.id === methodId);
-                
-                if (method) {
-                    paymentDetailsFormDiv.innerHTML = method.details;
+                let methodHtml = paymentDetailsTemplates[methodId]; // Obtener el HTML completo del template
+
+                if (methodHtml) {
+                    paymentDetailsFormDiv.innerHTML = methodHtml;
+
+                    // Ocultar la sección de campos de referencia si es TikTok
+                    if (transactionDetails.game === "TikTok") {
+                        const fieldsContainer = paymentDetailsFormDiv.querySelector('.payment-fields-container');
+                        if (fieldsContainer) {
+                            fieldsContainer.style.display = 'none';
+                        }
+                    } else {
+                        // Para otros juegos, añadir listeners a los inputs requeridos
+                        paymentDetailsFormDiv.querySelectorAll('input[required]').forEach(input => {
+                            input.addEventListener('input', checkFormValidity);
+                        });
+                    }
                 } else {
                     paymentDetailsFormDiv.innerHTML = '<p>Selecciona un método de pago para ver los detalles.</p>';
                 }
-                checkFormValidity(); // Re-check validity after loading new fields
-                // Volver a añadir listener para los inputs cargados dinámicamente
-                paymentDetailsFormDiv.querySelectorAll('input[required]').forEach(input => {
-                    input.addEventListener('input', checkFormValidity);
-                });
+                checkFormValidity();
             }
 
-            // 5. Validar formulario y habilitar/deshabilitar botón
             function checkFormValidity() {
                 const selectedRadio = document.querySelector('input[name="paymentMethod"]:checked');
                 const isMethodSelected = selectedRadio !== null;
                 let areDetailsFilled = true;
 
-                if (isMethodSelected) {
+                if (transactionDetails && transactionDetails.game === "TikTok") {
+                    areDetailsFilled = true; // Para TikTok, la validez no depende de campos de referencia aquí
+                } else if (isMethodSelected) {
                     const requiredInputs = paymentDetailsFormDiv.querySelectorAll('input[required]');
                     requiredInputs.forEach(input => {
                         if (input.value.trim() === '') {
@@ -238,16 +255,23 @@
                     areDetailsFilled = false;
                 }
                 
-                finalizeBtn.disabled = !(isMethodSelected && areDetailsFilled);
+                if (transactionDetails.game !== "TikTok") {
+                    finalizeBtn.disabled = !(isMethodSelected && areDetailsFilled);
+                } else {
+                    finalizeBtn.disabled = true;
+                }
             }
 
-            // Escuchar cambios en los inputs dentro de paymentDetailsFormDiv
-            paymentDetailsFormDiv.addEventListener('input', checkFormValidity);
 
-
-            // 6. Manejar el envío del formulario
             document.getElementById('payment-form').addEventListener('submit', async (e) => {
                 e.preventDefault();
+
+                if (transactionDetails.game === "TikTok") {
+                    alert('¡Pago registrado! Por favor, envía la captura de tu comprobante y tus datos de TikTok a nuestro WhatsApp para procesar tu recarga.');
+                    localStorage.removeItem('transactionDetails');
+                    window.location.href = 'index.html';
+                    return;
+                }
 
                 const selectedRadio = document.querySelector('input[name="paymentMethod"]:checked');
                 if (!selectedRadio || !transactionDetails) {
@@ -258,30 +282,30 @@
                 const selectedMethodId = selectedRadio.value;
                 let paymentData = {
                     method: selectedMethodId,
-                    amount: parseFloat(transactionDetails.finalPrice), // Asegurar que es número
+                    amount: parseFloat(transactionDetails.finalPrice),
                     currency: transactionDetails.currency
                 };
 
-                // Recopilar datos específicos del formulario según el método de pago
-                if (selectedMethodId === 'pago-movil') {
-                    paymentData.phone = document.getElementById('pm-phone').value;
-                    paymentData.reference = document.getElementById('pm-reference').value;
-                } else if (selectedMethodId === 'binance') {
-                    paymentData.txid = document.getElementById('binance-txid').value;
-                } else if (selectedMethodId === 'zinli') {
-                    paymentData.reference = document.getElementById('zinli-reference').value;
-                } 
+                // Recopilar datos específicos del formulario SOLO si NO es TikTok
+                if (transactionDetails.game !== "TikTok") {
+                    if (selectedMethodId === 'pago-movil') {
+                        paymentData.phone = document.getElementById('pm-phone').value;
+                        paymentData.reference = document.getElementById('pm-reference').value;
+                    } else if (selectedMethodId === 'binance') {
+                        paymentData.txid = document.getElementById('binance-txid').value;
+                    } else if (selectedMethodId === 'zinli') {
+                        paymentData.reference = document.getElementById('zinli-reference').value;
+                    } 
+                }
                 
-                // Combinar los detalles de la transacción con los datos de pago
                 const fullTransactionData = {
                     ...transactionDetails,
                     payment: paymentData
                 };
 
-                console.log('Datos a enviar:', fullTransactionData); // Para depuración
+                console.log('Datos a enviar:', fullTransactionData);
 
                 try {
-                    // AQUÍ ESTÁ LA LLAMADA REAL A LA NETLIFY FUNCTION
                     const response = await fetch('/.netlify/functions/process-payment', {
                         method: 'POST',
                         headers: {
@@ -291,9 +315,9 @@
                     });
 
                     if (response.ok) {
-                        alert('¡Recarga solicitada con éxito! Por favor, envía la captura de tu pago a nuestro WhatsApp para que sea verificada y tu recarga sea completada.');
-                        localStorage.removeItem('transactionDetails'); // Limpiar datos de la transacción
-                        window.location.href = 'index.html'; // Redirigir al inicio
+                        alert('¡Recarga solicitada con éxito! Su recarga se hará efectiva una vez el pago sea verificado.');
+                        localStorage.removeItem('transactionDetails');
+                        window.location.href = 'index.html';
                     } else {
                         const errorData = await response.json();
                         alert(`Error al procesar la recarga: ${errorData.message || response.statusText}`);
