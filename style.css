@@ -24,6 +24,8 @@
     --item-selected-text: #ffffff; /* Aseguramos blanco para texto seleccionado */
     --item-selected-border: var(--primary-blue);
     --item-selected-shadow: 0 0 20px rgba(0, 123, 255, 0.6);
+
+    --white: #ffffff; /* Añadida para el check del package-item */
 }
 
 /* Estilos Generales */
@@ -37,7 +39,7 @@ body {
     display: flex;
     flex-direction: column;
     min-height: 100vh;
-    overflow-x: hidden;
+    overflow-x: hidden; /* Mantener para evitar scroll horizontal no deseado */
 }
 
 main {
@@ -46,6 +48,7 @@ main {
     max-width: 1000px; /* Ancho de contenido ajustado */
     margin: 25px auto;
     width: 100%;
+    box-sizing: border-box; /* Asegurar que el padding no desborde el 100% de width */
 }
 
 h1, h2, h3 {
@@ -67,10 +70,10 @@ p {
     text-align: center;
 }
 
-/* Header */
+/* Header - CORREGIDO PARA AJUSTE EN MÓVILES */
 header {
     background-color: var(--card-bg);
-    padding: 5px 25px; /* Ajustado el padding vertical para acomodar el logo más grande */
+    padding: 5px 25px;
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -80,6 +83,8 @@ header {
     position: sticky;
     top: 0;
     z-index: 1000;
+    width: 100%; /* Asegura que el header ocupe todo el ancho */
+    box-sizing: border-box; /* Incluye padding en el 100% del ancho */
 }
 
 .header-left .logo-img {
@@ -113,6 +118,7 @@ header {
     outline: none;
     width: 200px;
     transition: border-color 0.3s ease, box-shadow 0.3s ease;
+    box-sizing: border-box; /* Asegura que el padding no desborde el ancho */
 }
 
 .search-bar input:focus {
@@ -142,6 +148,7 @@ header {
     transition: all 0.3s ease;
     min-width: 120px; /* Asegura un ancho mínimo */
     justify-content: space-between; /* Espacia los elementos */
+    box-sizing: border-box; /* Incluye padding en el ancho */
 }
 
 .custom-currency-selector:hover {
@@ -399,6 +406,7 @@ section {
     font-size: 1em;
     outline: none;
     transition: border-color 0.3s ease, box-shadow 0.3s ease;
+    box-sizing: border-box; /* Incluye padding en el 100% del ancho */
 }
 
 .input-group input[type="text"]:focus,
@@ -449,6 +457,7 @@ section {
     min-height: 100px; /* Altura mínima para que sean visibles */
     visibility: visible !important; /* ¡FORZAMOS VISIBILIDAD! */
     opacity: 1 !important; /* ¡FORZAMOS OPACIDAD! */
+    box-sizing: border-box; /* Incluye padding en el ancho */
 }
 
 .package-item:hover {
@@ -524,6 +533,7 @@ section {
     justify-content: center;
     box-shadow: 0 3px 10px var(--shadow-dark);
     position: relative; /* Para el pseudo-elemento de check */
+    box-sizing: border-box; /* Incluye padding en el ancho */
 }
 
 .payment-method-option:hover {
@@ -592,7 +602,7 @@ section {
 }
 
 
-/* Footer */
+/* Footer - CORREGIDO PARA AJUSTE EN MÓVILES */
 footer {
     background-color: var(--card-bg);
     color: var(--secondary-text);
@@ -601,6 +611,8 @@ footer {
     margin-top: 30px;
     border-top: 1px solid var(--border-color);
     box-shadow: 0 -2px 8px var(--shadow-dark);
+    width: 100%; /* Asegura que el footer ocupe todo el ancho */
+    box-sizing: border-box; /* Incluye padding en el 100% del ancho */
 }
 
 .footer-content {
@@ -610,6 +622,8 @@ footer {
     flex-direction: column;
     align-items: center;
     gap: 12px;
+    padding: 0 20px; /* Añadido padding horizontal para que no se pegue a los bordes en escritorio/tablet */
+    box-sizing: border-box; /* Incluye padding en el ancho */
 }
 
 footer p {
@@ -622,6 +636,9 @@ footer p {
     gap: 18px;
     flex-wrap: wrap;
     justify-content: center;
+    width: 100%; /* Asegura que los enlaces ocupen el ancho completo de su contenedor */
+    max-width: 500px; /* Limita el ancho para que los enlaces no se separen demasiado */
+    margin: 0 auto; /* Centrar los enlaces dentro del footer-content */
 }
 
 .footer-links a {
@@ -669,6 +686,7 @@ footer p {
     margin: 40px auto;
     box-shadow: 0 5px 15px var(--shadow-dark);
     border: 1px solid var(--border-color);
+    box-sizing: border-box; /* Incluye padding en el ancho */
 }
 
 .form-container h2, .info-card h2, .payment-details-card h2 {
@@ -698,6 +716,7 @@ footer p {
     font-size: 1em;
     outline: none;
     transition: border-color 0.3s ease, box-shadow 0.3s ease;
+    box-sizing: border-box; /* Incluye padding en el ancho */
 }
 
 .form-group input:focus,
@@ -724,6 +743,7 @@ footer p {
     margin: 0 auto;
     box-shadow: 0 5px 15px var(--shadow-dark);
     border: 1px solid var(--border-color);
+    box-sizing: border-box; /* Incluye padding en el ancho */
 }
 
 .payment-details-card h2 {
@@ -871,22 +891,30 @@ footer p {
     header {
         flex-direction: column;
         gap: 15px;
-        padding: 15px;
+        padding: 15px; /* Ajuste para que tenga espacio a los lados */
     }
 
     .header-right {
         flex-direction: column;
         width: 100%;
+        max-width: 350px; /* Limitar el ancho máximo para centrar mejor en pantallas pequeñas */
+        margin: 0 auto; /* Centrar en pantallas pequeñas */
         gap: 12px;
     }
 
     .search-bar, .custom-currency-selector {
-        width: 100%;
-        max-width: 300px;
+        width: 100%; /* Asegurar que ocupen todo el ancho de su contenedor (.header-right) */
+        max-width: none; /* Eliminar el max-width anterior si causa problemas aquí */
     }
 
     .search-bar input {
         width: 100%;
+        padding: 10px 15px 10px 40px; /* Asegurar padding izquierdo para el ícono */
+        box-sizing: border-box; /* Para incluir padding en el 100% de ancho */
+    }
+
+    .custom-currency-selector {
+        min-width: unset; /* Permitir que se ajuste al contenido si es necesario */
     }
 
     .hero {
@@ -942,21 +970,27 @@ footer p {
         font-size: 1em;
     }
 
-    .payment-method-option label img,
-    .payment-method-option label i {
-        font-size: 2.2em;
-        height: 35px;
-        width: 35px;
+    .payment-method-option label img { /* Eliminado el ajuste de i, ya que no se aplica a iconos en sí */
+        height: 35px; /* Ajuste de tamaño para logos de pago en tablets */
+        width: auto;
+    }
+
+    .footer-content {
+        padding: 0 20px; /* Ajustar padding para tablets */
+    }
+    .footer-links {
+        gap: 15px; /* Reducir un poco el gap para tablets */
+        max-width: 400px; /* Ajustar el max-width para tablets */
     }
 }
 
 @media (max-width: 480px) {
     header {
-        padding: 12px;
+        padding: 10px 15px; /* Reducir padding horizontal en móviles muy pequeños */
     }
 
     .logo-img {
-        height: 75px; /* Logo más grande en móviles */
+        max-height: 60px; /* Logo más pequeño en móviles muy pequeños */
     }
 
     .hero h1 {
@@ -974,12 +1008,19 @@ footer p {
     }
 
     .game-grid {
-        grid-template-columns: 1fr;
+        grid-template-columns: 1fr; /* Una columna en móviles muy pequeños */
     }
 
+    footer {
+        padding: 15px; /* Reducir padding general del footer */
+    }
+    .footer-content {
+        padding: 0 15px; /* Asegurar padding en móviles muy pequeños */
+    }
     .footer-links {
         flex-direction: column;
-        gap: 10px;
+        gap: 8px; /* Reducir gap aún más cuando se apilan */
+        max-width: 250px; /* Un poco más estrecho para móviles muy pequeños */
     }
 
     .btn-primary {
@@ -990,6 +1031,7 @@ footer p {
 
     .form-container, .info-card, .payment-details-card {
         padding: 20px;
+        margin: 20px 15px; /* Ajustar margen para pantallas muy pequeñas */
     }
     
     .form-container h2, .info-card h2, .payment-details-card h2 {
@@ -999,5 +1041,6 @@ footer p {
     .package-item, .payment-method-option {
         font-size: 0.95em;
         padding: 12px;
+        min-height: unset; /* Permitir que la altura se ajuste al contenido */
     }
 }
