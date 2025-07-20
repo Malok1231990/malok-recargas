@@ -1,227 +1,287 @@
-<script src="script.js"></script>
-<script>
-    // Métodos de pago en VES
-    const paymentMethodsVES = [
-        { id: 'pago-movil', name: 'Pago Móvil', type: 'ves', icon: 'fas fa-mobile-alt', details: `
-            <p><strong>Paso 1:</strong> Realiza el Pago Móvil a los siguientes datos:</p>
-            <ul>
-                <li><strong>Banco:</strong> Banco de Mercantil (0105)</li>
-                <li><strong>Cédula/RIF:</strong> V-30258234</li>
-                <li><strong>Teléfono:</strong> 0412-6949631</li>
-            </ul>
-            <p><strong>Paso 2:</strong> Completa los siguientes campos para verificar tu pago:</p>
-            <label for="pm-phone">Número de Teléfono desde el que pagaste:</label>
-            <input type="text" id="pm-phone" name="pmPhone" placeholder="Ej: 04121234567" required>
-            <label for="pm-reference">Referencia del Pago Móvil:</label>
-            <input type="text" id="pm-reference" name="pmReference" placeholder="Ej: 12345678" required>
-        ` }
-    ];
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Detalles de Pago - Malok Recargas</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+</head>
+<body>
+    <header>
+        <div class="header-left">
+            <a href="index.html" class="logo-link">
+                <img src="images/malok_logo.png" alt="Malok Recargas Logo" class="logo-img">
+            </a>
+        </div>
+        <div class="header-right">
+            <div class="search-bar">
+                <input type="text" placeholder="Buscar juego...">
+                <i class="fas fa-search"></i>
+            </div>
+            </div>
+    </header>
 
-    // Métodos de pago en USD
-    const paymentMethodsUSD = [
-        { id: 'binance', name: 'Binance', type: 'usd', icon: 'fab fa-bitcoin', details: `
-            <p><strong>Paso 1:</strong> Realiza la transferencia a nuestra cuenta Binance (USDT BEP20) O (Binance Pay).</p>
-            <ul>
-                <p><strong>USDT (BEP20):</strong></p>
-                <li><strong>Direccion de Billetera BEP 20:</strong> 0xd8e6d7a73f6d30519793b8e67d76c5945730dc46</li>
-                <li><strong>Moneda:</strong> USDT (BEP20)</li>
-                <p><strong>Binance Pay:</strong></p>
-                <li><strong>ID Binance Pay:</strong> 91149377</li>
-            </ul>
-            <p><strong>Paso 2:</strong> Completa el siguiente campo con tu ID de transacción:</p>
-            <label for="binance-txid">ID de Transacción de Binance:</label>
-            <input type="text" id="binance-txid" name="binanceTxid" placeholder="Ej: abc123def456..." required>
-        ` },
-        { id: 'zinli', name: 'Zinli', type: 'usd', icon: 'fas fa-wallet', details: `
-            <p><strong>Paso 1:</strong> Transfiere el monto exacto a nuestra cuenta Zinli.</p>
-            <ul>
-                <li><strong>Usuario Zinli:</strong> miladelarocaedwar04@gmail.com</li>
-            </ul>
-            <p><strong>Paso 2:</strong> Completa el siguiente campo con la referencia de tu pago en Zinli:</p>
-            <label for="zinli-reference">Referencia de Pago Zinli:</label>
-            <input type="text" id="zinli-reference" name="zinliReference" placeholder="Ej: #123456" required>
-        ` }
-    ];
+    <main class="payment-main">
+        <div class="form-container">
+            <h2>Confirmar Recarga y Seleccionar Método de Pago</h2>
+            <div id="transaction-summary" class="transaction-summary">
+                </div>
 
-    let transactionDetails = null;
-    const paymentForm = document.getElementById('payment-form');
+            <form id="payment-form">
+                <div class="form-group">
+                    <label>Método de Pago:</label>
+                    <div class="payment-methods" id="payment-methods">
+                        </div>
+                </div>
 
-    document.addEventListener('DOMContentLoaded', () => {
-        const transactionSummaryDiv = document.getElementById('transaction-summary');
-        const paymentMethodsDiv = document.getElementById('payment-methods');
-        const paymentDetailsFormDiv = document.getElementById('payment-details-form');
-        const finalizeBtn = document.getElementById('finalize-recharge-btn');
+                <div id="payment-details-form" class="payment-details-form">
+                    </div>
+                
+                <button type="submit" class="btn-primary" id="finalize-recharge-btn" disabled>Finalizar Recarga</button>
+            </form>
+        </div>
+    </main>
 
-        // 1. Cargar detalles de la transacción desde localStorage
-        const storedDetails = localStorage.getItem('transactionDetails');
-        if (storedDetails) {
-            transactionDetails = JSON.parse(storedDetails);
-            updateTransactionSummary();
-            updatePaymentMethods(); // Cargar métodos de pago según la moneda de la transacción
-        } else {
-            transactionSummaryDiv.innerHTML = '<p>No se encontraron detalles de la transacción. Por favor, regresa a la página de inicio.</p>';
-            finalizeBtn.disabled = true;
-        }
+    <footer>
+        <div class="footer-content">
+            <p>&copy; 2025 Malok Recargas. Todos los derechos reservados.</p>
+            <div class="footer-links">
+                <a href="privacy.html">Políticas de Privacidad</a>
+                <a href="terms.html">Términos de Servicio</a>
+            </div>
+            <a href="https://wa.me/584126949631" target="_blank" class="whatsapp-link">
+                <i class="fab fa-whatsapp"></i> Contáctanos por WhatsApp
+            </a>
+        </div>
+    </footer>
 
-        // 2. Función para actualizar el resumen de la transacción
-        function updateTransactionSummary() {
-            if (!transactionDetails) return;
+    <script src="script.js"></script>
+    <script>
+        // Métodos de pago en VES
+        const paymentMethodsVES = [
+            { id: 'pago-movil', name: 'Pago Móvil', type: 'ves', icon: 'fas fa-mobile-alt', details: `
+                <p><strong>Paso 1:</strong> Realiza el Pago Móvil a los siguientes datos:</p>
+                <ul>
+                    <li><strong>Banco:</strong> Banco de Mercantil (0105)</li>
+                    <li><strong>Cédula/RIF:</strong> V-30258234</li>
+                    <li><strong>Teléfono:</strong> 0412-6949631</li>
+                </ul>
+                <p><strong>Paso 2:</strong> Completa los siguientes campos para verificar tu pago:</p>
+                <label for="pm-phone">Número de Teléfono desde el que pagaste:</label>
+                <input type="text" id="pm-phone" name="pmPhone" placeholder="Ej: 04121234567" required>
+                <label for="pm-reference">Referencia del Pago Móvil:</label>
+                <input type="text" id="pm-reference" name="pmReference" placeholder="Ej: 12345678" required>
+            ` }
+        ];
 
-            const displayAmount = parseFloat(transactionDetails.finalPrice);
-            const displayCurrency = transactionDetails.currency;
-            
-            let otherCurrencyDisplay = '';
-            // Asegurarse de que transactionDetails.priceUSD y transactionDetails.priceVES existan
-            // y sean números válidos para mostrar la conversión.
-            if (transactionDetails.priceUSD && transactionDetails.priceVES) {
-                if (displayCurrency === 'VES') {
-                    otherCurrencyDisplay = ` (~ $${parseFloat(transactionDetails.priceUSD).toFixed(2)} USD)`;
-                } else if (displayCurrency === 'USD') {
-                    otherCurrencyDisplay = ` (~ Bs. ${parseFloat(transactionDetails.priceVES).toFixed(2)} VES)`;
-                }
-            }
+        // Métodos de pago en USD
+        const paymentMethodsUSD = [
+            { id: 'binance', name: 'Binance', type: 'usd', icon: 'fab fa-bitcoin', details: `
+                <p><strong>Paso 1:</strong> Realiza la transferencia a nuestra cuenta Binance (USDT BEP20) O (Binance Pay).</p>
+                <ul>
+                    <p><strong>USDT (BEP20):</strong></p>
+                    <li><strong>Direccion de Billetera BEP 20:</strong> 0xd8e6d7a73f6d30519793b8e67d76c5945730dc46</li>
+                    <li><strong>Moneda:</strong> USDT (BEP20)</li>
+                    <p><strong>Binance Pay:</strong></p>
+                    <li><strong>ID Binance Pay:</strong> 91149377</li>
+                </ul>
+                <p><strong>Paso 2:</strong> Completa el siguiente campo con tu ID de transacción:</p>
+                <label for="binance-txid">ID de Transacción de Binance:</label>
+                <input type="text" id="binance-txid" name="binanceTxid" placeholder="Ej: abc123def456..." required>
+            ` },
+            { id: 'zinli', name: 'Zinli', type: 'usd', icon: 'fas fa-wallet', details: `
+                <p><strong>Paso 1:</strong> Transfiere el monto exacto a nuestra cuenta Zinli.</p>
+                <ul>
+                    <li><strong>Usuario Zinli:</strong> miladelarocaedwar04@gmail.com</li>
+                </ul>
+                <p><strong>Paso 2:</strong> Completa el siguiente campo con la referencia de tu pago en Zinli:</p>
+                <label for="zinli-reference">Referencia de Pago Zinli:</label>
+                <input type="text" id="zinli-reference" name="zinliReference" placeholder="Ej: #123456" required>
+            ` }
+        ];
 
-            transactionSummaryDiv.innerHTML = `
-                <p><strong>Juego:</strong> ${transactionDetails.game}</p>
-                <p><strong>ID de Jugador:</strong> ${transactionDetails.playerId}</p>
-                <p><strong>Plan Seleccionado:</strong> ${transactionDetails.package}</p>
-                <p><strong>Total a Pagar:</strong> <span class="amount">${displayCurrency === 'VES' ? 'Bs.' : '$'} ${displayAmount.toFixed(2)} ${displayCurrency}</span>${otherCurrencyDisplay}</p>
-                <p>Por favor, realiza el pago por el monto exacto y selecciona tu método a continuación.</p>
-            `;
-        }
+        let transactionDetails = null;
+        const paymentForm = document.getElementById('payment-form');
 
-        // 3. Función para actualizar los métodos de pago disponibles (con radio buttons)
-        function updatePaymentMethods() {
-            paymentMethodsDiv.innerHTML = ''; // Limpiar métodos existentes
-            const currentCurrency = transactionDetails.currency;
-            const methods = currentCurrency === 'VES' ? paymentMethodsVES : paymentMethodsUSD;
+        document.addEventListener('DOMContentLoaded', () => {
+            const transactionSummaryDiv = document.getElementById('transaction-summary');
+            const paymentMethodsDiv = document.getElementById('payment-methods');
+            const paymentDetailsFormDiv = document.getElementById('payment-details-form');
+            const finalizeBtn = document.getElementById('finalize-recharge-btn');
 
-            methods.forEach(method => {
-                const methodItem = document.createElement('div');
-                methodItem.classList.add('payment-method-option');
-                methodItem.innerHTML = `
-                    <input type="radio" id="method-${method.id}" name="paymentMethod" value="${method.id}" data-type="${method.type}">
-                    <label for="method-${method.id}">
-                        <i class="${method.icon}"></i>
-                        <span>${method.name}</span>
-                    </label>
-                `;
-                paymentMethodsDiv.appendChild(methodItem);
-            });
-
-            // Añadir listener para los cambios en los radio buttons
-            paymentMethodsDiv.querySelectorAll('input[name="paymentMethod"]').forEach(radio => {
-                radio.addEventListener('change', (event) => {
-                    const selectedMethodId = event.target.value;
-                    loadPaymentDetails(selectedMethodId);
-                    checkFormValidity();
-
-                    // Actualizar la clase 'selected' visualmente
-                    paymentMethodsDiv.querySelectorAll('.payment-method-option').forEach(item => {
-                        item.classList.remove('selected');
-                    });
-                    event.target.closest('.payment-method-option').classList.add('selected');
-                });
-            });
-            checkFormValidity();
-        }
-
-        // 4. Cargar los campos de detalle para el método de pago seleccionado
-        function loadPaymentDetails(methodId) {
-            let methodDetailsHtml = '';
-            // Buscar el método en los arrays
-            let method = paymentMethodsVES.find(m => m.id === methodId) || paymentMethodsUSD.find(m => m.id === methodId);
-            
-            if (method) {
-                paymentDetailsFormDiv.innerHTML = method.details;
+            // 1. Cargar detalles de la transacción desde localStorage
+            const storedDetails = localStorage.getItem('transactionDetails');
+            if (storedDetails) {
+                transactionDetails = JSON.parse(storedDetails);
+                updateTransactionSummary();
+                updatePaymentMethods(); // Cargar métodos de pago según la moneda de la transacción
             } else {
-                paymentDetailsFormDiv.innerHTML = '<p>Selecciona un método de pago para ver los detalles.</p>';
+                transactionSummaryDiv.innerHTML = '<p>No se encontraron detalles de la transacción. Por favor, regresa a la página de inicio.</p>';
+                finalizeBtn.disabled = true;
             }
-            checkFormValidity();
-        }
 
-        // 5. Validar formulario y habilitar/deshabilitar botón
-        function checkFormValidity() {
-            const selectedRadio = document.querySelector('input[name="paymentMethod"]:checked');
-            const isMethodSelected = selectedRadio !== null;
-            let areDetailsFilled = true;
+            // 2. Función para actualizar el resumen de la transacción
+            function updateTransactionSummary() {
+                if (!transactionDetails) return;
 
-            if (isMethodSelected) {
-                const requiredInputs = paymentDetailsFormDiv.querySelectorAll('input[required]');
-                requiredInputs.forEach(input => {
-                    if (input.value.trim() === '') {
-                        areDetailsFilled = false;
+                const displayAmount = parseFloat(transactionDetails.finalPrice);
+                const displayCurrency = transactionDetails.currency;
+                
+                let otherCurrencyDisplay = '';
+                // Asegurarse de que transactionDetails.priceUSD y transactionDetails.priceVES existan
+                // y sean números válidos para mostrar la conversión.
+                if (transactionDetails.priceUSD && transactionDetails.priceVES) {
+                    if (displayCurrency === 'VES') {
+                        otherCurrencyDisplay = ` (~ $${parseFloat(transactionDetails.priceUSD).toFixed(2)} USD)`;
+                    } else if (displayCurrency === 'USD') {
+                        otherCurrencyDisplay = ` (~ Bs. ${parseFloat(transactionDetails.priceVES).toFixed(2)} VES)`;
                     }
-                });
-            } else {
-                areDetailsFilled = false;
-            }
-            
-            finalizeBtn.disabled = !(isMethodSelected && areDetailsFilled);
-        }
-
-        // Escuchar cambios en los inputs dentro de paymentDetailsFormDiv
-        paymentDetailsFormDiv.addEventListener('input', checkFormValidity);
-
-
-        // 6. Manejar el envío del formulario
-        document.getElementById('payment-form').addEventListener('submit', async (e) => {
-            e.preventDefault();
-
-            const selectedRadio = document.querySelector('input[name="paymentMethod"]:checked');
-            if (!selectedRadio || !transactionDetails) {
-                alert('Por favor, selecciona un método de pago y asegúrate de que los detalles de la transacción estén cargados.');
-                return;
-            }
-
-            const selectedMethodId = selectedRadio.value;
-            let paymentData = {
-                method: selectedMethodId,
-                amount: parseFloat(transactionDetails.finalPrice), // Asegurar que es número
-                currency: transactionDetails.currency
-            };
-
-            // Recopilar datos específicos del formulario según el método de pago
-            if (selectedMethodId === 'pago-movil') {
-                paymentData.phone = document.getElementById('pm-phone').value;
-                paymentData.reference = document.getElementById('pm-reference').value;
-            } else if (selectedMethodId === 'binance') {
-                paymentData.txid = document.getElementById('binance-txid').value;
-            } else if (selectedMethodId === 'zinli') {
-                paymentData.reference = document.getElementById('zinli-reference').value;
-            } 
-            
-            // Combinar los detalles de la transacción con los datos de pago
-            const fullTransactionData = {
-                ...transactionDetails,
-                payment: paymentData
-            };
-
-            console.log('Datos a enviar:', fullTransactionData); // Para depuración
-
-            try {
-                // AQUÍ ESTÁ LA LLAMADA REAL A LA NETLIFY FUNCTION
-                const response = await fetch('/.netlify/functions/process-payment', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(fullTransactionData)
-                });
-
-                if (response.ok) {
-                    alert('¡Recarga solicitada con éxito! Nos pondremos en contacto contigo pronto.');
-                    localStorage.removeItem('transactionDetails'); // Limpiar datos de la transacción
-                    window.location.href = 'index.html'; // Redirigir al inicio
-                } else {
-                    const errorData = await response.json();
-                    alert(`Error al procesar la recarga: ${errorData.message || response.statusText}`);
-                    console.error('Server error:', errorData);
                 }
-            } catch (error) {
-                alert('Hubo un problema de conexión. Por favor, inténtalo de nuevo más tarde.');
-                console.error('Network or client error:', error);
+
+                transactionSummaryDiv.innerHTML = `
+                    <p><strong>Juego:</strong> ${transactionDetails.game}</p>
+                    <p><strong>ID de Jugador:</strong> ${transactionDetails.playerId}</p>
+                    <p><strong>Plan Seleccionado:</strong> ${transactionDetails.package}</p>
+                    <p><strong>Total a Pagar:</strong> <span class="amount">${displayCurrency === 'VES' ? 'Bs.' : '$'} ${displayAmount.toFixed(2)} ${displayCurrency}</span>${otherCurrencyDisplay}</p>
+                    <p>Por favor, realiza el pago por el monto exacto y selecciona tu método a continuación.</p>
+                `;
             }
+
+            // 3. Función para actualizar los métodos de pago disponibles (con radio buttons)
+            function updatePaymentMethods() {
+                paymentMethodsDiv.innerHTML = ''; // Limpiar métodos existentes
+                const currentCurrency = transactionDetails.currency;
+                const methods = currentCurrency === 'VES' ? paymentMethodsVES : paymentMethodsUSD;
+
+                methods.forEach(method => {
+                    const methodItem = document.createElement('div');
+                    methodItem.classList.add('payment-method-option');
+                    methodItem.innerHTML = `
+                        <input type="radio" id="method-${method.id}" name="paymentMethod" value="${method.id}" data-type="${method.type}">
+                        <label for="method-${method.id}">
+                            <i class="${method.icon}"></i>
+                            <span>${method.name}</span>
+                        </label>
+                    `;
+                    paymentMethodsDiv.appendChild(methodItem);
+                });
+
+                // Añadir listener para los cambios en los radio buttons
+                paymentMethodsDiv.querySelectorAll('input[name="paymentMethod"]').forEach(radio => {
+                    radio.addEventListener('change', (event) => {
+                        const selectedMethodId = event.target.value;
+                        loadPaymentDetails(selectedMethodId);
+                        checkFormValidity();
+
+                        // Actualizar la clase 'selected' visualmente
+                        paymentMethodsDiv.querySelectorAll('.payment-method-option').forEach(item => {
+                            item.classList.remove('selected');
+                        });
+                        event.target.closest('.payment-method-option').classList.add('selected');
+                    });
+                });
+                checkFormValidity();
+            }
+
+            // 4. Cargar los campos de detalle para el método de pago seleccionado
+            function loadPaymentDetails(methodId) {
+                let methodDetailsHtml = '';
+                // Buscar el método en los arrays
+                let method = paymentMethodsVES.find(m => m.id === methodId) || paymentMethodsUSD.find(m => m.id === methodId);
+                
+                if (method) {
+                    paymentDetailsFormDiv.innerHTML = method.details;
+                } else {
+                    paymentDetailsFormDiv.innerHTML = '<p>Selecciona un método de pago para ver los detalles.</p>';
+                }
+                checkFormValidity();
+            }
+
+            // 5. Validar formulario y habilitar/deshabilitar botón
+            function checkFormValidity() {
+                const selectedRadio = document.querySelector('input[name="paymentMethod"]:checked');
+                const isMethodSelected = selectedRadio !== null;
+                let areDetailsFilled = true;
+
+                if (isMethodSelected) {
+                    const requiredInputs = paymentDetailsFormDiv.querySelectorAll('input[required]');
+                    requiredInputs.forEach(input => {
+                        if (input.value.trim() === '') {
+                            areDetailsFilled = false;
+                        }
+                    });
+                } else {
+                    areDetailsFilled = false;
+                }
+                
+                finalizeBtn.disabled = !(isMethodSelected && areDetailsFilled);
+            }
+
+            // Escuchar cambios en los inputs dentro de paymentDetailsFormDiv
+            paymentDetailsFormDiv.addEventListener('input', checkFormValidity);
+
+
+            // 6. Manejar el envío del formulario
+            document.getElementById('payment-form').addEventListener('submit', async (e) => {
+                e.preventDefault();
+
+                const selectedRadio = document.querySelector('input[name="paymentMethod"]:checked');
+                if (!selectedRadio || !transactionDetails) {
+                    alert('Por favor, selecciona un método de pago y asegúrate de que los detalles de la transacción estén cargados.');
+                    return;
+                }
+
+                const selectedMethodId = selectedRadio.value;
+                let paymentData = {
+                    method: selectedMethodId,
+                    amount: parseFloat(transactionDetails.finalPrice), // Asegurar que es número
+                    currency: transactionDetails.currency
+                };
+
+                // Recopilar datos específicos del formulario según el método de pago
+                if (selectedMethodId === 'pago-movil') {
+                    paymentData.phone = document.getElementById('pm-phone').value;
+                    paymentData.reference = document.getElementById('pm-reference').value;
+                } else if (selectedMethodId === 'binance') {
+                    paymentData.txid = document.getElementById('binance-txid').value;
+                } else if (selectedMethodId === 'zinli') {
+                    paymentData.reference = document.getElementById('zinli-reference').value;
+                } 
+                
+                // Combinar los detalles de la transacción con los datos de pago
+                const fullTransactionData = {
+                    ...transactionDetails,
+                    payment: paymentData
+                };
+
+                console.log('Datos a enviar:', fullTransactionData); // Para depuración
+
+                try {
+                    // AQUÍ ESTÁ LA LLAMADA REAL A LA NETLIFY FUNCTION
+                    const response = await fetch('/.netlify/functions/process-payment', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify(fullTransactionData)
+                    });
+
+                    if (response.ok) {
+                        alert('¡Recarga solicitada con éxito! Nos pondremos en contacto contigo pronto.');
+                        localStorage.removeItem('transactionDetails'); // Limpiar datos de la transacción
+                        window.location.href = 'index.html'; // Redirigir al inicio
+                    } else {
+                        const errorData = await response.json();
+                        alert(`Error al procesar la recarga: ${errorData.message || response.statusText}`);
+                        console.error('Server error:', errorData);
+                    }
+                } catch (error) {
+                    alert('Hubo un problema de conexión. Por favor, inténtalo de nuevo más tarde.');
+                    console.error('Network or client error:', error);
+                }
+            });
         });
-    });
-</script>
+    </script>
+</body>
+</html>
