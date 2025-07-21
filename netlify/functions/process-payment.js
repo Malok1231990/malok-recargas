@@ -19,6 +19,10 @@ exports.handler = async function(event, context) {
 
     const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
     const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID;
+    // URL de tu nueva función de Netlify para manejar webhooks de Telegram
+    // Necesitarás reemplazar esto con la URL real de tu función de webhook
+    const TELEGRAM_WEBHOOK_BASE_URL = process.env.TELEGRAM_WEBHOOK_BASE_URL || 'https://TU_SITIO.netlify.app/.netlify/functions/telegram-webhook';
+
 
     if (!TELEGRAM_BOT_TOKEN || !TELEGRAM_CHAT_ID) {
         console.error("Missing Telegram Bot Token or Chat ID environment variables.");
@@ -51,11 +55,9 @@ exports.handler = async function(event, context) {
                 });
             }
 
-            // MODIFICACIÓN CRÍTICA AQUÍ: Leer los campos directamente de 'fields'
-            // 'fields' contendrá arrays, por lo que tomamos el primer elemento
             const game = fields.game ? fields.game[0] : 'N/A';
             const playerId = fields.playerId ? fields.playerId[0] : 'N/A';
-            const packageName = fields.package ? fields.package[0] : 'N/A'; // 'package' es una palabra reservada, por eso se usó 'packageName' antes
+            const packageName = fields.package ? fields.package[0] : 'N/A';
             const finalPrice = fields.finalPrice ? parseFloat(fields.finalPrice[0]) : 0;
             const currency = fields.currency ? fields.currency[0] : 'N/A';
             const paymentMethod = fields.paymentMethod ? fields.paymentMethod[0] : 'N/A';
@@ -69,7 +71,11 @@ exports.handler = async function(event, context) {
                 });
             }
 
+            // --- NUEVO: Generar número de transacción único ---
+            const transactionId = `TXN-${Date.now()}-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
+
             let captionText = `✨ Nueva Recarga Malok Recargas ✨\n\n`;
+            captionText += `🆔 Transacción ID: *${transactionId}*\n`; // Añadido el ID de transacción
             captionText += `🎮 Juego: *${game}*\n`;
             captionText += `👤 ID de Jugador: *${playerId}*\n`;
             captionText += `📦 Paquete: *${packageName}*\n`;
@@ -77,6 +83,13 @@ exports.handler = async function(event, context) {
             captionText += `💳 Método de Pago: *${paymentMethod.replace('-', ' ').toUpperCase()}*\n`;
 
             const telegramApiUrl = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/`;
+
+            // --- NUEVO: Configuración del teclado inline ---
+            const inlineKeyboard = {
+                inline_keyboard: [
+                    [{ text: "✅ Marcar como Realizada", callback_data: `mark_done_${transactionId}` }]
+                ]
+            };
 
             try {
                 if (game === "TikTok") {
@@ -96,6 +109,7 @@ exports.handler = async function(event, context) {
                         filename: paymentReceiptFile.originalFilename,
                         contentType: paymentReceiptFile.mimetype,
                     });
+                    telegramFormData.append('reply_markup', JSON.stringify(inlineKeyboard)); // Añadir el teclado inline
 
                     await axios.post(`${telegramApiUrl}sendPhoto`, telegramFormData, {
                         headers: telegramFormData.getHeaders(),
