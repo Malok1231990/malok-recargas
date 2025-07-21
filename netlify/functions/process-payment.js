@@ -1,6 +1,6 @@
 // netlify/functions/process-payment.js
 const axios = require('axios');
-const formidable = require('formidable'); // Para parsear FormData con archivos
+const { Formidable } = require('formidable'); // ¡CAMBIO AQUÍ! Importa Formidable con F mayúscula y entre llaves
 const nodemailer = require('nodemailer'); // Para enviar correos
 const { createClient } = require('@supabase/supabase-js'); // Importa Supabase
 
@@ -26,7 +26,7 @@ exports.handler = async function(event, context) {
 
     try {
         if (event.headers['content-type'] && event.headers['content-type'].includes('multipart/form-data')) {
-            const form = formidable({}); 
+            const form = new Formidable({}); // ¡CAMBIO AQUÍ! Ahora se usa 'new Formidable()'
             
             const { fields, files } = await new Promise((resolve, reject) => {
                 form.parse(req, (err, fields, files) => {
@@ -38,8 +38,9 @@ exports.handler = async function(event, context) {
                 });
             });
 
+            // formidable V3+ devuelve campos y archivos como arrays. Ajustar para extraer el primer valor.
             data = Object.fromEntries(Object.entries(fields).map(([key, value]) => [key, Array.isArray(value) ? value[0] : value]));
-            paymentReceiptFile = files['paymentReceipt'] ? files['paymentReceipt'][0] : null;
+            paymentReceiptFile = files['paymentReceipt'] ? files['paymentReceipt'][0] : null; // Acceder al primer elemento del array de archivos
 
         } else if (event.headers['content-type'] && event.headers['content-type'].includes('application/json')) {
             data = JSON.parse(event.body);
@@ -64,11 +65,11 @@ exports.handler = async function(event, context) {
     const SMTP_PASS = process.env.SMTP_PASS;
     const SENDER_EMAIL = process.env.SENDER_EMAIL || SMTP_USER;
 
-    if (!TELEGRAM_BOT_TOKEN || !TELEGRAM_CHAT_ID || !SMTP_HOST || !SMTP_PORT || !SMTP_USER || !SMTP_PASS || !supabaseUrl || !supabaseServiceKey) {
-        console.error("Faltan variables de entorno requeridas.");
+    if (!TELEGRAM_BOT_TOKEN || !TELEGRAM_CHAT_ID || !SMTP_HOST || !parseInt(SMTP_PORT, 10) || !SMTP_USER || !SMTP_PASS || !supabaseUrl || !supabaseServiceKey) {
+        console.error("Faltan variables de entorno requeridas o SMTP_PORT no es un número válido.");
         return {
             statusCode: 500,
-            body: JSON.stringify({ message: "Error de configuración del servidor: Faltan credenciales." })
+            body: JSON.stringify({ message: "Error de configuración del servidor: Faltan credenciales o configuración inválida." })
         };
     }
 
