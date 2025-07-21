@@ -1,172 +1,202 @@
 // netlify/functions/telegram-webhook.js
 const axios = require('axios');
-const nodemailer = require('nodemailer'); // <-- ¡NUEVO!
+const { createClient } = require('@supabase/supabase-js'); // Importa Supabase
+const nodemailer = require('nodemailer'); // También Nodemailer aquí para el segundo correo
 
 exports.handler = async function(event, context) {
+    // Solo procesar peticiones POST
     if (event.httpMethod !== "POST") {
         return { statusCode: 405, body: "Method Not Allowed" };
     }
 
+    // Asegúrate de que las variables de entorno estén configuradas
     const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
-    const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID;
-    // <-- ¡NUEVAS VARIABLES DE ENTORNO PARA GMAIL!
-    const GMAIL_USER = process.env.GMAIL_USER; // Tu dirección de correo Gmail
-    const GMAIL_APP_PASS = process.env.GMAIL_APP_PASS; // La contraseña de aplicación de Gmail
-    // FIN NUEVAS VARIABLES -->
+    const supabaseUrl = process.env.SUPABASE_URL;
+    const supabaseServiceKey = process.env.SUPABASE_SERVICE_KEY;
+    const SMTP_HOST = process.env.SMTP_HOST;
+    const SMTP_PORT = process.env.SMTP_PORT;
+    const SMTP_USER = process.env.SMTP_USER;
+    const SMTP_PASS = process.env.SMTP_PASS;
+    const SENDER_EMAIL = process.env.SENDER_EMAIL || SMTP_USER;
 
-    if (!TELEGRAM_BOT_TOKEN || !TELEGRAM_CHAT_ID || !GMAIL_USER || !GMAIL_APP_PASS) {
-        console.error("Missing environment variables for Telegram or Email.");
+    if (!TELEGRAM_BOT_TOKEN || !supabaseUrl || !supabaseServiceKey || !SMTP_HOST || !SMTP_PORT || !SMTP_USER || !SMTP_PASS) {
+        console.error("Faltan variables de entorno requeridas en telegram-webhook.");
         return {
             statusCode: 500,
-            body: JSON.stringify({ message: "Server configuration error. Missing credentials." })
+            body: JSON.stringify({ message: "Error de configuración del servidor." })
         };
     }
 
-    // <-- ¡NUEVO: Configuración del transportador de Nodemailer!
-    const transporter = nodemailer.createTransport({
-        service: 'gmail',
-        auth: {
-            user: GMAIL_USER,
-            pass: GMAIL_APP_PASS
-        }
-    });
-    // FIN NUEVO -->
+    // Inicializa el cliente de Supabase
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
+    // Parsea el cuerpo del evento de Telegram
+    let body;
     try {
-        const update = JSON.parse(event.body);
+        body = JSON.parse(event.body);
+    } catch (e) {
+        console.error("Error al parsear el cuerpo del evento:", e);
+        return { statusCode: 400, body: "Bad Request: Invalid JSON" };
+    }
 
-        if (update.callback_query) {
-            const callbackQuery = update.callback_query;
-            const data = callbackQuery.data;
-            const message = callbackQuery.message;
-            const from = callbackQuery.from;
+    // Verifica si es un callback_query (un clic en un botón)
+    if (body.callback_query) {
+        const callbackQuery = body.callback_query;
+        const chatId = callbackQuery.message.chat.id;
+        const messageId = callbackQuery.message.message_id;
+        const callbackData = callbackQuery.data;
+        const fromUser = callbackQuery.from;
+        const userName = fromUser.first_name || 'Alguien';
 
+        console.log(`Callback recibido: ${callbackData} del usuario ${userName} en el chat ${chatId}`);
+
+        // Responder al callback query para que el botón muestre un feedback de "cargando" y no se quede girando
+        try {
             await axios.post(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/answerCallbackQuery`, {
                 callback_query_id: callbackQuery.id,
-                text: "Marcado como realizado.",
+                text: 'Procesando...',
                 show_alert: false
             });
-
-            if (data.startsWith('mark_done_')) {
-                const parts = data.split('_');
-                const transactionId = parts[2];
-                // El email del cliente se pasa desde el callback_data
-                const clientEmail = parts[3] === 'null' ? null : parts[3];
-
-                let newCaptionText;
-                let messageType = 'text';
-
-                if (message.caption) {
-                    newCaptionText = message.caption;
-                    messageType = 'photo';
-                } else if (message.text) {
-                    newCaptionText = message.text;
-                } else {
-                    console.warn("Unsupported message type for editing:", message);
-                    return { statusCode: 200, body: "Unsupported message type." };
-                }
-
-                const userWhoMarked = from.username ? `@${from.username}` : from.first_name || 'Alguien';
-                const timestamp = new Date().toLocaleString('es-VE', { timeZone: 'America/Caracas' });
-                const statusLine = `\n\n*✅ REALIZADA por ${userWhoMarked} el ${timestamp}*`;
-
-                if (!newCaptionText.includes('✅ REALIZADA')) {
-                    newCaptionText += statusLine;
-                }
-
-                // <-- ¡NUEVO: Generar y enviar factura virtual por correo electrónico con Nodemailer!
-                if (clientEmail) {
-                    const originalMessageContent = messageType === 'photo' ? message.caption : message.text;
-                    // Extraer los datos de la transacción del mensaje de Telegram
-                    const gameMatch = originalMessageContent.match(/🎮 Juego: \*(.*?)\*/);
-                    const playerIdMatch = originalMessageContent.match(/👤 ID de Jugador: \*(.*?)\*/);
-                    const packageMatch = originalMessageContent.match(/📦 Paquete: \*(.*?)\*/);
-                    const finalPriceMatch = originalMessageContent.match(/💰 Total a Pagar: \*(.*?)\s(.*?)\*/);
-                    const paymentMethodMatch = originalMessageContent.match(/💳 Método de Pago: \*(.*?)\*/);
-                    const clientWhatsappMatch = originalMessageContent.match(/📞 WhatsApp Cliente: \*(.*?)\*/); // Obtener WhatsApp si está disponible
-
-                    const invoiceGame = gameMatch ? gameMatch[1] : 'N/A';
-                    const invoicePlayerId = playerIdMatch ? playerIdMatch[1] : 'N/A';
-                    const invoicePackage = packageMatch ? packageMatch[1] : 'N/A';
-                    const invoiceFinalPrice = finalPriceMatch ? finalPriceMatch[1] : 'N/A';
-                    const invoiceCurrency = finalPriceMatch ? finalPriceMatch[2] : 'N/A';
-                    const invoicePaymentMethod = paymentMethodMatch ? paymentMethodMatch[1] : 'N/A';
-                    const invoiceWhatsapp = clientWhatsappMatch ? clientWhatsappMatch[1] : 'N/A';
-
-
-                    const mailOptions = {
-                        from: GMAIL_USER, // Tu dirección de Gmail
-                        to: clientEmail,
-                        subject: `Malok Recargas: ¡Bravoooo tu recarga ha sido exitosa! (${transactionId})`,
-                        text: `¡Bravoooo tu recarga ha sido exitosa! 🎉\n\nAquí tienes tu factura virtual:\n\n` +
-                                        `--- Factura Virtual ---\n` +
-                                        `🆔 Transacción ID: ${transactionId}\n` +
-                                        `🗓️ Fecha/Hora Recarga: ${timestamp}\n` +
-                                        `📧 Correo Cliente: ${clientEmail}\n` +
-                                        `📞 WhatsApp Cliente: ${invoiceWhatsapp}\n` +
-                                        `🎮 Juego: ${invoiceGame}\n` +
-                                        `👤 ID de Cuenta/Jugador: ${invoicePlayerId}\n` +
-                                        `📦 Paquete Recargado: ${invoicePackage}\n` +
-                                        `💰 Monto Pagado: ${invoiceFinalPrice} ${invoiceCurrency}\n` +
-                                        `💳 Método de Pago: ${invoicePaymentMethod}\n\n` +
-                                        `¡Gracias por preferir Malok Recargas! 😊`,
-                        html: `<p>¡Bravoooo tu recarga ha sido exitosa! 🎉</p>
-                                        <p>Aquí tienes tu factura virtual:</p>
-                                        <hr>
-                                        <h3>--- Factura Virtual ---</h3>
-                                        <p><strong>🆔 Transacción ID:</strong> ${transactionId}</p>
-                                        <p><strong>🗓️ Fecha/Hora Recarga:</strong> ${timestamp}</p>
-                                        <p><strong>📧 Correo Cliente:</strong> ${clientEmail}</p>
-                                        <p><strong>📞 WhatsApp Cliente:</strong> ${invoiceWhatsapp}</p>
-                                        <p><strong>🎮 Juego:</strong> ${invoiceGame}</p>
-                                        <p><strong>👤 ID de Cuenta/Jugador:</strong> ${invoicePlayerId}</p>
-                                        <p><strong>📦 Paquete Recargado:</strong> ${invoicePackage}</p>
-                                        <p><strong>💰 Monto Pagado:</strong> ${invoiceFinalPrice} ${invoiceCurrency}</p>
-                                        <p><strong>💳 Método de Pago:</strong> ${invoicePaymentMethod}</p>
-                                        <hr>
-                                        <p>¡Gracias por preferir Malok Recargas! 😊</p>
-                                        <p>Atentamente,<br>El equipo de Malok Recargas</p>`
-                    };
-
-                    try {
-                        await transporter.sendMail(mailOptions);
-                        console.log(`Factura enviada por correo a ${clientEmail} para TXN ${transactionId}`);
-                    } catch (emailError) {
-                        console.error("Error al enviar factura por correo con Nodemailer:", emailError);
-                        // No fallar la función principal si falla el envío de correo
-                    }
-                }
-                // FIN NUEVO -->
-
-                if (messageType === 'photo') {
-                    await axios.post(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/editMessageCaption`, {
-                        chat_id: message.chat.id,
-                        message_id: message.message_id,
-                        caption: newCaptionText,
-                        parse_mode: 'Markdown',
-                        reply_markup: { inline_keyboard: [] }
-                    });
-                } else {
-                    await axios.post(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/editMessageText`, {
-                        chat_id: message.chat.id,
-                        message_id: message.message_id,
-                        text: newCaptionText,
-                        parse_mode: 'Markdown',
-                        reply_markup: { inline_keyboard: [] }
-                    });
-                }
-            }
+        } catch (answerError) {
+            console.error('Error al responder al callback query:', answerError.response ? answerError.response.data : answerError.message);
         }
 
-        return {
-            statusCode: 200,
-            body: JSON.stringify({ message: "Webhook processed" })
-        };
-    } catch (error) {
-        console.error("Error processing Telegram webhook:", error.response ? error.response.data : error.message);
-        return {
-            statusCode: 500,
-            body: JSON.stringify({ message: "Failed to process webhook." })
-        };
+        // --- Lógica para "Marcar como Realizada" ---
+        if (callbackData.startsWith('mark_done_')) {
+            const transactionId = callbackData.replace('mark_done_', '');
+            let transactionData;
+
+            try {
+                // 1. Buscar la transacción en Supabase por id_transaccion (o telegram_message_id)
+                // Usaremos id_transaccion que es el que pasamos en callback_data
+                const { data: fetchedData, error: fetchError } = await supabase
+                    .from('transactions')
+                    .select('*')
+                    .eq('id_transaccion', transactionId)
+                    .single(); // Esperamos un solo resultado
+
+                if (fetchError && fetchError.code !== 'PGRST116') { // PGRST116 es "no rows found"
+                    throw fetchError;
+                }
+                
+                transactionData = fetchedData;
+
+                if (!transactionData) {
+                    console.warn(`Transacción ${transactionId} no encontrada en Supabase.`);
+                    await axios.post(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
+                        chat_id: chatId,
+                        text: `❌ Error: Transacción ${transactionId} no encontrada.`,
+                        reply_to_message_id: messageId
+                    });
+                    return { statusCode: 200, body: "OK" };
+                }
+
+                // 2. Actualizar el estado de la transacción en Supabase
+                if (transactionData.status !== 'completada') { // Evitar actualizar si ya está completada
+                    const { data: updatedData, error: updateError } = await supabase
+                        .from('transactions')
+                        .update({ 
+                            status: 'completada', 
+                            completed_by: userName, 
+                            completed_at: new Date().toISOString() 
+                        })
+                        .eq('id', transactionData.id) // Actualizar usando el UUID de Supabase
+                        .select(); // Devolver los datos actualizados
+
+                    if (updateError) {
+                        throw updateError;
+                    }
+                    transactionData = updatedData[0]; // Actualizamos transactionData con los datos recién actualizados
+                    console.log(`Transacción ${transactionId} marcada como completada en Supabase.`);
+                } else {
+                    console.log(`Transacción ${transactionId} ya estaba completada. No se actualizó.`);
+                }
+                
+                // 3. Editar el mensaje original en Telegram
+                const originalText = callbackQuery.message.text;
+                // Reemplazamos el estado de forma segura y añadimos el pie de página
+                const newText = originalText.replace('Estado: `PENDIENTE`', `Estado: \`COMPLETADA\` ✅`) +
+                                `\n\n_Recarga marcada por: ${userName} (${new Date().toLocaleTimeString()})_`;
+
+                await axios.post(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/editMessageText`, {
+                    chat_id: chatId,
+                    message_id: messageId,
+                    text: newText,
+                    parse_mode: 'Markdown',
+                    reply_markup: {} // Quita el botón
+                });
+                console.log(`Mensaje de Telegram editado para la transacción ${transactionId}.`);
+
+                // --- Enviar el SEGUNDO correo de confirmación (Recarga Completada) ---
+                if (transactionData.email) {
+                    let transporter;
+                    try {
+                        transporter = nodemailer.createTransport({
+                            host: SMTP_HOST,
+                            port: parseInt(SMTP_PORT, 10),
+                            secure: parseInt(SMTP_PORT, 10) === 465,
+                            auth: {
+                                user: SMTP_USER,
+                                pass: SMTP_PASS,
+                            },
+                            tls: {
+                                rejectUnauthorized: false
+                            }
+                        });
+                    } catch (createTransportError) {
+                        console.error("Error al crear el transportador de Nodemailer en webhook:", createTransportError);
+                    }
+
+                    const secondMailOptions = {
+                        from: SENDER_EMAIL,
+                        to: transactionData.email,
+                        subject: `✅ ¡Tu Recarga de ${transactionData.game} ha sido Completada! - Malok Recargas`,
+                        html: `
+                            <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+                                <h2 style="color: #28a745;">¡Tu Recarga de ${transactionData.game} está Lista!</h2>
+                                <p>Hola,</p>
+                                <p>¡Tenemos excelentes noticias! Tu recarga de <strong>${transactionData.game}</strong> con ID: <strong>${transactionData.id_transaccion}</strong> ha sido <strong>procesada y completada</strong> por nuestro equipo.</p>
+                                <p>Aquí están los detalles finales de tu recarga:</p>
+                                <ul style="list-style: none; padding: 0;">
+                                    <li><strong>Juego:</strong> ${transactionData.game}</li>
+                                    ${transactionData.playerId ? `<li><strong>ID de Jugador:</strong> ${transactionData.playerId}</li>` : ''}
+                                    <li><strong>Paquete Recargado:</strong> ${transactionData.packageName}</li>
+                                    <li><strong>Monto Pagado:</strong> ${transactionData.finalPrice} ${transactionData.currency}</li>
+                                    <li><strong>Método de Pago:</strong> ${transactionData.paymentMethod.replace('-', ' ').toUpperCase()}</li>
+                                </ul>
+                                <p>Ya deberías ver los diamantes/monedas en tu cuenta de juego.</p>
+                                <p>¡Gracias por elegir Malok Recargas para tus necesidades de juego!</p>
+                                <p style="font-size: 0.9em; color: #777;">Si tienes alguna pregunta o necesitas asistencia, no dudes en contactarnos a través de nuestro WhatsApp: <a href="https://wa.me/584126949631" style="color: #28a745; text-decoration: none;">+58 412 6949631</a></p>
+                            </div>
+                        `,
+                    };
+
+                    if (transporter) {
+                        try {
+                            await transporter.sendMail(secondMailOptions);
+                            console.log("Segundo correo (recarga completada) enviado al cliente:", transactionData.email);
+                        } catch (secondEmailError) {
+                            console.error("Error al enviar el segundo correo:", secondEmailError.message);
+                            if (secondEmailError.response) {
+                                console.error("Detalles del error SMTP del segundo correo:", secondEmailError.response);
+                            }
+                        }
+                    } else {
+                        console.error("No se pudo enviar el segundo correo: Transportador de Nodemailer no disponible.");
+                    }
+                }
+
+            } catch (error) {
+                console.error("Error en el procesamiento del callback de Telegram:", error.message);
+                // Si algo falla, se puede enviar un mensaje de error a Telegram para depuración
+                await axios.post(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
+                    chat_id: chatId,
+                    text: `❌ Error al procesar la recarga ${transactionId}: ${error.message}. Consulta los logs de Netlify.`,
+                    reply_to_message_id: messageId
+                });
+            }
+        }
     }
+
+    return { statusCode: 200, body: "OK" };
 };
