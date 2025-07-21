@@ -1,8 +1,9 @@
 // netlify/functions/process-payment.js
 const axios = require('axios');
-const { IncomingForm } = require('formidable'); // Cambiado: Ahora importamos IncomingForm
+const { IncomingForm } = require('formidable');
 const fs = require('fs');
 const FormData = require('form-data');
+const { Readable } = require('stream'); // Importar Readable para crear un stream del cuerpo
 
 exports.handler = async function(event, context) {
     // Solo permitir POST requests
@@ -31,16 +32,28 @@ exports.handler = async function(event, context) {
     }
 
     return new Promise((resolve, reject) => {
+        // Decodificar el cuerpo de la solicitud (si está en base64)
         const decodedBody = Buffer.from(event.body, event.isBase64Encoded ? 'base64' : 'utf8');
 
-        // Cambiado: Instanciamos IncomingForm directamente
+        // Crear un stream Readable a partir del cuerpo decodificado
+        const requestStream = new Readable();
+        requestStream.push(decodedBody);
+        requestStream.push(null); // Indica el final del stream
+
+        // Adjuntar los headers del evento al stream para que formidable los lea
+        requestStream.headers = event.headers;
+        // formidable también podría necesitar el método y la URL, aunque headers es lo más crítico aquí
+        requestStream.method = event.httpMethod;
+        requestStream.url = event.path;
+
+
         const form = new IncomingForm({
             multiples: true,
-            // Mantener el directorio de carga temporal predeterminado, que suele ser /tmp en Netlify Functions.
-            // uploadDir: '/tmp', // Puedes especificarlo explícitamente si tienes problemas
+            // Mantener el directorio de carga temporal predeterminado (/tmp)
         });
 
-        form.parse(decodedBody, async (err, fields, files) => {
+        // Pasar el stream simulado a form.parse()
+        form.parse(requestStream, async (err, fields, files) => {
             if (err) {
                 console.error("Error parsing form data:", err);
                 return resolve({
