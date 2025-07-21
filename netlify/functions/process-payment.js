@@ -3,15 +3,13 @@ const axios = require('axios');
 const { IncomingForm } = require('formidable');
 const fs = require('fs');
 const FormData = require('form-data');
-const { Readable } = require('stream'); // Importar Readable para crear un stream del cuerpo
+const { Readable } = require('stream');
 
 exports.handler = async function(event, context) {
-    // Solo permitir POST requests
     if (event.httpMethod !== "POST") {
         return { statusCode: 405, body: "Method Not Allowed" };
     }
 
-    // Asegurarse de que el Content-Type es multipart/form-data
     if (!event.headers['content-type'] || !event.headers['content-type'].includes('multipart/form-data')) {
         return {
             statusCode: 415,
@@ -19,7 +17,6 @@ exports.handler = async function(event, context) {
         };
     }
 
-    // Variables de entorno para el token del bot y el chat ID (MUY IMPORTANTE para seguridad)
     const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
     const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID;
 
@@ -32,27 +29,19 @@ exports.handler = async function(event, context) {
     }
 
     return new Promise((resolve, reject) => {
-        // Decodificar el cuerpo de la solicitud (si está en base64)
         const decodedBody = Buffer.from(event.body, event.isBase64Encoded ? 'base64' : 'utf8');
 
-        // Crear un stream Readable a partir del cuerpo decodificado
         const requestStream = new Readable();
         requestStream.push(decodedBody);
-        requestStream.push(null); // Indica el final del stream
-
-        // Adjuntar los headers del evento al stream para que formidable los lea
+        requestStream.push(null);
         requestStream.headers = event.headers;
-        // formidable también podría necesitar el método y la URL, aunque headers es lo más crítico aquí
         requestStream.method = event.httpMethod;
         requestStream.url = event.path;
 
-
         const form = new IncomingForm({
             multiples: true,
-            // Mantener el directorio de carga temporal predeterminado (/tmp)
         });
 
-        // Pasar el stream simulado a form.parse()
         form.parse(requestStream, async (err, fields, files) => {
             if (err) {
                 console.error("Error parsing form data:", err);
@@ -62,20 +51,14 @@ exports.handler = async function(event, context) {
                 });
             }
 
-            let transactionDetails;
-            try {
-                // formidable devuelve los campos como arrays
-                transactionDetails = JSON.parse(fields.transactionDetails[0]);
-            } catch (parseError) {
-                console.error("Error parsing transactionDetails:", parseError);
-                return resolve({
-                    statusCode: 400,
-                    body: JSON.stringify({ message: "Invalid transaction details format." })
-                });
-            }
-
-            const { game, playerId, package: packageName, finalPrice, currency } = transactionDetails;
-            const paymentMethod = fields.paymentMethod[0];
+            // MODIFICACIÓN CRÍTICA AQUÍ: Leer los campos directamente de 'fields'
+            // 'fields' contendrá arrays, por lo que tomamos el primer elemento
+            const game = fields.game ? fields.game[0] : 'N/A';
+            const playerId = fields.playerId ? fields.playerId[0] : 'N/A';
+            const packageName = fields.package ? fields.package[0] : 'N/A'; // 'package' es una palabra reservada, por eso se usó 'packageName' antes
+            const finalPrice = fields.finalPrice ? parseFloat(fields.finalPrice[0]) : 0;
+            const currency = fields.currency ? fields.currency[0] : 'N/A';
+            const paymentMethod = fields.paymentMethod ? fields.paymentMethod[0] : 'N/A';
 
             const paymentReceiptFile = files.paymentReceipt ? files.paymentReceipt[0] : null;
 
@@ -88,9 +71,9 @@ exports.handler = async function(event, context) {
 
             let captionText = `✨ Nueva Recarga Malok Recargas ✨\n\n`;
             captionText += `🎮 Juego: *${game}*\n`;
-            captionText += `👤 ID de Jugador: *${playerId || 'N/A'}*\n`;
+            captionText += `👤 ID de Jugador: *${playerId}*\n`;
             captionText += `📦 Paquete: *${packageName}*\n`;
-            captionText += `💰 Total a Pagar: *${parseFloat(finalPrice).toFixed(2)} ${currency}*\n`;
+            captionText += `💰 Total a Pagar: *${finalPrice.toFixed(2)} ${currency}*\n`;
             captionText += `💳 Método de Pago: *${paymentMethod.replace('-', ' ').toUpperCase()}*\n`;
 
             const telegramApiUrl = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/`;
@@ -120,7 +103,7 @@ exports.handler = async function(event, context) {
                         maxContentLength: Infinity,
                     });
 
-                    fs.unlinkSync(paymentReceiptFile.filepath); // Limpia el archivo temporal
+                    fs.unlinkSync(paymentReceiptFile.filepath);
                 }
 
                 resolve({
