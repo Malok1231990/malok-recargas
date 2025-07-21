@@ -3,7 +3,7 @@ const axios = require('axios');
 const { Formidable } = require('formidable');
 const nodemailer = require('nodemailer');
 const { createClient } = require('@supabase/supabase-js');
-const { Readable } = require('stream');
+const { Readable } = require('stream'); // Importar Readable para Streams
 const fs = require('fs'); // Módulo para operaciones con archivos
 const FormData = require('form-data'); // Para construir FormData para envíos a Telegram
 
@@ -49,6 +49,7 @@ exports.handler = async function(event, context) {
                 });
             });
 
+            // Formidable v3+ devuelve campos y archivos como arrays. Extraer el primer valor.
             data = Object.fromEntries(Object.entries(fields).map(([key, value]) => [key, Array.isArray(value) ? value[0] : value]));
             paymentReceiptFile = files['paymentReceipt'] ? files['paymentReceipt'][0] : null;
 
@@ -127,7 +128,7 @@ exports.handler = async function(event, context) {
                 email: email,
                 whatsappNumber: whatsappNumber || null,
                 methodDetails: methodSpecificDetails,
-                status: 'pendiente',
+                status: 'pendiente', // Estado inicial de la transacción
                 telegram_chat_id: TELEGRAM_CHAT_ID,
                 // telegram_message_id: null, // Se actualizará después de enviar el mensaje a Telegram
                 receipt_url: paymentReceiptFile ? paymentReceiptFile.filepath : null 
@@ -193,25 +194,51 @@ exports.handler = async function(event, context) {
 
         // --- Enviar comprobante de pago a Telegram si existe ---
         if (paymentReceiptFile && paymentReceiptFile.filepath) {
+            console.log("DEBUG: Intentando enviar comprobante a Telegram.");
+            console.log("DEBUG: Ruta del archivo:", paymentReceiptFile.filepath);
+            console.log("DEBUG: Nombre original:", paymentReceiptFile.originalFilename);
+            console.log("DEBUG: Tipo MIME:", paymentReceiptFile.mimetype);
+
             try {
                 const fileBuffer = fs.readFileSync(paymentReceiptFile.filepath);
+                console.log("DEBUG: Tamaño del archivo (bytes):", fileBuffer.length);
 
                 const sendFileUrl = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendDocument`;
                 
                 const formData = new FormData();
                 formData.append('chat_id', TELEGRAM_CHAT_ID);
-                formData.append('document', new Blob([fileBuffer], { type: paymentReceiptFile.mimetype }), paymentReceiptFile.originalFilename);
+                
+                // *** CORRECCIÓN: Crear un stream Readable a partir del Buffer ***
+                const fileStream = new Readable();
+                fileStream.push(fileBuffer);
+                fileStream.push(null); // Indica el fin del stream
+
+                formData.append('document', fileStream, { // Pasamos el stream
+                    filename: paymentReceiptFile.originalFilename || 'comprobante_pago.jpg',
+                    contentType: paymentReceiptFile.mimetype || 'application/octet-stream',
+                    knownLength: fileBuffer.length // Importante para que FormData sepa el tamaño
+                });
+                // *** FIN DE CORRECCIÓN ***
+
                 formData.append('caption', `Comprobante de pago para la transacción ${id_transaccion_generado}`);
 
-                // Importante: Axios necesita el objeto 'form' de FormData, no solo formData en sí.
-                // Y getHeaders() es crucial para el tipo de contenido correcto.
-                await axios.post(sendFileUrl, formData, {
+                const response = await axios.post(sendFileUrl, formData, {
                     headers: formData.getHeaders()
                 });
-                console.log("Comprobante de pago enviado a Telegram.");
+                console.log("Comprobante de pago enviado a Telegram. Respuesta:", response.data);
             } catch (fileSendError) {
-                console.error("Error al enviar el comprobante a Telegram:", fileSendError.response ? fileSendError.response.data : fileSendError.message);
+                console.error("ERROR: Fallo al enviar el comprobante a Telegram.");
+                if (fileSendError.response) {
+                    console.error("Detalles del error de respuesta de Telegram:", fileSendError.response.data);
+                    console.error("Estado del error de respuesta:", fileSendError.response.status);
+                } else if (fileSendError.request) {
+                    console.error("No se recibió respuesta de Telegram (la solicitud fue enviada):", fileSendError.request);
+                } else {
+                    console.error("Error al configurar la solicitud:", fileSendError.message);
+                }
             }
+        } else {
+            console.log("DEBUG: No hay archivo de comprobante para enviar a Telegram o filepath no es válido.");
         }
 
         // --- Actualizar Transaction en Supabase con el Message ID de Telegram ---
@@ -279,7 +306,6 @@ exports.handler = async function(event, context) {
 
         // NOTA: La sección para adjuntar el comprobante al correo ha sido removida
         // porque la lógica ahora prioriza enviarlo a Telegram.
-        // El archivo temporal se eliminará después de intentar enviarlo a Telegram.
 
         try {
             await transporter.sendMail(mailOptions);
@@ -301,7 +327,6 @@ exports.handler = async function(event, context) {
             console.error("Error al eliminar el archivo temporal del comprobante:", unlinkError);
         }
     }
-
 
     return {
         statusCode: 200,
