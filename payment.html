@@ -42,6 +42,55 @@
             font-weight: bold;
             color: var(--text-color);
         }
+        /* Estilo para los nuevos campos de correo y whatsapp */
+        .input-group {
+            margin-bottom: 15px;
+        }
+        .input-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: var(--text-color);
+        }
+        .input-group input[type="email"],
+        .input-group input[type="tel"] {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid var(--border-color);
+            border-radius: 5px;
+            background-color: var(--input-background);
+            color: var(--text-color);
+            box-sizing: border-box; /* Asegura que el padding no aumente el ancho */
+        }
+        /* Estilo para el mensaje de éxito */
+        .payment-success-message {
+            margin-top: 30px;
+            padding: 20px;
+            background-color: var(--accent-green-light); /* Un color de fondo suave para el éxito */
+            border: 1px solid var(--accent-green);
+            border-radius: 8px;
+            text-align: center;
+            color: var(--accent-green); /* Color del texto */
+        }
+        .payment-success-message h2 {
+            margin-top: 0;
+            color: var(--accent-green);
+        }
+        .payment-success-message p {
+            margin-bottom: 0;
+        }
+        /* Estilos para los pasos */
+        .form-section-step {
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid var(--border-color);
+        }
+        .form-section-step h3 {
+            color: var(--primary-color);
+            margin-bottom: 20px;
+            font-size: 1.3em;
+            text-align: center;
+        }
     </style>
 </head>
 <body>
@@ -66,15 +115,33 @@
                 </div>
 
             <form id="payment-form">
-                <div class="form-group">
-                    <label>Método de Pago:</label>
-                    <div class="payment-methods" id="payment-methods">
-                        </div>
+                <div class="form-section-step">
+                    <h3>Paso 1: Selecciona tu Método de Pago</h3>
+                    <div class="form-group">
+                        <label>Método de Pago:</label>
+                        <div class="payment-methods" id="payment-methods">
+                            </div>
+                    </div>
                 </div>
 
-                <div id="payment-details-form" class="payment-details-form">
-                    </div>
+                <div class="form-section-step">
+                    <h3>Paso 2: Realiza el Pago y Sube tu Comprobante</h3>
+                    <div id="payment-details-form" class="payment-details-form">
+                        </div>
+                </div>
                 
+                <div class="form-section-step">
+                    <h3>Paso 3: Información de Contacto para Notificaciones</h3>
+                    <div class="input-group">
+                        <label for="email">Correo Electrónico (Para notificaciones y factura):</label>
+                        <input type="email" id="email" name="email" placeholder="tu_correo@ejemplo.com" required>
+                    </div>
+
+                    <div class="input-group">
+                        <label for="whatsappNumber">Número de WhatsApp (Opcional, para contacto):</label>
+                        <input type="tel" id="whatsappNumber" name="whatsappNumber" placeholder="Ej: 584121234567">
+                    </div>
+                </div>
                 <div id="whatsapp-message-container" class="payment-confirmation-message" style="margin-top: 30px; margin-bottom: 20px; text-align: center; display: none;">
                     <p style="font-size: 1.1em; color: var(--text-color); margin-bottom: 15px;">
                         ¡Importante! Una vez realizado el pago con el método seleccionado, <strong>envía la captura de tu comprobante y tus datos de TikTok</strong> al siguiente número de WhatsApp para que tu recarga sea procesada rápidamente:
@@ -92,6 +159,12 @@
 
                 <button type="submit" class="btn-primary" id="finalize-recharge-btn" disabled>Finalizar Recarga</button>
             </form>
+
+            <div id="success-message-display" class="payment-success-message" style="display: none;">
+                <h2>🎉 ¡Notificación Enviada! 🎉</h2>
+                <p>Hemos recibido tu solicitud de recarga. Te enviaremos un correo de confirmación y la factura virtual una vez que tu recarga sea procesada.</p>
+                <p>¡Gracias por usar Malok Recargas!</p>
+            </div>
         </div>
     </main>
 
@@ -172,13 +245,13 @@
         const paymentForm = document.getElementById('payment-form');
         const whatsappMessageContainer = document.getElementById('whatsapp-message-container');
         const finalizeBtn = document.getElementById('finalize-recharge-btn');
+        const successMessageDisplay = document.getElementById('success-message-display'); // Nuevo elemento
 
         document.addEventListener('DOMContentLoaded', () => {
             const transactionSummaryDiv = document.getElementById('transaction-summary');
             const paymentMethodsDiv = document.getElementById('payment-methods');
             const paymentDetailsFormDiv = document.getElementById('payment-details-form');
             
-
             const storedDetails = localStorage.getItem('transactionDetails');
             if (storedDetails) {
                 transactionDetails = JSON.parse(storedDetails);
@@ -188,6 +261,9 @@
                 if (transactionDetails.game === "TikTok") {
                     whatsappMessageContainer.style.display = 'block';
                     finalizeBtn.style.display = 'none';
+                    // Make email required for TikTok, but no file
+                    const emailInput = document.getElementById('email');
+                    if (emailInput) emailInput.required = true;
                 } else {
                     whatsappMessageContainer.style.display = 'none';
                     finalizeBtn.style.display = 'block';
@@ -262,13 +338,14 @@
                     if (transactionDetails.game === "TikTok") {
                         const fieldsContainer = paymentDetailsFormDiv.querySelector('.payment-fields-container');
                         if (fieldsContainer) {
-                            fieldsContainer.style.display = 'none';
+                            fieldsContainer.style.display = 'none'; // Oculta la subida del comprobante para TikTok
                         }
                     } else {
                         // Only add event listener for the file input if it's not TikTok
                         const fileInput = document.getElementById('payment-receipt');
                         if (fileInput) {
                             fileInput.addEventListener('change', checkFormValidity);
+                            fileInput.required = true; // Asegura que el archivo es requerido para otros juegos
                         }
                     }
 
@@ -281,6 +358,10 @@
                     paymentDetailsFormDiv.innerHTML = '<p>Selecciona un método de pago para ver los detalles.</p>';
                 }
                 checkFormValidity();
+
+                // Add event listeners to email and whatsapp inputs for validity check
+                document.getElementById('email').addEventListener('input', checkFormValidity);
+                document.getElementById('whatsappNumber').addEventListener('input', checkFormValidity);
             }
 
             async function handleCopyButtonClick(event) {
@@ -319,6 +400,12 @@
             function checkFormValidity() {
                 const selectedRadio = document.querySelector('input[name="paymentMethod"]:checked');
                 const isMethodSelected = selectedRadio !== null;
+                
+                // Check if email is filled (it's always required now)
+                const emailInput = document.getElementById('email');
+                const isEmailFilled = emailInput && emailInput.value.trim() !== '';
+                const isEmailValid = emailInput && emailInput.checkValidity(); // Check HTML5 validation for email
+
                 let areDetailsFilled = true;
 
                 if (transactionDetails && transactionDetails.game === "TikTok") {
@@ -333,10 +420,12 @@
                     areDetailsFilled = false;
                 }
                 
+                // Finalize button depends on method selected, details, and email
                 if (transactionDetails.game !== "TikTok") {
-                    finalizeBtn.disabled = !(isMethodSelected && areDetailsFilled);
+                    finalizeBtn.disabled = !(isMethodSelected && areDetailsFilled && isEmailFilled && isEmailValid);
                 } else {
-                    finalizeBtn.disabled = true; // Button always disabled for TikTok; WhatsApp is the call to action
+                    // For TikTok, button depends only on email being filled and valid
+                    finalizeBtn.disabled = !(isEmailFilled && isEmailValid); 
                 }
             }
 
@@ -344,38 +433,29 @@
             document.getElementById('payment-form').addEventListener('submit', async (e) => {
                 e.preventDefault();
 
-                if (transactionDetails.game === "TikTok") {
-                    alert('¡Pago registrado! Por favor, envía la captura de tu comprobante y tus datos de TikTok a nuestro WhatsApp para procesar tu recarga.');
-                    localStorage.removeItem('transactionDetails');
-                    window.location.href = 'index.html';
-                    return;
-                }
+                // Get form data using FormData API
+                const formData = new FormData(paymentForm);
 
-                const selectedRadio = document.querySelector('input[name="paymentMethod"]:checked');
-                if (!selectedRadio || !transactionDetails) {
-                    alert('Por favor, selecciona un método de pago y asegúrate de que los detalles de la transacción estén cargados.');
-                    return;
-                }
-
-                const selectedMethodId = selectedRadio.value;
-                // Note: paymentData object will be simpler as reference/phone are no longer form fields
-                let paymentData = {
-                    method: selectedMethodId,
-                    amount: parseFloat(transactionDetails.finalPrice),
-                    currency: transactionDetails.currency
-                };
-
-                // Create FormData to handle file upload
-                const formData = new FormData();
-                // Append all transaction details to FormData
+                // Add transactionDetails to formData (these are not direct form inputs)
                 for (const key in transactionDetails) {
                     formData.append(key, transactionDetails[key]);
                 }
-                formData.append('paymentMethod', selectedMethodId);
 
-                const paymentReceipt = document.getElementById('payment-receipt').files[0];
-                if (paymentReceipt) {
-                    formData.append('paymentReceipt', paymentReceipt);
+                // Check for email again as it's now universally required and must be valid
+                const emailInput = document.getElementById('email');
+                if (!emailInput || emailInput.value.trim() === '' || !emailInput.checkValidity()) {
+                    alert('Por favor, ingresa un correo electrónico válido para recibir notificaciones.');
+                    emailInput.focus();
+                    return;
+                }
+                
+                // Check for payment receipt if it's not a TikTok game
+                if (transactionDetails.game !== "TikTok") {
+                    const paymentReceipt = document.getElementById('payment-receipt');
+                    if (!paymentReceipt || paymentReceipt.files.length === 0) {
+                        alert('Por favor, sube tu comprobante de pago.');
+                        return;
+                    }
                 }
 
                 // Log FormData entries for debugging (not the file content itself)
@@ -383,26 +463,42 @@
                 for (let pair of formData.entries()) {
                    console.log(pair[0]+ ': ' + pair[1]);
                 }
-
+                
+                // Disable button and show loading message
+                finalizeBtn.disabled = true;
+                finalizeBtn.textContent = 'Enviando...';
+                
                 try {
                     // Send FormData directly; fetch will set Content-Type header to multipart/form-data automatically
                     const response = await fetch('/.netlify/functions/process-payment', {
                         method: 'POST',
-                        body: formData // Send FormData instead of JSON.stringify(fullTransactionData)
+                        body: formData
                     });
 
                     if (response.ok) {
-                        alert('¡Recarga solicitada con éxito! Su recarga se hará efectiva una vez el pago sea verificado.');
-                        localStorage.removeItem('transactionDetails');
-                        window.location.href = 'index.html';
+                        // Show success message and hide form
+                        paymentForm.style.display = 'none';
+                        whatsappMessageContainer.style.display = 'none'; // Hide TikTok specific message if shown
+                        successMessageDisplay.style.display = 'block';
+
+                        localStorage.removeItem('transactionDetails'); // Clear stored details
+
+                        // Redirect after a short delay
+                        setTimeout(() => {
+                            window.location.href = 'index.html';
+                        }, 5000); // 5 seconds
                     } else {
                         const errorData = await response.json();
-                        alert(`Error al procesar la recarga: ${errorData.message || response.statusText}`);
+                        alert(`Ocurrió un error: ${errorData.message || response.statusText}. Por favor, verifica tus datos e inténtalo de nuevo.`);
                         console.error('Server error:', errorData);
+                        finalizeBtn.disabled = false;
+                        finalizeBtn.textContent = 'Finalizar Recarga';
                     }
                 } catch (error) {
                     alert('Hubo un problema de conexión. Por favor, inténtalo de nuevo más tarde.');
                     console.error('Network or client error:', error);
+                    finalizeBtn.disabled = false;
+                    finalizeBtn.textContent = 'Finalizar Recarga';
                 }
             });
         });

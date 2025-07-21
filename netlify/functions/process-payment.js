@@ -4,6 +4,7 @@ const { IncomingForm } = require('formidable');
 const fs = require('fs');
 const FormData = require('form-data');
 const { Readable } = require('stream');
+const nodemailer = require('nodemailer'); // <-- ¡NUEVO!
 
 exports.handler = async function(event, context) {
     if (event.httpMethod !== "POST") {
@@ -19,18 +20,30 @@ exports.handler = async function(event, context) {
 
     const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
     const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID;
-    // URL de tu nueva función de Netlify para manejar webhooks de Telegram
-    // Necesitarás reemplazar esto con la URL real de tu función de webhook
     const TELEGRAM_WEBHOOK_BASE_URL = process.env.TELEGRAM_WEBHOOK_BASE_URL || 'https://TU_SITIO.netlify.app/.netlify/functions/telegram-webhook';
 
+    // <-- ¡NUEVAS VARIABLES DE ENTORNO PARA GMAIL!
+    const GMAIL_USER = process.env.GMAIL_USER; // Tu dirección de correo Gmail
+    const GMAIL_APP_PASS = process.env.GMAIL_APP_PASS; // La contraseña de aplicación de Gmail
+    // FIN NUEVAS VARIABLES -->
 
-    if (!TELEGRAM_BOT_TOKEN || !TELEGRAM_CHAT_ID) {
-        console.error("Missing Telegram Bot Token or Chat ID environment variables.");
+    if (!TELEGRAM_BOT_TOKEN || !TELEGRAM_CHAT_ID || !GMAIL_USER || !GMAIL_APP_PASS) {
+        console.error("Missing environment variables for Telegram or Email.");
         return {
             statusCode: 500,
-            body: JSON.stringify({ message: "Server configuration error. Telegram credentials not set." })
+            body: JSON.stringify({ message: "Server configuration error. Missing credentials." })
         };
     }
+
+    // <-- ¡NUEVO: Configuración del transportador de Nodemailer!
+    const transporter = nodemailer.createTransport({
+        service: 'gmail', // O 'smtp' si usas otro proveedor que no sea Gmail
+        auth: {
+            user: GMAIL_USER,
+            pass: GMAIL_APP_PASS
+        }
+    });
+    // FIN NUEVO -->
 
     return new Promise((resolve, reject) => {
         const decodedBody = Buffer.from(event.body, event.isBase64Encoded ? 'base64' : 'utf8');
@@ -61,6 +74,10 @@ exports.handler = async function(event, context) {
             const finalPrice = fields.finalPrice ? parseFloat(fields.finalPrice[0]) : 0;
             const currency = fields.currency ? fields.currency[0] : 'N/A';
             const paymentMethod = fields.paymentMethod ? fields.paymentMethod[0] : 'N/A';
+            // <-- ¡NUEVOS CAMPOS DEL FORMULARIO!
+            const whatsappNumber = fields.whatsappNumber ? fields.whatsappNumber[0] : null;
+            const email = fields.email ? fields.email[0] : null;
+            // FIN NUEVOS CAMPOS -->
 
             const paymentReceiptFile = files.paymentReceipt ? files.paymentReceipt[0] : null;
 
@@ -70,28 +87,65 @@ exports.handler = async function(event, context) {
                     body: JSON.stringify({ message: "Payment receipt is required for this payment method." })
                 });
             }
+            if (!email) { // El email es ahora requerido para las notificaciones
+                 return resolve({
+                    statusCode: 400,
+                    body: JSON.stringify({ message: "Email is required for notifications." })
+                });
+            }
 
-            // --- NUEVO: Generar número de transacción único ---
             const transactionId = `TXN-${Date.now()}-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
 
             let captionText = `✨ Nueva Recarga Malok Recargas ✨\n\n`;
-            captionText += `🆔 Transacción ID: *${transactionId}*\n`; // Añadido el ID de transacción
+            captionText += `🆔 Transacción ID: *${transactionId}*\n`;
             captionText += `🎮 Juego: *${game}*\n`;
             captionText += `👤 ID de Jugador: *${playerId}*\n`;
             captionText += `📦 Paquete: *${packageName}*\n`;
             captionText += `💰 Total a Pagar: *${finalPrice.toFixed(2)} ${currency}*\n`;
             captionText += `💳 Método de Pago: *${paymentMethod.replace('-', ' ').toUpperCase()}*\n`;
+            if (whatsappNumber) {
+                captionText += `📞 WhatsApp Cliente: *${whatsappNumber}*\n`;
+            }
+            if (email) { // Añade el correo al mensaje de Telegram
+                captionText += `📧 Correo Cliente: *${email}*\n`;
+            }
 
             const telegramApiUrl = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/`;
 
-            // --- NUEVO: Configuración del teclado inline ---
             const inlineKeyboard = {
                 inline_keyboard: [
-                    [{ text: "✅ Marcar como Realizada", callback_data: `mark_done_${transactionId}` }]
+                    [{
+                        text: "✅ Marcar como Realizada",
+                        // Asegúrate de que el email se pasa correctamente para la factura
+                        callback_data: `mark_done_${transactionId}_${email}`
+                    }]
                 ]
             };
 
             try {
+                // <-- ¡NUEVO: Envío de correo inicial con Nodemailer!
+                if (email) {
+                    const mailOptions = {
+                        from: GMAIL_USER, // Tu dirección de Gmail
+                        to: email,
+                        subject: `Malok Recargas: Hemos recibido tu solicitud (${transactionId})`,
+                        text: `¡Hola!\n\nHemos recibido tu solicitud de recarga para ${game} (ID de Transacción: ${transactionId}).\n\nTe notificaremos por correo cuando tu recarga sea exitosa.\n\nGracias por usar Malok Recargas!\n\nAtentamente,\nEl equipo de Malok Recargas`,
+                        html: `<p>¡Hola!</p>
+                               <p>Hemos recibido tu solicitud de recarga para <strong>${game}</strong> (ID de Transacción: <strong>${transactionId}</strong>).</p>
+                               <p>Te notificaremos por correo cuando tu recarga sea exitosa.</p>
+                               <p>¡Gracias por usar Malok Recargas! 😊</p>
+                               <p>Atentamente,<br>El equipo de Malok Recargas</p>`
+                    };
+                    try {
+                        await transporter.sendMail(mailOptions);
+                        console.log(`Correo inicial enviado a ${email} para TXN ${transactionId}`);
+                    } catch (emailError) {
+                        console.error("Error al enviar correo inicial con Nodemailer:", emailError);
+                        // Importante: No fallar la función principal si falla el envío de correo, solo registrar el error
+                    }
+                }
+                // FIN NUEVO -->
+
                 if (game === "TikTok") {
                     await axios.post(`${telegramApiUrl}sendMessage`, {
                         chat_id: TELEGRAM_CHAT_ID,
@@ -109,7 +163,7 @@ exports.handler = async function(event, context) {
                         filename: paymentReceiptFile.originalFilename,
                         contentType: paymentReceiptFile.mimetype,
                     });
-                    telegramFormData.append('reply_markup', JSON.stringify(inlineKeyboard)); // Añadir el teclado inline
+                    telegramFormData.append('reply_markup', JSON.stringify(inlineKeyboard));
 
                     await axios.post(`${telegramApiUrl}sendPhoto`, telegramFormData, {
                         headers: telegramFormData.getHeaders(),
@@ -126,7 +180,7 @@ exports.handler = async function(event, context) {
                 });
 
             } catch (error) {
-                console.error("Error sending Telegram message:", error.response ? error.response.data : error.message);
+                console.error("Error sending Telegram message or other final operations:", error.response ? error.response.data : error.message);
                 if (paymentReceiptFile && fs.existsSync(paymentReceiptFile.filepath)) {
                     fs.unlinkSync(paymentReceiptFile.filepath);
                 }
