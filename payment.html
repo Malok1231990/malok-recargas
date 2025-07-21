@@ -80,9 +80,9 @@
                         ¡Importante! Una vez realizado el pago con el método seleccionado, <strong>envía la captura de tu comprobante y tus datos de TikTok</strong> al siguiente número de WhatsApp para que tu recarga sea procesada rápidamente:
                     </p>
                     <a href="https://wa.me/584126949631?text=Hola%2C%20acabo%20de%20realizar%20un%20pago%20para%20recarga%20de%20TikTok.%20Mis%20datos%20de%20TikTok%20son%3A%20%5BAQUI_TUS_DATOS%5D."
-                       class="whatsapp-link"
-                       target="_blank"
-                       style="font-size: 1.1em; padding: 12px 25px;">
+                        class="whatsapp-link"
+                        target="_blank"
+                        style="font-size: 1.1em; padding: 12px 25px;">
                         <i class="fab fa-whatsapp"></i> Enviar Captura al WhatsApp
                     </a>
                     <p class="small-text" style="margin-top: 15px;">
@@ -119,11 +119,9 @@
                     <li><strong>Teléfono:</strong> 0412-6949631</li>
                 </ul>
                 <div class="payment-fields-container">
-                    <p><strong>Paso 2:</strong> Completa los siguientes campos para verificar tu pago:</p>
-                    <label for="pm-phone">Número de Teléfono desde el que pagaste:</label>
-                    <input type="text" id="pm-phone" name="pmPhone" placeholder="Ej: 04121234567" required>
-                    <label for="pm-reference">Referencia del Pago Móvil:</label>
-                    <input type="text" id="pm-reference" name="pmReference" placeholder="Ej: 12345678" required>
+                    <p><strong>Paso 2:</strong> Sube tu comprobante de pago.</p>
+                    <label for="payment-receipt">Subir Comprobante de Pago:</label>
+                    <input type="file" id="payment-receipt" name="paymentReceipt" accept="image/*,application/pdf" required>
                 </div>
             `,
             'binance': `
@@ -143,9 +141,9 @@
                     <li><strong>ID Binance Pay:</strong> 91149377</li>
                 </ul>
                 <div class="payment-fields-container">
-                    <p><strong>Paso 2:</strong> Completa el siguiente campo con tu ID de Transacción:</p>
-                    <label for="binance-txid">ID de Transacción de Binance:</label>
-                    <input type="text" id="binance-txid" name="binanceTxid" placeholder="Ej: abc123def456..." required>
+                    <p><strong>Paso 2:</strong> Sube tu comprobante de pago.</p>
+                    <label for="payment-receipt">Subir Comprobante de Pago:</label>
+                    <input type="file" id="payment-receipt" name="paymentReceipt" accept="image/*,application/pdf" required>
                 </div>
             `,
             'zinli': `
@@ -154,9 +152,9 @@
                     <li><strong>Usuario Zinli:</strong> miladelarocaedwar04@gmail.com</li>
                 </ul>
                 <div class="payment-fields-container">
-                    <p><strong>Paso 2:</strong> Completa el siguiente campo con la referencia de tu pago en Zinli:</p>
-                    <label for="zinli-reference">Referencia de Pago Zinli:</label>
-                    <input type="text" id="zinli-reference" name="zinliReference" placeholder="Ej: #123456" required>
+                    <p><strong>Paso 2:</strong> Sube tu comprobante de pago.</p>
+                    <label for="payment-receipt">Subir Comprobante de Pago:</label>
+                    <input type="file" id="payment-receipt" name="paymentReceipt" accept="image/*,application/pdf" required>
                 </div>
             `
         };
@@ -267,9 +265,11 @@
                             fieldsContainer.style.display = 'none';
                         }
                     } else {
-                        paymentDetailsFormDiv.querySelectorAll('input[required]').forEach(input => {
-                            input.addEventListener('input', checkFormValidity);
-                        });
+                        // Only add event listener for the file input if it's not TikTok
+                        const fileInput = document.getElementById('payment-receipt');
+                        if (fileInput) {
+                            fileInput.addEventListener('change', checkFormValidity);
+                        }
                     }
 
                     const copyButton = paymentDetailsFormDiv.querySelector('.copy-button');
@@ -322,14 +322,13 @@
                 let areDetailsFilled = true;
 
                 if (transactionDetails && transactionDetails.game === "TikTok") {
-                    areDetailsFilled = true;
+                    areDetailsFilled = true; // No required fields for TikTok, instructions are for WhatsApp
                 } else if (isMethodSelected) {
-                    const requiredInputs = paymentDetailsFormDiv.querySelectorAll('input[required]');
-                    requiredInputs.forEach(input => {
-                        if (input.value.trim() === '') {
-                            areDetailsFilled = false;
-                        }
-                    });
+                    // Only check the file input for non-TikTok games
+                    const fileInput = document.getElementById('payment-receipt');
+                    if (fileInput && fileInput.files.length === 0) {
+                        areDetailsFilled = false;
+                    }
                 } else {
                     areDetailsFilled = false;
                 }
@@ -337,7 +336,7 @@
                 if (transactionDetails.game !== "TikTok") {
                     finalizeBtn.disabled = !(isMethodSelected && areDetailsFilled);
                 } else {
-                    finalizeBtn.disabled = true;
+                    finalizeBtn.disabled = true; // Button always disabled for TikTok; WhatsApp is the call to action
                 }
             }
 
@@ -359,37 +358,37 @@
                 }
 
                 const selectedMethodId = selectedRadio.value;
+                // Note: paymentData object will be simpler as reference/phone are no longer form fields
                 let paymentData = {
                     method: selectedMethodId,
                     amount: parseFloat(transactionDetails.finalPrice),
                     currency: transactionDetails.currency
                 };
 
-                if (transactionDetails.game !== "TikTok") {
-                    if (selectedMethodId === 'pago-movil') {
-                        paymentData.phone = document.getElementById('pm-phone').value;
-                        paymentData.reference = document.getElementById('pm-reference').value;
-                    } else if (selectedMethodId === 'binance') {
-                        paymentData.txid = document.getElementById('binance-txid').value;
-                    } else if (selectedMethodId === 'zinli') {
-                        paymentData.reference = document.getElementById('zinli-reference').value;
-                    } 
+                // Create FormData to handle file upload
+                const formData = new FormData();
+                // Append all transaction details to FormData
+                for (const key in transactionDetails) {
+                    formData.append(key, transactionDetails[key]);
                 }
-                
-                const fullTransactionData = {
-                    ...transactionDetails,
-                    payment: paymentData
-                };
+                formData.append('paymentMethod', selectedMethodId);
 
-                console.log('Datos a enviar:', fullTransactionData);
+                const paymentReceipt = document.getElementById('payment-receipt').files[0];
+                if (paymentReceipt) {
+                    formData.append('paymentReceipt', paymentReceipt);
+                }
+
+                // Log FormData entries for debugging (not the file content itself)
+                console.log('Datos a enviar (FormData):');
+                for (let pair of formData.entries()) {
+                   console.log(pair[0]+ ': ' + pair[1]);
+                }
 
                 try {
+                    // Send FormData directly; fetch will set Content-Type header to multipart/form-data automatically
                     const response = await fetch('/.netlify/functions/process-payment', {
                         method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify(fullTransactionData)
+                        body: formData // Send FormData instead of JSON.stringify(fullTransactionData)
                     });
 
                     if (response.ok) {
