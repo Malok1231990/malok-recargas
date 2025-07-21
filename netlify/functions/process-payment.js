@@ -304,3 +304,5 @@ exports.handler = async function(event, context) {
         body: JSON.stringify({ message: "Solicitud de pago recibida exitosamente. ¡Te enviaremos una confirmación pronto!" }),
     };
 };
+
+// Temporal change para redeploy
