@@ -3,7 +3,7 @@ const axios = require('axios');
 const { Formidable } = require('formidable');
 const nodemailer = require('nodemailer');
 const { createClient } = require('@supabase/supabase-js');
-const { Readable } = require('stream'); // ¡NUEVA IMPORTACIÓN! Necesitas el módulo 'stream'
+const { Readable } = require('stream');
 
 exports.handler = async function(event, context) {
     if (event.httpMethod !== "POST") {
@@ -19,33 +19,36 @@ exports.handler = async function(event, context) {
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     // --- Parsing de FormData con formidable ---
-    // ¡MODIFICACIÓN AQUÍ para el objeto 'req' para formidable!
-    const form = new Formidable({ multiples: true }); // 'multiples: true' es útil si esperas múltiples archivos, aunque aquí es uno solo.
+    const form = new Formidable({ multiples: true });
 
-    // Creamos un stream Readable a partir del cuerpo del evento
-    // Esto es lo que 'formidable' espera como entrada.
+    // ¡CAMBIO CLAVE AQUÍ! Decodificar el body si es base64
+    let bodyBuffer;
+    if (event.isBase64Encoded) {
+        bodyBuffer = Buffer.from(event.body, 'base64');
+    } else {
+        bodyBuffer = Buffer.from(event.body || ''); // Asegurarse de que sea un Buffer
+    }
+
     const reqStream = new Readable();
-    reqStream.push(event.body);
-    reqStream.push(null); // Indica el final del stream
+    reqStream.push(bodyBuffer); // ¡Ahora usamos el body decodificado!
+    reqStream.push(null);
 
-    // También necesitamos simular los headers de la petición para formidable
-    reqStream.headers = event.headers; // Adjuntamos los headers del evento Netlify al stream simulado
-    reqStream.method = event.httpMethod; // Adjuntamos el método HTTP
+    reqStream.headers = event.headers;
+    reqStream.method = event.httpMethod;
 
     try {
         if (event.headers['content-type'] && event.headers['content-type'].includes('multipart/form-data')) {
-            // Pasamos el stream simulado 'reqStream' a formidable
             const { fields, files } = await new Promise((resolve, reject) => {
-                form.parse(reqStream, (err, fields, files) => { // ¡CAMBIO AQUÍ! Pasamos reqStream
+                form.parse(reqStream, (err, fields, files) => {
                     if (err) {
                         console.error('Formidable parse error:', err);
-                        return reject(err);
+                        // Incluye el error completo de formidable en la respuesta del cliente
+                        return reject(err); 
                     }
                     resolve({ fields, files });
                 });
             });
 
-            // formidable V3+ devuelve campos y archivos como arrays. Ajustar para extraer el primer valor.
             data = Object.fromEntries(Object.entries(fields).map(([key, value]) => [key, Array.isArray(value) ? value[0] : value]));
             paymentReceiptFile = files['paymentReceipt'] ? files['paymentReceipt'][0] : null;
 
@@ -57,9 +60,10 @@ exports.handler = async function(event, context) {
         }
     } catch (parseError) {
         console.error("Error al procesar los datos de la solicitud:", parseError);
+        // Mejorar el mensaje de error para el cliente
         return {
             statusCode: 400,
-            body: JSON.stringify({ message: "Error al procesar los datos de la solicitud." })
+            body: JSON.stringify({ message: `Error al procesar los datos de la solicitud: ${parseError.message || 'Unknown error'}. Por favor, verifica tus datos e inténtalo de nuevo.` })
         };
     }
 
