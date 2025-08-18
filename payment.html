@@ -91,6 +91,20 @@
             font-size: 1.3em;
             text-align: center;
         }
+        /* Nuevo estilo para el contenedor de la contraseña */
+        .password-container {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .toggle-password {
+            background: none;
+            border: none;
+            color: var(--text-color);
+            cursor: pointer;
+            font-size: 1.1em;
+            padding: 5px;
+        }
     </style>
 </head>
 <body>
@@ -296,7 +310,18 @@
 
                 if (game === 'Roblox') {
                     const robloxEmailHtml = transactionDetails.robloxEmail ? `<p><strong>Correo de Roblox:</strong> ${transactionDetails.robloxEmail}</p>` : '';
-                    const robloxPasswordHtml = transactionDetails.robloxPassword ? `<p><strong>Contraseña de Roblox:</strong> ${transactionDetails.robloxPassword}</p>` : '';
+                    let robloxPasswordHtml = '';
+                    if (transactionDetails.robloxPassword) {
+                        const maskedPassword = '•'.repeat(transactionDetails.robloxPassword.length);
+                        robloxPasswordHtml = `
+                            <p><strong>Contraseña de Roblox:</strong> 
+                                <span id="roblox-password">${maskedPassword}</span>
+                                <button type="button" class="toggle-password" id="toggle-roblox-password">
+                                    <i class="fas fa-eye"></i>
+                                </button>
+                            </p>
+                        `;
+                    }
                     playerInfoHtml = `${robloxEmailHtml}${robloxPasswordHtml}`;
                 } else {
                     const playerIdHtml = transactionDetails.playerId ? `<p><strong>ID de Jugador:</strong> ${transactionDetails.playerId}</p>` : '';
@@ -310,6 +335,23 @@
                     <p><strong>Paquete:</strong> ${transactionDetails.package}</p>
                     <p><strong>Monto a Pagar:</strong> <span class="amount">${displayCurrency === 'VES' ? 'Bs.' : '$'} ${displayAmount.toFixed(2)} ${displayCurrency}</span>${otherCurrencyDisplay}</p>
                 `;
+
+                // Añadir el evento al nuevo botón de mostrar/ocultar contraseña
+                if (game === 'Roblox' && transactionDetails.robloxPassword) {
+                    const toggleButton = document.getElementById('toggle-roblox-password');
+                    const passwordSpan = document.getElementById('roblox-password');
+                    if (toggleButton && passwordSpan) {
+                        toggleButton.addEventListener('click', () => {
+                            if (passwordSpan.textContent === '•'.repeat(transactionDetails.robloxPassword.length)) {
+                                passwordSpan.textContent = transactionDetails.robloxPassword;
+                                toggleButton.innerHTML = '<i class="fas fa-eye-slash"></i>';
+                            } else {
+                                passwordSpan.textContent = '•'.repeat(transactionDetails.robloxPassword.length);
+                                toggleButton.innerHTML = '<i class="fas fa-eye"></i>';
+                            }
+                        });
+                    }
+                }
                 // --- FIN DEL CÓDIGO MODIFICADO ---
             }
 
