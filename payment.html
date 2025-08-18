@@ -4,261 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Detalles de Pago - Malok Recargas</title>
-    
+    <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-    
+    <link rel="shortcut icon" href="images/favicon.ico" type="image/x-icon">
     <style>
-        /* Variables y estilos generales (pueden ser definidos en un archivo principal) */
-        :root {
-            --primary-color: #007bff;
-            --accent-green: #28a745;
-            --accent-green-light: #d4edda;
-            --background-color: #f4f7f6;
-            --card-background: #ffffff;
-            --text-color: #333333;
-            --button-text-color: #ffffff;
-            --border-color: #e0e0e0;
-            --input-background: #fafafa;
-        }
-
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-            background-color: var(--background-color);
-            margin: 0;
-            padding: 0;
-            line-height: 1.6;
-            color: var(--text-color);
-        }
-
-        .container {
-            max-width: 900px;
-            margin: 2rem auto;
-            padding: 1rem;
-        }
-        
-        header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 1rem 2rem;
-            background-color: var(--card-background);
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-            border-bottom: 1px solid var(--border-color);
-        }
-
-        .logo-img {
-            max-width: 150px;
-            height: auto;
-        }
-        
-        .header-left, .header-right {
-            display: flex;
-            align-items: center;
-        }
-
-        .search-bar {
-            position: relative;
-            display: flex;
-            align-items: center;
-        }
-
-        .search-bar input {
-            padding: 8px 12px;
-            padding-right: 35px;
-            border: 1px solid var(--border-color);
-            border-radius: 20px;
-            background-color: var(--input-background);
-            font-size: 0.9em;
-        }
-
-        .search-bar .fas {
-            position: absolute;
-            right: 12px;
-            color: #999;
-        }
-
-        .payment-main {
-            padding: 2rem;
-            display: flex;
-            justify-content: center;
-        }
-
-        .form-container {
-            width: 100%;
-            max-width: 600px;
-            background-color: var(--card-background);
-            padding: 2.5rem;
-            border-radius: 12px;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-        }
-
-        .form-container h2 {
-            text-align: center;
-            color: var(--primary-color);
-            margin-bottom: 1.5rem;
-            font-size: 1.8em;
-        }
-
-        .transaction-summary {
-            background-color: var(--input-background);
-            padding: 1.5rem;
-            border-radius: 8px;
-            border: 1px solid var(--border-color);
-            margin-bottom: 2rem;
-        }
-
-        .transaction-summary h3 {
-            margin-top: 0;
-            color: var(--primary-color);
-            font-size: 1.4em;
-            border-bottom: 2px solid var(--primary-color);
-            padding-bottom: 10px;
-        }
-
-        .transaction-summary p {
-            margin: 5px 0;
-            font-size: 1em;
-        }
-
-        .transaction-summary .amount {
-            font-weight: bold;
-            color: var(--accent-green);
-            font-size: 1.2em;
-        }
-
-        .form-group {
-            margin-bottom: 20px;
-        }
-
-        .form-group label {
-            display: block;
-            margin-bottom: 10px;
-            font-weight: bold;
-        }
-
-        .payment-methods {
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-        }
-
-        .payment-method-option input[type="radio"] {
-            display: none;
-        }
-
-        .payment-method-option label {
-            display: flex;
-            align-items: center;
-            gap: 15px;
-            padding: 15px 20px;
-            border: 2px solid var(--border-color);
-            border-radius: 8px;
-            cursor: pointer;
-            transition: all 0.2s ease;
-        }
-
-        .payment-method-option label:hover {
-            border-color: var(--primary-color);
-            box-shadow: 0 0 5px rgba(0, 123, 255, 0.3);
-        }
-
-        .payment-method-option input[type="radio"]:checked + label {
-            border-color: var(--primary-color);
-            background-color: rgba(0, 123, 255, 0.1);
-            box-shadow: 0 0 8px rgba(0, 123, 255, 0.4);
-        }
-
-        .payment-method-option i {
-            font-size: 1.5em;
-            color: var(--primary-color);
-        }
-
-        .payment-details-form {
-            margin-top: 20px;
-            padding: 1.5rem;
-            background-color: var(--input-background);
-            border: 1px solid var(--border-color);
-            border-radius: 8px;
-        }
-        
-        .payment-details-form ul {
-            list-style: none;
-            padding: 0;
-            margin: 10px 0;
-        }
-
-        .payment-details-form li {
-            margin-bottom: 5px;
-            font-size: 0.95em;
-        }
-
-        .payment-details-form strong {
-            color: var(--primary-color);
-        }
-
-        .btn-primary {
-            display: block;
-            width: 100%;
-            padding: 15px;
-            margin-top: 2rem;
-            font-size: 1.1em;
-            font-weight: bold;
-            color: var(--button-text-color);
-            background-color: var(--primary-color);
-            border: none;
-            border-radius: 8px;
-            cursor: pointer;
-            transition: background-color 0.3s ease;
-        }
-
-        .btn-primary:hover:not(:disabled) {
-            background-color: #0056b3;
-        }
-
-        .btn-primary:disabled {
-            background-color: #cccccc;
-            cursor: not-allowed;
-        }
-
-        footer {
-            text-align: center;
-            padding: 1.5rem;
-            background-color: var(--card-background);
-            box-shadow: 0 -2px 4px rgba(0, 0, 0, 0.05);
-            margin-top: 2rem;
-            border-top: 1px solid var(--border-color);
-        }
-
-        .footer-content {
-            max-width: 900px;
-            margin: 0 auto;
-        }
-
-        .footer-links a {
-            color: var(--primary-color);
-            text-decoration: none;
-            margin: 0 10px;
-        }
-
-        .whatsapp-link {
-            background-color: var(--accent-green);
-            color: var(--button-text-color);
-            padding: 10px 20px;
-            border-radius: 25px;
-            text-decoration: none;
-            font-weight: bold;
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            margin-top: 15px;
-            transition: background-color 0.3s ease;
-        }
-
-        .whatsapp-link:hover {
-            background-color: #1e8735;
-        }
-        
-        /* Estilos específicos para la página de pago */
+        /* Estilos para el botón de copiar y el mensaje */
         .copy-container {
             display: flex;
             align-items: center;
@@ -288,10 +38,12 @@
             font-size: 0.9em;
             font-weight: bold;
         }
+        /* Estilo para la etiqueta de la dirección */
         .address-label {
             font-weight: bold;
             color: var(--text-color);
         }
+        /* Estilo para los nuevos campos de correo y whatsapp */
         .input-group {
             margin-bottom: 15px;
         }
@@ -309,16 +61,17 @@
             border-radius: 5px;
             background-color: var(--input-background);
             color: var(--text-color);
-            box-sizing: border-box; 
+            box-sizing: border-box; /* Asegura que el padding no aumente el ancho */
         }
+        /* Estilo para el mensaje de éxito */
         .payment-success-message {
             margin-top: 30px;
             padding: 20px;
-            background-color: var(--accent-green-light); 
+            background-color: var(--accent-green-light); /* Un color de fondo suave para el éxito */
             border: 1px solid var(--accent-green);
             border-radius: 8px;
             text-align: center;
-            color: var(--accent-green); 
+            color: var(--accent-green); /* Color del texto */
         }
         .payment-success-message h2 {
             margin-top: 0;
@@ -327,6 +80,7 @@
         .payment-success-message p {
             margin-bottom: 0;
         }
+        /* Estilos para los pasos */
         .form-section-step {
             margin-top: 30px;
             padding-top: 20px;
@@ -338,6 +92,7 @@
             font-size: 1.3em;
             text-align: center;
         }
+        /* Nuevo estilo para el contenedor de la contraseña */
         .password-container {
             display: flex;
             align-items: center;
@@ -350,10 +105,6 @@
             cursor: pointer;
             font-size: 1.1em;
             padding: 5px;
-        }
-        .small-text {
-            font-size: 0.8em;
-            color: #888;
         }
     </style>
 </head>
@@ -376,7 +127,7 @@
         <div class="form-container">
             <h2>Confirmar Recarga y Seleccionar Método de Pago</h2>
             <div id="transaction-summary" class="transaction-summary">
-                </div>
+            </div>
 
             <form id="payment-form">
                 <div class="form-section-step">
@@ -384,14 +135,14 @@
                     <div class="form-group">
                         <label>Método de Pago:</label>
                         <div class="payment-methods" id="payment-methods">
-                            </div>
+                        </div>
                     </div>
                 </div>
 
                 <div class="form-section-step">
                     <h3>Paso 2: Realiza el Pago y Sube tu Comprobante</h3>
                     <div id="payment-details-form" class="payment-details-form">
-                        </div>
+                    </div>
                 </div>
                 
                 <div class="form-section-step">
@@ -406,7 +157,6 @@
                         <input type="tel" id="whatsappNumber" name="whatsappNumber" placeholder="Ej: 584121234567" required>
                     </div>
                 </div>
-
                 <div id="whatsapp-message-container" class="payment-confirmation-message" style="margin-top: 30px; margin-bottom: 20px; text-align: center; display: none;">
                     <p style="font-size: 1.1em; color: var(--text-color); margin-bottom: 15px;">
                         ¡Importante! Una vez realizado el pago con el método seleccionado, <strong>envía la captura de tu comprobante y tus datos de TikTok</strong> al siguiente número de WhatsApp para que tu recarga sea procesada rápidamente:
@@ -421,7 +171,7 @@
                         (Por favor, no olvides incluir tus datos de TikTok en el mensaje de WhatsApp).
                     </p>
                 </div>
-                
+
                 <button type="submit" class="btn-primary" id="finalize-recharge-btn" disabled>Finalizar Recarga</button>
             </form>
 
@@ -446,8 +196,8 @@
         </div>
     </footer>
 
+    <script src="script.js"></script>
     <script>
-        // Plantillas HTML para cada método de pago
         const paymentDetailsTemplates = {
             'pago-movil': `
                 <p><strong>Paso 1:</strong> Realiza el Pago Móvil a los siguientes datos:</p>
@@ -497,10 +247,10 @@
             `
         };
 
-        // Métodos de pago disponibles
         const paymentMethodsVES = [
             { id: 'pago-movil', name: 'Pago Móvil', type: 'ves', icon: 'fas fa-mobile-alt' }
         ];
+
         const paymentMethodsUSD = [
             { id: 'binance', name: 'Binance', type: 'usd', icon: 'fab fa-bitcoin' },
             { id: 'zinli', name: 'Zinli', type: 'usd', icon: 'fas fa-wallet' }
@@ -511,315 +261,330 @@
         const whatsappMessageContainer = document.getElementById('whatsapp-message-container');
         const finalizeBtn = document.getElementById('finalize-recharge-btn');
         const successMessageDisplay = document.getElementById('success-message-display');
-
+        const paymentDetailsFormDiv = document.getElementById('payment-details-form');
+        
         document.addEventListener('DOMContentLoaded', () => {
             const transactionSummaryDiv = document.getElementById('transaction-summary');
             const paymentMethodsDiv = document.getElementById('payment-methods');
-            const paymentDetailsFormDiv = document.getElementById('payment-details-form');
             
-            // Cargar los detalles de la transacción desde el almacenamiento local
             const storedDetails = localStorage.getItem('transactionDetails');
             if (storedDetails) {
                 transactionDetails = JSON.parse(storedDetails);
                 updateTransactionSummary();
                 updatePaymentMethods();
-
-                // Lógica específica para TikTok
-                if (transactionDetails.game === "TikTok") {
+                // Lógica de visualización inicial
+                if (transactionDetails.game === "TikTok" || transactionDetails.game === "Telegram") {
                     whatsappMessageContainer.style.display = 'block';
                     finalizeBtn.style.display = 'none';
+                    paymentDetailsFormDiv.style.display = 'none'; // Oculta el paso 2
+                    paymentMethodsDiv.closest('.form-section-step').style.display = 'none'; // Oculta el paso 1
                 } else {
                     whatsappMessageContainer.style.display = 'none';
                     finalizeBtn.style.display = 'block';
+                    paymentDetailsFormDiv.style.display = 'block'; // Muestra el paso 2
+                    paymentMethodsDiv.closest('.form-section-step').style.display = 'block'; // Muestra el paso 1
                 }
             } else {
-                // Si no hay detalles, mostrar un mensaje de error y deshabilitar el formulario
                 transactionSummaryDiv.innerHTML = '<p>No se encontraron detalles de la transacción. Por favor, regresa a la página de inicio.</p>';
                 finalizeBtn.style.display = 'none';
                 whatsappMessageContainer.style.display = 'none';
+                paymentDetailsFormDiv.style.display = 'none';
+                paymentMethodsDiv.closest('.form-section-step').style.display = 'none';
+            }
+        });
+
+        function updateTransactionSummary() {
+            if (!transactionDetails) return;
+
+            const transactionSummaryDiv = document.getElementById('transaction-summary');
+            const displayAmount = parseFloat(transactionDetails.finalPrice);
+            const displayCurrency = transactionDetails.currency;
+            
+            let otherCurrencyDisplay = '';
+            if (transactionDetails.priceUSD && transactionDetails.priceVES) {
+                if (displayCurrency === 'VES') {
+                    otherCurrencyDisplay = ` (~ $${parseFloat(transactionDetails.priceUSD).toFixed(2)} USD)`;
+                } else if (displayCurrency === 'USD') {
+                    otherCurrencyDisplay = ` (~ Bs. ${parseFloat(transactionDetails.priceVES).toFixed(2)} VES)`;
+                }
             }
 
-            // Función para actualizar el resumen de la transacción
-            function updateTransactionSummary() {
-                if (!transactionDetails) return;
+            const game = transactionDetails.game;
+            let playerInfoHtml = '';
+            let gameOrServiceLabel = (game === 'Netflix') ? 'Servicio' : 'Juego';
+            let passwordHtml = '';
+            let passwordToReveal = '';
 
-                const displayAmount = parseFloat(transactionDetails.finalPrice);
-                const displayCurrency = transactionDetails.currency;
-                
-                let otherCurrencyDisplay = '';
-                if (transactionDetails.priceUSD && transactionDetails.priceVES) {
-                    if (displayCurrency === 'VES') {
-                        otherCurrencyDisplay = ` (~ $${parseFloat(transactionDetails.priceUSD).toFixed(2)} USD)`;
-                    } else if (displayCurrency === 'USD') {
-                        otherCurrencyDisplay = ` (~ Bs. ${parseFloat(transactionDetails.priceVES).toFixed(2)} VES)`;
-                    }
+            // Lógica unificada para mostrar datos del jugador
+            if (game === 'Roblox' || game === 'Netflix') {
+                const gameEmailHtml = transactionDetails.robloxEmail ? `<p><strong>Correo de ${game}:</strong> ${transactionDetails.robloxEmail}</p>` : '';
+                if (transactionDetails.robloxPassword) {
+                    passwordToReveal = transactionDetails.robloxPassword;
                 }
-
-                const game = transactionDetails.game;
-                let playerInfoHtml = '';
-                let gameOrServiceLabel = (game === 'Netflix') ? 'Servicio' : 'Juego';
-                let passwordHtml = '';
-                let passwordToReveal = '';
-
-                // Lógica unificada para mostrar datos del jugador
-                if (game === 'Roblox' || game === 'Netflix') {
-                    const gameEmailHtml = transactionDetails.robloxEmail ? `<p><strong>Correo de ${game}:</strong> ${transactionDetails.robloxEmail}</p>` : '';
-                    if (transactionDetails.robloxPassword) {
-                        passwordToReveal = transactionDetails.robloxPassword;
-                    }
-                    playerInfoHtml = `${gameEmailHtml}`;
-                } else if (game === 'Call of Duty Mobile') {
-                    const gameEmailHtml = transactionDetails.codmEmail ? `<p><strong>Correo de ${game}:</strong> ${transactionDetails.codmEmail}</p>` : '';
-                    if (transactionDetails.codmPassword) {
-                        passwordToReveal = transactionDetails.codmPassword;
-                    }
-                    const gameVinculationHtml = transactionDetails.codmVinculation ? `<p><strong>Vinculación:</strong> ${transactionDetails.codmVinculation}</p>` : '';
-                    playerInfoHtml = `${gameEmailHtml}${gameVinculationHtml}`;
-                } else {
-                    // Para otros juegos, mostramos el ID de Jugador
-                    const playerIdHtml = transactionDetails.playerId ? `<p><strong>ID de Jugador:</strong> ${transactionDetails.playerId}</p>` : '';
-                    playerInfoHtml = playerIdHtml;
+                playerInfoHtml = `${gameEmailHtml}`;
+            } else if (game === 'Call of Duty Mobile') {
+                const gameEmailHtml = transactionDetails.codmEmail ? `<p><strong>Correo de ${game}:</strong> ${transactionDetails.codmEmail}</p>` : '';
+                if (transactionDetails.codmPassword) {
+                    passwordToReveal = transactionDetails.codmPassword;
                 }
+                const gameVinculationHtml = transactionDetails.codmVinculation ? `<p><strong>Vinculación:</strong> ${transactionDetails.codmVinculation}</p>` : '';
+                playerInfoHtml = `${gameEmailHtml}${gameVinculationHtml}`;
+            } else {
+                // Para otros juegos, mostramos el ID de Jugador
+                const playerIdHtml = transactionDetails.playerId ? `<p><strong>ID de Jugador:</strong> ${transactionDetails.playerId}</p>` : '';
+                playerInfoHtml = playerIdHtml;
+            }
 
-                // Generar HTML de la contraseña si existe
-                if (passwordToReveal) {
-                    const maskedPassword = '•'.repeat(passwordToReveal.length);
-                    passwordHtml = `
-                        <p><strong>Contraseña:</strong> 
-                            <span id="game-password">${maskedPassword}</span>
-                            <button type="button" class="toggle-password" id="toggle-game-password">
-                                <i class="fas fa-eye"></i>
-                            </button>
-                        </p>
-                    `;
-                }
-
-                transactionSummaryDiv.innerHTML = `
-                    <h3>Resumen de tu Recarga</h3>
-                    <p><strong>${gameOrServiceLabel}:</strong> ${game}</p>
-                    ${playerInfoHtml}
-                    ${passwordHtml}
-                    <p><strong>Paquete:</strong> ${transactionDetails.package}</p>
-                    <p><strong>Monto a Pagar:</strong> <span class="amount">${displayCurrency === 'VES' ? 'Bs.' : '$'} ${displayAmount.toFixed(2)} ${displayCurrency}</span>${otherCurrencyDisplay}</p>
+            // Generar HTML de la contraseña si existe
+            if (passwordToReveal) {
+                const maskedPassword = '•'.repeat(passwordToReveal.length);
+                passwordHtml = `
+                    <p><strong>Contraseña:</strong> 
+                        <span id="game-password">${maskedPassword}</span>
+                        <button type="button" class="toggle-password" id="toggle-game-password">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                    </p>
                 `;
-
-                // Añadir el evento al botón de mostrar/ocultar contraseña si el elemento existe
-                const toggleButton = document.getElementById('toggle-game-password');
-                if (toggleButton) {
-                    toggleButton.addEventListener('click', () => {
-                        const passwordSpan = document.getElementById('game-password');
-                        if (passwordSpan.textContent === '•'.repeat(passwordToReveal.length)) {
-                            passwordSpan.textContent = passwordToReveal;
-                            toggleButton.innerHTML = '<i class="fas fa-eye-slash"></i>';
-                        } else {
-                            passwordSpan.textContent = '•'.repeat(passwordToReveal.length);
-                            toggleButton.innerHTML = '<i class="fas fa-eye"></i>';
-                        }
-                    });
-                }
             }
 
-            // Función para mostrar los métodos de pago según la moneda
-            function updatePaymentMethods() {
-                paymentMethodsDiv.innerHTML = '';
-                const currentCurrency = transactionDetails.currency;
-                const methods = currentCurrency === 'VES' ? paymentMethodsVES : paymentMethodsUSD;
+            transactionSummaryDiv.innerHTML = `
+                <h3>Resumen de tu Recarga</h3>
+                <p><strong>${gameOrServiceLabel}:</strong> ${game}</p>
+                ${playerInfoHtml}
+                ${passwordHtml}
+                <p><strong>Paquete:</strong> ${transactionDetails.package}</p>
+                <p><strong>Monto a Pagar:</strong> <span class="amount">${displayCurrency === 'VES' ? 'Bs.' : '$'} ${displayAmount.toFixed(2)} ${displayCurrency}</span>${otherCurrencyDisplay}</p>
+            `;
 
-                methods.forEach(method => {
-                    const methodItem = document.createElement('div');
-                    methodItem.classList.add('payment-method-option');
-                    methodItem.innerHTML = `
-                        <input type="radio" id="method-${method.id}" name="paymentMethod" value="${method.id}" data-type="${method.type}">
-                        <label for="method-${method.id}">
-                            <i class="${method.icon}"></i>
-                            <span>${method.name}</span>
-                        </label>
-                    `;
-                    paymentMethodsDiv.appendChild(methodItem);
-                });
-
-                paymentMethodsDiv.querySelectorAll('input[name="paymentMethod"]').forEach(radio => {
-                    radio.addEventListener('change', (event) => {
-                        const selectedMethodId = event.target.value;
-                        loadPaymentDetails(selectedMethodId);
-                        checkFormValidity();
-                    });
-                });
-                checkFormValidity();
-            }
-
-            // Función para cargar los detalles del método de pago seleccionado
-            function loadPaymentDetails(methodId) {
-                let methodHtml = paymentDetailsTemplates[methodId];
-
-                if (methodHtml) {
-                    paymentDetailsFormDiv.innerHTML = methodHtml;
-
-                    // Ocultar la sección de subir comprobante para TikTok
-                    if (transactionDetails.game === "TikTok") {
-                        const fieldsContainer = paymentDetailsFormDiv.querySelector('.payment-fields-container');
-                        if (fieldsContainer) {
-                            fieldsContainer.style.display = 'none';
-                        }
+            // Añadir el evento al botón de mostrar/ocultar contraseña si el elemento existe
+            const toggleButton = document.getElementById('toggle-game-password');
+            if (toggleButton) {
+                toggleButton.addEventListener('click', () => {
+                    const passwordSpan = document.getElementById('game-password');
+                    if (passwordSpan.textContent === '•'.repeat(passwordToReveal.length)) {
+                        passwordSpan.textContent = passwordToReveal;
+                        toggleButton.innerHTML = '<i class="fas fa-eye-slash"></i>';
                     } else {
-                        const fileInput = document.getElementById('payment-receipt');
-                        if (fileInput) {
-                            fileInput.addEventListener('change', checkFormValidity);
-                            fileInput.required = true;
-                        }
+                        passwordSpan.textContent = '•'.repeat(passwordToReveal.length);
+                        toggleButton.innerHTML = '<i class="fas fa-eye"></i>';
                     }
-
-                    const copyButton = paymentDetailsFormDiv.querySelector('.copy-button');
-                    if (copyButton) {
-                        copyButton.addEventListener('click', handleCopyButtonClick);
-                    }
-                } else {
-                    paymentDetailsFormDiv.innerHTML = '<p>Selecciona un método de pago para ver los detalles.</p>';
-                }
-                checkFormValidity();
-
-                document.getElementById('email').addEventListener('input', checkFormValidity);
-                document.getElementById('whatsappNumber').addEventListener('input', checkFormValidity);
+                });
             }
+        }
 
-            // Función para copiar texto al portapapeles
-            async function handleCopyButtonClick(event) {
-                const button = event.currentTarget;
-                const targetId = button.dataset.copyTarget;
-                const textToCopyElement = document.getElementById(targetId);
-                const feedbackElement = document.getElementById(`${targetId}-copy-feedback`);
+        function updatePaymentMethods() {
+            const paymentMethodsDiv = document.getElementById('payment-methods');
+            paymentMethodsDiv.innerHTML = '';
+            const currentCurrency = transactionDetails.currency;
+            const methods = currentCurrency === 'VES' ? paymentMethodsVES : paymentMethodsUSD;
 
-                if (textToCopyElement && navigator.clipboard) {
-                    try {
-                        await navigator.clipboard.writeText(textToCopyElement.textContent);
-                        if (feedbackElement) {
-                            feedbackElement.textContent = '¡Copiado!';
-                            feedbackElement.style.display = 'inline-block';
-                            setTimeout(() => {
-                                feedbackElement.style.display = 'none';
-                            }, 1500);
-                        }
-                    } catch (err) {
-                        console.error('Error al copiar: ', err);
-                        if (feedbackElement) {
-                            feedbackElement.textContent = 'Error al copiar';
-                            feedbackElement.style.display = 'inline-block';
-                            setTimeout(() => {
-                                feedbackElement.style.display = 'none';
-                            }, 1500);
-                        }
-                        alert('No se pudo copiar el texto. Por favor, cópialo manualmente.');
-                    }
-                } else {
-                    alert('Tu navegador no soporta la copia automática o no se encontró el elemento. Por favor, selecciona y copia la dirección manualmente.');
+            methods.forEach(method => {
+                const methodItem = document.createElement('div');
+                methodItem.classList.add('payment-method-option');
+                methodItem.innerHTML = `
+                    <input type="radio" id="method-${method.id}" name="paymentMethod" value="${method.id}" data-type="${method.type}">
+                    <label for="method-${method.id}">
+                        <i class="${method.icon}"></i>
+                        <span>${method.name}</span>
+                    </label>
+                `;
+                paymentMethodsDiv.appendChild(methodItem);
+            });
+
+            paymentMethodsDiv.querySelectorAll('input[name="paymentMethod"]').forEach(radio => {
+                radio.addEventListener('change', (event) => {
+                    const selectedMethodId = event.target.value;
+                    loadPaymentDetails(selectedMethodId);
+                    checkFormValidity();
+                });
+            });
+            checkFormValidity();
+        }
+
+        function loadPaymentDetails(methodId) {
+            let methodHtml = paymentDetailsTemplates[methodId];
+
+            if (methodHtml) {
+                paymentDetailsFormDiv.innerHTML = methodHtml;
+                const fileInput = document.getElementById('payment-receipt');
+                if (fileInput) {
+                    fileInput.addEventListener('change', checkFormValidity);
+                    fileInput.required = true;
                 }
+
+                const copyButton = paymentDetailsFormDiv.querySelector('.copy-button');
+                if (copyButton) {
+                    copyButton.addEventListener('click', handleCopyButtonClick);
+                }
+            } else {
+                paymentDetailsFormDiv.innerHTML = '<p>Selecciona un método de pago para ver los detalles.</p>';
             }
+            checkFormValidity();
 
-            // Función para verificar si el formulario es válido
-            function checkFormValidity() {
-                const selectedRadio = document.querySelector('input[name="paymentMethod"]:checked');
-                const isMethodSelected = selectedRadio !== null;
-                
-                const emailInput = document.getElementById('email');
-                const whatsappInput = document.getElementById('whatsappNumber');
-                const isEmailFilled = emailInput && emailInput.value.trim() !== '';
-                const isEmailValid = emailInput && emailInput.checkValidity();
-                const isWhatsappFilled = whatsappInput && whatsappInput.value.trim() !== '';
+            document.getElementById('email').addEventListener('input', checkFormValidity);
+            document.getElementById('whatsappNumber').addEventListener('input', checkFormValidity);
+        }
 
-                let areDetailsFilled = true;
+        async function handleCopyButtonClick(event) {
+            const button = event.currentTarget;
+            const targetId = button.dataset.copyTarget;
+            const textToCopyElement = document.getElementById(targetId);
+            const feedbackElement = document.getElementById(`${targetId}-copy-feedback`);
 
-                // Lógica de validación para TikTok (no requiere subir comprobante)
-                if (transactionDetails && transactionDetails.game === "TikTok") {
-                    areDetailsFilled = true;
-                } else if (isMethodSelected) {
-                    const fileInput = document.getElementById('payment-receipt');
-                    if (fileInput && fileInput.files.length === 0) {
-                        areDetailsFilled = false;
+            if (textToCopyElement && navigator.clipboard) {
+                try {
+                    await navigator.clipboard.writeText(textToCopyElement.textContent);
+                    if (feedbackElement) {
+                        feedbackElement.textContent = '¡Copiado!';
+                        feedbackElement.style.display = 'inline-block';
+                        setTimeout(() => {
+                            feedbackElement.style.display = 'none';
+                        }, 1500);
                     }
-                } else {
+                } catch (err) {
+                    console.error('Error al copiar: ', err);
+                    if (feedbackElement) {
+                        feedbackElement.textContent = 'Error al copiar';
+                        feedbackElement.style.display = 'inline-block';
+                        setTimeout(() => {
+                            feedbackElement.style.display = 'none';
+                        }, 1500);
+                    }
+                    alert('No se pudo copiar el texto. Por favor, cópialo manualmente.');
+                }
+            } else {
+                alert('Tu navegador no soporta la copia automática o no se encontró el elemento. Por favor, selecciona y copia la dirección manualmente.');
+            }
+        }
+
+        function checkFormValidity() {
+            const selectedRadio = document.querySelector('input[name="paymentMethod"]:checked');
+            const isMethodSelected = selectedRadio !== null;
+            
+            const emailInput = document.getElementById('email');
+            const whatsappInput = document.getElementById('whatsappNumber');
+
+            const isEmailFilled = emailInput && emailInput.value.trim() !== '';
+            const isEmailValid = emailInput && emailInput.checkValidity();
+
+            const isWhatsappFilled = whatsappInput && whatsappInput.value.trim() !== '';
+
+            let areDetailsFilled = true;
+
+            if (transactionDetails.game === "TikTok" || transactionDetails.game === "Telegram") {
+                areDetailsFilled = true;
+            } else if (isMethodSelected) {
+                const fileInput = document.getElementById('payment-receipt');
+                if (fileInput && fileInput.files.length === 0) {
                     areDetailsFilled = false;
                 }
-                
-                // Habilitar/deshabilitar el botón de finalizar
-                if (transactionDetails.game !== "TikTok") {
-                    finalizeBtn.disabled = !(isMethodSelected && areDetailsFilled && isEmailFilled && isEmailValid && isWhatsappFilled);
-                } else {
-                    finalizeBtn.disabled = !(isEmailFilled && isEmailValid && isWhatsappFilled); 
+            } else {
+                areDetailsFilled = false;
+            }
+            
+            if (transactionDetails.game !== "TikTok" && transactionDetails.game !== "Telegram") {
+                finalizeBtn.disabled = !(isMethodSelected && areDetailsFilled && isEmailFilled && isEmailValid && isWhatsappFilled);
+            } else {
+                // El botón de finalizar está oculto, por lo que deshabilitarlo no es necesario.
+                // Sin embargo, podemos usar esta misma lógica para habilitar el enlace de WhatsApp
+                // o mostrar una alerta si los campos no están llenos.
+                const whatsappLink = document.querySelector('.whatsapp-link');
+                if (whatsappLink) {
+                    if (isEmailFilled && isEmailValid && isWhatsappFilled) {
+                        // Aquí podrías agregar una clase para estilos visuales de habilitación
+                        whatsappLink.style.opacity = '1';
+                        whatsappLink.style.pointerEvents = 'auto';
+                    } else {
+                        // Opcionalmente, mostrar un mensaje al usuario
+                        whatsappLink.style.opacity = '0.5';
+                        whatsappLink.style.pointerEvents = 'none';
+                    }
                 }
             }
+        }
 
-            // Manejar el envío del formulario
-            document.getElementById('payment-form').addEventListener('submit', async (e) => {
-                e.preventDefault();
+        document.getElementById('payment-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
 
-                const formData = new FormData(paymentForm);
+            const formData = new FormData(paymentForm);
 
-                // Adjuntar los detalles de la transacción al objeto FormData
-                for (const key in transactionDetails) {
-                    formData.append(key, transactionDetails[key]);
-                }
+            for (const key in transactionDetails) {
+                formData.append(key, transactionDetails[key]);
+            }
 
-                // Validaciones finales
-                const emailInput = document.getElementById('email');
-                const whatsappInput = document.getElementById('whatsappNumber');
-                
-                if (!emailInput || emailInput.value.trim() === '' || !emailInput.checkValidity()) {
-                    alert('Por favor, ingresa un correo electrónico válido para recibir notificaciones.');
-                    emailInput.focus();
+            const emailInput = document.getElementById('email');
+            const whatsappInput = document.getElementById('whatsappNumber');
+            
+            if (!emailInput || emailInput.value.trim() === '' || !emailInput.checkValidity()) {
+                alert('Por favor, ingresa un correo electrónico válido para recibir notificaciones.');
+                emailInput.focus();
+                return;
+            }
+            
+            if (!whatsappInput || whatsappInput.value.trim() === '') {
+                alert('Por favor, ingresa tu número de WhatsApp para poder contactarte y completar la recarga.');
+                whatsappInput.focus();
+                return;
+            }
+            
+            if (transactionDetails.game !== "TikTok" && transactionDetails.game !== "Telegram") {
+                const paymentReceipt = document.getElementById('payment-receipt');
+                if (!paymentReceipt || paymentReceipt.files.length === 0) {
+                    alert('Por favor, sube tu comprobante de pago.');
                     return;
                 }
-                
-                if (!whatsappInput || whatsappInput.value.trim() === '') {
-                    alert('Por favor, ingresa tu número de WhatsApp para poder contactarte y completar la recarga.');
-                    whatsappInput.focus();
-                    return;
-                }
-                
-                if (transactionDetails.game !== "TikTok") {
-                    const paymentReceipt = document.getElementById('payment-receipt');
-                    if (!paymentReceipt || paymentReceipt.files.length === 0) {
-                        alert('Por favor, sube tu comprobante de pago.');
-                        return;
-                    }
-                }
-                
-                // Deshabilitar el botón y mostrar "Enviando..."
-                finalizeBtn.disabled = true;
-                finalizeBtn.textContent = 'Enviando...';
-                
-                try {
-                    // Nota: Esta función requiere una implementación del lado del servidor (e.g., Netlify Function, PHP, Node.js)
-                    // para procesar el formulario y enviar el correo electrónico/notificación.
-                    const response = await fetch('/.netlify/functions/process-payment', {
-                        method: 'POST',
-                        body: formData
-                    });
+            } else {
+                // No se envía nada si es TikTok o Telegram, solo se valida y se muestra el mensaje de WhatsApp.
+                // El formulario no necesita ser enviado al backend aquí.
+                // Simplemente oculta el formulario y muestra el mensaje de éxito.
+                paymentForm.style.display = 'none';
+                whatsappMessageContainer.style.display = 'none';
+                successMessageDisplay.style.display = 'block';
+                localStorage.removeItem('transactionDetails');
 
-                    if (response.ok) {
-                        // Ocultar el formulario y mostrar el mensaje de éxito
-                        paymentForm.style.display = 'none';
-                        whatsappMessageContainer.style.display = 'none';
-                        successMessageDisplay.style.display = 'block';
-                        localStorage.removeItem('transactionDetails');
+                setTimeout(() => {
+                    window.location.href = 'index.html';
+                }, 5000);
+                return;
+            }
+            
+            console.log('Datos a enviar (FormData):');
+            for (let pair of formData.entries()) {
+                console.log(pair[0]+ ': ' + pair[1]);
+            }
+            
+            finalizeBtn.disabled = true;
+            finalizeBtn.textContent = 'Enviando...';
+            
+            try {
+                const response = await fetch('/.netlify/functions/process-payment', {
+                    method: 'POST',
+                    body: formData
+                });
 
-                        // Redirigir al inicio después de 5 segundos
-                        setTimeout(() => {
-                            window.location.href = 'index.html';
-                        }, 5000);
-                    } else {
-                        const errorData = await response.json();
-                        alert(`Ocurrió un error: ${errorData.message || response.statusText}. Por favor, verifica tus datos e inténtalo de nuevo.`);
-                        console.error('Server error:', errorData);
-                        finalizeBtn.disabled = false;
-                        finalizeBtn.textContent = 'Finalizar Recarga';
-                    }
-                } catch (error) {
-                    alert('Hubo un problema de conexión. Por favor, inténtalo de nuevo más tarde.');
-                    console.error('Network or client error:', error);
+                if (response.ok) {
+                    paymentForm.style.display = 'none';
+                    whatsappMessageContainer.style.display = 'none';
+                    successMessageDisplay.style.display = 'block';
+                    localStorage.removeItem('transactionDetails');
+
+                    setTimeout(() => {
+                        window.location.href = 'index.html';
+                    }, 5000);
+                } else {
+                    const errorData = await response.json();
+                    alert(`Ocurrió un error: ${errorData.message || response.statusText}. Por favor, verifica tus datos e inténtalo de nuevo.`);
+                    console.error('Server error:', errorData);
                     finalizeBtn.disabled = false;
                     finalizeBtn.textContent = 'Finalizar Recarga';
                 }
-            });
+            } catch (error) {
+                alert('Hubo un problema de conexión. Por favor, inténtalo de nuevo más tarde.');
+                console.error('Network or client error:', error);
+                finalizeBtn.disabled = false;
+                finalizeBtn.textContent = 'Finalizar Recarga';
+            }
         });
     </script>
 </body>
