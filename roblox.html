@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Recarga de Robux - Malok Recargas</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <link rel="stylesheet" href="assets/css/style.css">
+    <link rel="preload" href="assets/images/roblox-banner.webp" as="image">
+    <link rel="icon" href="assets/images/logo.png" type="image/x-icon">
+</head>
+<body>
+
+    <header>
+        <div class="header-left">
+            <a href="index.html">
+                <img src="assets/images/logo.png" alt="Malok Recargas Logo" class="logo-img">
+            </a>
+        </div>
+        <div class="header-right">
+            <div class="search-bar">
+                <input type="text" placeholder="Buscar juego o servicio...">
+                <i class="fas fa-search"></i>
+            </div>
+            <div class="custom-currency-selector">
+                <div class="selected-currency">
+                    <img src="assets/images/flag-venezuela.png" alt="Bandera de Venezuela">
+                    <span>VES</span>
+                    <i class="fas fa-chevron-down"></i>
+                </div>
+                <div class="currency-options">
+                    <div class="option" data-currency="USD">
+                        <img src="assets/images/flag-usa.png" alt="Bandera de USA">
+                        <span>USD</span>
+                    </div>
+                    <div class="option" data-currency="COP">
+                        <img src="assets/images/flag-colombia.png" alt="Bandera de Colombia">
+                        <span>COP</span>
+                    </div>
+                    <div class="option" data-currency="VES">
+                        <img src="assets/images/flag-venezuela.png" alt="Bandera de Venezuela">
+                        <span>VES</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main>
+        <div class="game-recharge-container">
+            <img src="assets/images/roblox-banner.webp" alt="Banner de Roblox" class="game-banner">
+
+            <section class="form-container">
+                <h1>Recarga de Robux</h1>
+                <p>Ingresa tus datos y selecciona tu paquete de Robux.</p>
+
+                <div class="form-group">
+                    <div class="input-group">
+                        <label for="robloxEmail">Correo de Roblox: <span class="required-star">*</span></label>
+                        <input type="email" id="robloxEmail" name="robloxEmail" placeholder="ejemplo@correo.com" required>
+                    </div>
+                    <div class="input-group">
+                        <label for="robloxPassword">Contraseña de Roblox: <span class="required-star">*</span></label>
+                        <input type="password" id="robloxPassword" name="robloxPassword" placeholder="Ingresa tu contraseña" required>
+                    </div>
+                </div>
+
+                <h2>Selecciona tu Paquete</h2>
+                <p class="small-text">Los precios se muestran en la moneda seleccionada.</p>
+                
+                <div class="package-list">
+                    </div>
+
+                <div class="transaction-summary">
+                    <p>Resumen del Pedido</p>
+                    <p>Paquete: <strong id="summary-package">Aún no seleccionado</strong></p>
+                    <p>Total: <strong id="summary-total">0.00 VES</strong></p>
+                </div>
+
+                <button id="proceedToPayment" class="btn-primary" disabled>Finalizar Recarga</button>
+            </section>
+        </div>
+    </main>
+
+    <footer>
+        <div class="footer-content">
+            <div class="footer-links">
+                <a href="about.html">Sobre Nosotros</a>
+                <a href="privacy.html">Política de Privacidad</a>
+                <a href="terms.html">Términos y Condiciones</a>
+                <a href="contact.html">Contacto</a>
+            </div>
+            <a href="https://wa.me/tunumerodewhatsapp" class="whatsapp-link" target="_blank">
+                <i class="fab fa-whatsapp"></i> Habla con nosotros
+            </a>
+            <p>&copy; 2025 Malok Recargas. Todos los derechos reservados.</p>
+        </div>
+    </footer>
+
+    <script src="assets/js/currency-selector.js"></script>
+    <script src="assets/js/common-recharge.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const gameData = {
+                game: 'Roblox',
+                imagePath: 'assets/images/roblox-banner.webp',
+                inputIds: ['robloxEmail', 'robloxPassword'],
+                priceKey: 'price',
+                packages: {
+                    'Robux': {
+                        'USD': [
+                            { name: '400 Robux', value: 400, price: 4.99 },
+                            { name: '800 Robux', value: 800, price: 9.99 },
+                            { name: '1700 Robux', value: 1700, price: 19.99 },
+                            { name: '4500 Robux', value: 4500, price: 49.99 },
+                            { name: '10000 Robux', value: 10000, price: 99.99 }
+                        ],
+                        'VES': [
+                            { name: '400 Robux', value: 400, price: 175.00 },
+                            { name: '800 Robux', value: 800, price: 350.00 },
+                            { name: '1700 Robux', value: 1700, price: 700.00 },
+                            { name: '4500 Robux', value: 4500, price: 1750.00 },
+                            { name: '10000 Robux', value: 10000, price: 3500.00 }
+                        ],
+                        'COP': [
+                            { name: '400 Robux', value: 400, price: 20000.00 },
+                            { name: '800 Robux', value: 800, price: 40000.00 },
+                            { name: '1700 Robux', value: 1700, price: 80000.00 },
+                            { name: '4500 Robux', value: 4500, price: 200000.00 },
+                            { name: '10000 Robux', value: 10000, price: 400000.00 }
+                        ]
+                    }
+                }
+            };
+            
+            // Llamar a la función principal de common-recharge
+            initializeRechargePage(gameData);
+        });
+    </script>
+</body>
+</html>
