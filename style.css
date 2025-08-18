@@ -21,16 +21,16 @@
     --item-border-hover: var(--primary-blue);
     --item-shadow-hover: 0 4px 15px rgba(0, 123, 255, 0.4);
     --item-selected-bg: var(--primary-blue);
-    --item-selected-text: #ffffff;
+    --item-selected-text: #ffffff; /* Aseguramos blanco para texto seleccionado */
     --item-selected-border: var(--primary-blue);
     --item-selected-shadow: 0 0 20px rgba(0, 123, 255, 0.6);
 
-    --white: #ffffff;
+    --white: #ffffff; /* Añadida para el check del package-item */
 }
 
 /* Estilos Generales */
 body {
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; /* Fuente moderna */
     margin: 0;
     padding: 0;
     background-color: var(--dark-bg);
@@ -39,23 +39,23 @@ body {
     display: flex;
     flex-direction: column;
     min-height: 100vh;
-    overflow-x: hidden;
+    overflow-x: hidden; /* Mantener para evitar scroll horizontal no deseado */
 }
 
 main {
     flex: 1;
     padding: 30px 20px;
-    max-width: 1000px;
+    max-width: 1000px; /* Ancho de contenido ajustado */
     margin: 25px auto;
     width: 100%;
-    box-sizing: border-box;
+    box-sizing: border-box; /* Asegurar que el padding no desborde el 100% de width */
 }
 
 h1, h2, h3 {
     color: var(--primary-blue);
     text-align: center;
     margin-bottom: 25px;
-    font-weight: 700;
+    font-weight: 700; /* Más negrita */
     text-shadow: 1px 1px 3px var(--shadow-dark);
 }
 
@@ -70,7 +70,7 @@ p {
     text-align: center;
 }
 
-/* Header */
+/* Header - CORREGIDO PARA AJUSTE EN MÓVILES */
 header {
     background-color: var(--card-bg);
     padding: 5px 25px;
@@ -83,13 +83,13 @@ header {
     position: sticky;
     top: 0;
     z-index: 1000;
-    width: 100%;
-    box-sizing: border-box;
+    width: 100%; /* Asegura que el header ocupe todo el ancho */
+    box-sizing: border-box; /* Incluye padding en el 100% del ancho */
 }
 
 .header-left .logo-img {
     height: auto;
-    max-height: 85px;
+    max-height: 85px; /* Logo AÚN MÁS GRANDE */
     width: auto;
     border-radius: 8px;
     object-fit: contain;
@@ -118,7 +118,7 @@ header {
     outline: none;
     width: 200px;
     transition: border-color 0.3s ease, box-shadow 0.3s ease;
-    box-sizing: border-box;
+    box-sizing: border-box; /* Asegura que el padding no desborde el ancho */
 }
 
 .search-bar input:focus {
@@ -146,9 +146,9 @@ header {
     align-items: center;
     gap: 8px;
     transition: all 0.3s ease;
-    min-width: 120px;
-    justify-content: space-between;
-    box-sizing: border-box;
+    min-width: 120px; /* Asegura un ancho mínimo */
+    justify-content: space-between; /* Espacia los elementos */
+    box-sizing: border-box; /* Incluye padding en el ancho */
 }
 
 .custom-currency-selector:hover {
@@ -160,7 +160,7 @@ header {
     display: flex;
     align-items: center;
     gap: 8px;
-    flex-grow: 1;
+    flex-grow: 1; /* Permite que ocupe el espacio disponible */
 }
 
 .selected-currency img {
@@ -173,14 +173,14 @@ header {
 .selected-currency span {
     font-weight: 600;
     color: var(--text-color);
-    white-space: nowrap;
+    white-space: nowrap; /* Evita que el texto se rompa */
 }
 
 .selected-currency i {
     font-size: 0.8em;
     transition: transform 0.3s ease;
     color: var(--secondary-text);
-    margin-left: auto;
+    margin-left: auto; /* Mueve la flecha a la derecha */
 }
 
 .custom-currency-selector.show .selected-currency i {
@@ -204,7 +204,7 @@ header {
     transition: opacity 0.3s ease, transform 0.3s ease;
 }
 
-.custom-currency-selector.show .currency-options {
+.custom-currency-selector.show .currency-options { /* Corregir la clase show para el selector principal */
     display: block;
     opacity: 1;
     transform: translateY(0);
@@ -232,15 +232,15 @@ header {
 
 /* Botones */
 .btn-primary {
-    background: var(--button-gradient);
-    color: #ffffff;
+    background: var(--button-gradient); /* Usar gradiente para el botón */
+    color: #ffffff; /* Aseguramos blanco */
     padding: 12px 25px;
     border: none;
     border-radius: 25px;
     cursor: pointer;
     font-size: 1.1em;
     font-weight: 700;
-    transition: all 0.3s ease;
+    transition: all 0.3s ease; /* Transición para todos los cambios */
     box-shadow: 0 3px 10px var(--shadow-dark);
     display: block;
     margin: 20px auto;
@@ -248,13 +248,13 @@ header {
 }
 
 .btn-primary:hover {
-    background: var(--button-hover-gradient);
+    background: var(--button-hover-gradient); /* Gradiente de hover */
     transform: translateY(-2px);
     box-shadow: 0 5px 15px var(--shadow-dark);
 }
 
 .btn-primary:disabled {
-    background: var(--border-color);
+    background: var(--border-color); /* Color sólido para deshabilitado */
     cursor: not-allowed;
     transform: none;
     box-shadow: none;
@@ -263,7 +263,7 @@ header {
 
 .btn-secondary {
     background-color: var(--secondary-text);
-    color: #ffffff;
+    color: #ffffff; /* Aseguramos blanco */
     padding: 9px 18px;
     border: none;
     border-radius: 20px;
@@ -289,20 +289,20 @@ section {
     border: 1px solid var(--border-color);
 }
 
-/* Estilo para el Hero Section en index.html */
+/* ESTILO ESPECÍFICO PARA EL HERO SECTION EN INDEX.HTML */
 .hero {
-    background: linear-gradient(135deg, #0056b3 0%, #007bff 100%);
+    background: linear-gradient(135deg, #0056b3 0%, #007bff 100%); /* Gradiente azul vibrante */
     padding: 60px 25px;
     border-radius: 15px;
     margin-bottom: 30px;
-    color: #ffffff;
-    box-shadow: 0 0 25px rgba(0, 123, 255, 0.6);
-    border: none;
+    color: #ffffff; /* Aseguramos blanco */
+    box-shadow: 0 0 25px rgba(0, 123, 255, 0.6); /* Sombra de brillo más intensa */
+    border: none; /* Eliminar borde si el gradiente es el foco */
 }
 
 .hero h1 {
     font-size: 2.8em;
-    color: #ffffff;
+    color: #ffffff; /* Aseguramos blanco */
     margin-bottom: 12px;
     line-height: 1.2;
     text-shadow: 2px 2px 5px rgba(0, 0, 0, 0.7);
@@ -315,110 +315,19 @@ section {
     margin: 0 auto;
 }
 
-/* Estilos para la nueva sección de recarga */
-.game-page-hero {
-    background-size: cover;
-    background-position: center;
-    color: #fff;
-    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.7);
-    padding: 60px 20px;
-    text-align: center;
-    border-radius: 10px;
-    margin-bottom: 30px;
-}
-
-.game-page-hero h1 {
-    font-size: 3em;
-    margin-bottom: 10px;
-}
-
-.game-page-hero p {
-    font-size: 1.2em;
-}
-
-.recharge-section {
-    padding: 20px;
-    background-color: var(--card-bg);
-    border-radius: 10px;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-    margin-bottom: 30px;
-    border: 1px solid var(--border-color);
-}
-
-.recharge-section h2 {
-    text-align: center;
-    margin-bottom: 20px;
-    color: var(--primary-blue);
-}
-
-.product-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-    gap: 20px;
-    justify-content: center;
-}
-
-.product-card {
-    background-color: var(--dark-bg);
-    border: 1px solid var(--border-color);
-    border-radius: 8px;
-    padding: 20px;
-    text-align: center;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-    transition: transform 0.3s ease;
-}
-
-.product-card:hover {
-    transform: translateY(-5px);
-    border-color: var(--primary-blue);
-}
-
-.product-card h3 {
-    font-size: 1.5em;
-    margin-bottom: 10px;
-    color: var(--primary-blue);
-}
-
-.product-card p {
-    color: var(--secondary-text);
-    margin-bottom: 20px;
-}
-
-.recharge-button {
-    background: var(--button-gradient);
-    color: #fff;
-    border: none;
-    padding: 12px 25px;
-    border-radius: 5px;
-    font-size: 1em;
-    cursor: pointer;
-    transition: background-color 0.3s ease;
-}
-
-.recharge-button:hover {
-    background: var(--button-hover-gradient);
-}
-
-.contact-info {
-    text-align: center;
-    margin-top: 20px;
-    font-style: italic;
-    color: var(--secondary-text);
-}
-
-/* Tarjetas de Juegos (Home Page) */
+/* Tarjetas de Juegos - DISEÑO COMPLETAMENTE NUEVO (Home Page) */
 .game-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); /* Ajuste de minmax */
     gap: 25px;
     justify-content: center;
     margin-top: 25px;
 }
 
 .game-card {
-    background-color: var(--dark-bg);
-    border: 2px solid var(--border-color);
-    border-radius: 15px;
+    background-color: var(--dark-bg); /* Fondo más oscuro para la tarjeta */
+    border: 2px solid var(--border-color); /* Borde más pronunciado */
+    border-radius: 15px; /* Más redondeado */
     overflow: hidden;
     text-decoration: none;
     color: var(--text-color);
@@ -428,25 +337,25 @@ section {
     align-items: stretch;
     padding-bottom: 20px;
     position: relative;
-    box-shadow: 0 8px 20px var(--shadow-dark);
+    box-shadow: 0 8px 20px var(--shadow-dark); /* Sombra más grande */
 }
 
 .game-card:hover {
-    transform: translateY(-10px);
-    box-shadow: 0 15px 30px var(--shadow-dark);
-    border-color: var(--primary-blue);
+    transform: translateY(-10px); /* Mayor elevación */
+    box-shadow: 0 15px 30px var(--shadow-dark); /* Sombra aún más grande */
+    border-color: var(--primary-blue); /* Borde primario en hover */
 }
 
 .game-card img {
     width: 100%;
-    height: 190px;
+    height: 190px; /* Imágenes más altas */
     object-fit: cover;
     border-bottom: 1px solid var(--border-color);
     flex-shrink: 0;
 }
 
 .game-card h2 {
-    font-size: 1.6em;
+    font-size: 1.6em; /* Título ligeramente más pequeño para mejor ajuste */
     margin: 20px 0 10px;
     color: var(--primary-blue);
     flex-grow: 1;
@@ -454,14 +363,15 @@ section {
     align-items: center;
     justify-content: center;
     padding: 0 15px;
-    min-height: 60px;
-    line-height: 1.3;
+    min-height: 60px; /* Asegura un alto mínimo para el título */
+    line-height: 1.3; /* Ajuste para títulos largos */
 }
 
+/* Nuevo estilo para la descripción */
 .game-card .game-description {
     font-size: 0.95em;
-    color: var(--secondary-text);
-    margin: 0 15px 15px;
+    color: var(--secondary-text); /* Color gris para la descripción */
+    margin: 0 15px 15px; /* Margen alrededor de la descripción */
     text-align: center;
     line-height: 1.4;
 }
@@ -491,12 +401,12 @@ section {
     padding: 12px 18px;
     border: 1px solid var(--border-color);
     border-radius: 8px;
-    background-color: var(--input-bg);
+    background-color: var(--input-bg); /* Fondo más oscuro para inputs */
     color: var(--text-color);
     font-size: 1em;
     outline: none;
     transition: border-color 0.3s ease, box-shadow 0.3s ease;
-    box-sizing: border-box;
+    box-sizing: border-box; /* Incluye padding en el 100% del ancho */
 }
 
 .input-group input[type="text"]:focus,
@@ -518,58 +428,60 @@ section {
     font-size: 1.1em;
 }
 
-/* Opciones de Paquetes */
+/* Opciones de Paquetes - NUEVO DISEÑO Y VISIBILIDAD FORZADA */
 .package-list {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    display: grid !important; /* ¡FORZAMOS DISPLAY GRID! */
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); /* Columnas responsivas */
     gap: 15px;
     margin-bottom: 20px;
-    visibility: visible;
-    opacity: 1;
-    height: auto;
-    overflow: visible;
+    visibility: visible !important; /* ¡FORZAMOS VISIBILIDAD! */
+    opacity: 1 !important; /* ¡FORZAMOS OPACIDAD! */
+    height: auto !important; /* Aseguramos que tome la altura necesaria */
+    overflow: visible !important; /* Aseguramos que no haya recortes */
 }
 
 .package-item {
-    background-color: var(--card-bg);
+    background-color: var(--card-bg); /* Fondo de tarjeta */
     border: 2px solid var(--border-color);
     border-radius: 10px;
     padding: 15px;
     cursor: pointer;
     transition: all 0.3s ease;
-    display: flex;
-    flex-direction: column;
+    display: flex !important; /* ¡FORZAMOS DISPLAY FLEX! */
+    flex-direction: column; /* Apilar contenido verticalmente */
     align-items: center;
     justify-content: center;
     text-align: center;
     box-shadow: 0 2px 8px var(--shadow-dark);
-    position: relative;
-    min-height: 100px;
-    visibility: visible;
-    opacity: 1;
-    box-sizing: border-box;
+    position: relative; /* Para el pseudo-elemento de check */
+    min-height: 100px; /* Altura mínima para que sean visibles */
+    visibility: visible !important; /* ¡FORZAMOS VISIBILIDAD! */
+    opacity: 1 !important; /* ¡FORZAMOS OPACIDAD! */
+    box-sizing: border-box; /* Incluye padding en el ancho */
 }
 
 .package-item:hover {
     border-color: var(--item-border-hover);
-    transform: translateY(-5px);
+    transform: translateY(-5px); /* Más elevación al pasar el mouse */
     box-shadow: var(--item-shadow-hover);
 }
 
+/* Efecto de "check" al seleccionar */
 .package-item.selected {
-    background: var(--selected-item-gradient);
+    background: var(--selected-item-gradient); /* Gradiente para seleccionado */
     color: var(--item-selected-text);
     border-color: var(--item-selected-border);
-    transform: translateY(-2px) scale(1.02);
+    transform: translateY(-2px) scale(1.02); /* Ligeramente más grande y elevado */
     box-shadow: var(--item-selected-shadow);
 }
 
 .package-item.selected .price {
-    color: var(--item-selected-text);
+    color: var(--item-selected-text); /* Precio también blanco al seleccionar */
 }
 
+/* Icono de check para el elemento seleccionado */
 .package-item.selected::after {
-    content: '\f00c';
+    content: '\f00c'; /* FontAwesome check icon */
     font-family: 'Font Awesome 5 Free';
     font-weight: 900;
     position: absolute;
@@ -587,8 +499,8 @@ section {
     border: 1px solid var(--white);
 }
 
-.package-item span:first-child {
-    font-size: 1.05em;
+.package-item span:first-child { /* Nombre del paquete/diamantes */
+    font-size: 1.05em; /* Ligeramente más pequeño */
     font-weight: 600;
     margin-bottom: 5px;
 }
@@ -596,13 +508,13 @@ section {
 .package-item .price {
     font-weight: 700;
     color: var(--accent-green);
-    font-size: 1.25em;
+    font-size: 1.25em; /* Precio más grande */
 }
 
-/* Métodos de Pago */
+/* Métodos de Pago - NUEVO DISEÑO */
 .payment-methods {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); /* Más grandes y flexibles */
     gap: 20px;
     margin-top: 25px;
 }
@@ -610,7 +522,7 @@ section {
 .payment-method-option {
     background-color: var(--card-bg);
     border: 2px solid var(--border-color);
-    border-radius: 12px;
+    border-radius: 12px; /* Más redondeado */
     padding: 20px;
     text-align: center;
     cursor: pointer;
@@ -620,8 +532,8 @@ section {
     align-items: center;
     justify-content: center;
     box-shadow: 0 3px 10px var(--shadow-dark);
-    position: relative;
-    box-sizing: border-box;
+    position: relative; /* Para el pseudo-elemento de check */
+    box-sizing: border-box; /* Incluye padding en el ancho */
 }
 
 .payment-method-option:hover {
@@ -642,14 +554,15 @@ section {
     box-shadow: var(--item-selected-shadow);
 }
 
+/* Icono de check para el método de pago seleccionado */
 .payment-method-option input[type="radio"]:checked + label::after {
-    content: '\f00c';
+    content: '\f00c'; /* FontAwesome check icon */
     font-family: 'Font Awesome 5 Free';
     font-weight: 900;
     position: absolute;
     top: 8px;
     right: 8px;
-    color: #ffffff;
+    color: #ffffff; /* Aseguramos blanco */
     background-color: var(--accent-green);
     border-radius: 50%;
     width: 24px;
@@ -658,7 +571,7 @@ section {
     align-items: center;
     justify-content: center;
     font-size: 0.8em;
-    border: 1px solid #ffffff;
+    border: 1px solid #ffffff; /* Aseguramos blanco */
 }
 
 .payment-method-option label {
@@ -676,19 +589,20 @@ section {
 }
 
 .payment-method-option label img {
-    height: 55px;
+    height: 55px; /* Logos más grandes */
     width: auto;
     object-fit: contain;
     margin-bottom: 10px;
-    filter: grayscale(0.2);
+    filter: grayscale(0.2); /* Ligeramente desaturado */
     transition: filter 0.3s ease;
 }
 
 .payment-method-option input[type="radio"]:checked + label img {
-    filter: grayscale(0);
+    filter: grayscale(0); /* Color completo al seleccionar */
 }
 
-/* Footer */
+
+/* Footer - CORREGIDO PARA AJUSTE EN MÓVILES */
 footer {
     background-color: var(--card-bg);
     color: var(--secondary-text);
@@ -697,8 +611,8 @@ footer {
     margin-top: 30px;
     border-top: 1px solid var(--border-color);
     box-shadow: 0 -2px 8px var(--shadow-dark);
-    width: 100%;
-    box-sizing: border-box;
+    width: 100%; /* Asegura que el footer ocupe todo el ancho */
+    box-sizing: border-box; /* Incluye padding en el 100% del ancho */
 }
 
 .footer-content {
@@ -708,8 +622,8 @@ footer {
     flex-direction: column;
     align-items: center;
     gap: 12px;
-    padding: 0 20px;
-    box-sizing: border-box;
+    padding: 0 20px; /* Añadido padding horizontal para que no se pegue a los bordes en escritorio/tablet */
+    box-sizing: border-box; /* Incluye padding en el ancho */
 }
 
 footer p {
@@ -722,9 +636,9 @@ footer p {
     gap: 18px;
     flex-wrap: wrap;
     justify-content: center;
-    width: 100%;
-    max-width: 500px;
-    margin: 0 auto;
+    width: 100%; /* Asegura que los enlaces ocupen el ancho completo de su contenedor */
+    max-width: 500px; /* Limita el ancho para que los enlaces no se separen demasiado */
+    margin: 0 auto; /* Centrar los enlaces dentro del footer-content */
 }
 
 .footer-links a {
@@ -743,7 +657,7 @@ footer p {
     align-items: center;
     gap: 8px;
     background-color: var(--accent-green);
-    color: #ffffff;
+    color: #ffffff; /* Aseguramos blanco */
     padding: 10px 18px;
     border-radius: 20px;
     text-decoration: none;
@@ -763,7 +677,7 @@ footer p {
     font-size: 1.2em;
 }
 
-/* General Form & Card Styles */
+/* General Form & Card Styles (used across pages) */
 .form-container, .info-card, .payment-details-card {
     background-color: var(--card-bg);
     border-radius: 12px;
@@ -772,7 +686,7 @@ footer p {
     margin: 40px auto;
     box-shadow: 0 5px 15px var(--shadow-dark);
     border: 1px solid var(--border-color);
-    box-sizing: border-box;
+    box-sizing: border-box; /* Incluye padding en el ancho */
 }
 
 .form-container h2, .info-card h2, .payment-details-card h2 {
@@ -795,14 +709,14 @@ footer p {
 .form-group select {
     width: 100%;
     padding: 12px 15px;
-    background-color: var(--input-bg);
+    background-color: var(--input-bg); /* Fondo más oscuro para inputs */
     border: 1px solid var(--border-color);
     border-radius: 8px;
     color: var(--text-color);
     font-size: 1em;
     outline: none;
     transition: border-color 0.3s ease, box-shadow 0.3s ease;
-    box-sizing: border-box;
+    box-sizing: border-box; /* Incluye padding en el ancho */
 }
 
 .form-group input:focus,
@@ -829,7 +743,7 @@ footer p {
     margin: 0 auto;
     box-shadow: 0 5px 15px var(--shadow-dark);
     border: 1px solid var(--border-color);
-    box-sizing: border-box;
+    box-sizing: border-box; /* Incluye padding en el ancho */
 }
 
 .payment-details-card h2 {
@@ -849,7 +763,7 @@ footer p {
 }
 
 .payment-instructions {
-    background-color: var(--input-bg);
+    background-color: var(--input-bg); /* Fondo más oscuro */
     border: 1px solid var(--border-color);
     border-radius: 8px;
     padding: 20px;
@@ -866,7 +780,7 @@ footer p {
     background-color: rgba(0, 123, 255, 0.1);
     border-radius: 4px;
     padding: 2px 6px;
-    font-family: 'Consolas', 'Courier New', monospace;
+    font-family: 'Consolas', 'Courier New', monospace; /* Fuente monoespaciada */
     color: var(--primary-blue);
     font-weight: 600;
     display: inline-block;
@@ -900,7 +814,7 @@ footer p {
 
 /* Styles for Payment Selection page */
 .transaction-summary {
-    background-color: var(--input-bg);
+    background-color: var(--input-bg); /* Fondo más oscuro */
     border: 1px solid var(--border-color);
     border-radius: 8px;
     padding: 20px;
@@ -972,119 +886,35 @@ footer p {
     font-size: 0.85em;
 }
 
-/* Contenedor del botón de copiar y texto */
-.copy-container {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    flex-wrap: wrap;
-    justify-content: flex-start;
-    margin-bottom: 10px;
-}
-
-/* La dirección de billetera que permanece oculta */
-.copy-container .wallet-address {
-    display: none;
-}
-
-/* Etiqueta "Dirección de Billetera BEP20:" */
-.address-label {
-    font-weight: 600;
-    color: var(--text-color);
-    font-size: 0.95em;
-    white-space: nowrap;
-}
-
-/* Botón de copiar */
-.copy-button {
-    background: var(--button-gradient);
-    color: var(--white);
-    border: none;
-    padding: 8px 15px;
-    border-radius: 20px;
-    cursor: pointer;
-    font-size: 0.9em;
-    font-weight: 600;
-    transition: all 0.3s ease;
-    box-shadow: 0 2px 8px var(--shadow-dark);
-    display: inline-flex;
-    align-items: center;
-    gap: 5px;
-}
-
-.copy-button:hover {
-    background: var(--button-hover-gradient);
-    transform: translateY(-1px);
-    box-shadow: 0 4px 12px var(--shadow-dark);
-}
-
-.copy-button:active {
-    transform: translateY(0);
-    box-shadow: 0 1px 5px var(--shadow-dark);
-}
-
-/* Mensaje de feedback "¡Copiado!" */
-.copy-feedback {
-    display: none;
-    margin-left: 10px;
-    color: var(--accent-green);
-    font-size: 0.9em;
-    font-weight: bold;
-    white-space: nowrap;
-}
-
-/* Ajustes para que los campos de referencia no afecten el espaciado
-   cuando se muestran o se ocultan dinámicamente */
-.payment-fields-container {
-    margin-top: 20px;
-    padding-top: 15px;
-    border-top: 1px solid var(--border-color);
-}
-
-.payment-fields-container p {
-    text-align: left;
-    margin-bottom: 15px;
-}
-
-.payment-details-card ul {
-    list-style: none;
-    padding: 0;
-    margin: 0;
-}
-
-.payment-details-card ul li {
-    margin-bottom: 8px;
-}
-
 /* Responsive Design */
 @media (max-width: 768px) {
     header {
         flex-direction: column;
         gap: 15px;
-        padding: 15px;
+        padding: 15px; /* Ajuste para que tenga espacio a los lados */
     }
 
     .header-right {
         flex-direction: column;
         width: 100%;
-        max-width: 350px;
-        margin: 0 auto;
+        max-width: 350px; /* Limitar el ancho máximo para centrar mejor en pantallas pequeñas */
+        margin: 0 auto; /* Centrar en pantallas pequeñas */
         gap: 12px;
     }
 
     .search-bar, .custom-currency-selector {
-        width: 100%;
-        max-width: none;
+        width: 100%; /* Asegurar que ocupen todo el ancho de su contenedor (.header-right) */
+        max-width: none; /* Eliminar el max-width anterior si causa problemas aquí */
     }
 
     .search-bar input {
         width: 100%;
-        padding: 10px 15px 10px 40px;
-        box-sizing: border-box;
+        padding: 10px 15px 10px 40px; /* Asegurar padding izquierdo para el ícono */
+        box-sizing: border-box; /* Para incluir padding en el 100% de ancho */
     }
 
     .custom-currency-selector {
-        min-width: unset;
+        min-width: unset; /* Permitir que se ajuste al contenido si es necesario */
     }
 
     .hero {
@@ -1132,7 +962,7 @@ footer p {
     }
 
     .package-list {
-        grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+        grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); /* Ajuste para móviles */
     }
 
     .package-item, .payment-method-option {
@@ -1140,28 +970,27 @@ footer p {
         font-size: 1em;
     }
 
-    .payment-method-option label img {
-        height: 35px;
+    .payment-method-option label img { /* Eliminado el ajuste de i, ya que no se aplica a iconos en sí */
+        height: 35px; /* Ajuste de tamaño para logos de pago en tablets */
         width: auto;
     }
 
     .footer-content {
-        padding: 0 20px;
+        padding: 0 20px; /* Ajustar padding para tablets */
     }
-
     .footer-links {
-        gap: 15px;
-        max-width: 400px;
+        gap: 15px; /* Reducir un poco el gap para tablets */
+        max-width: 400px; /* Ajustar el max-width para tablets */
     }
 }
 
 @media (max-width: 480px) {
     header {
-        padding: 10px 15px;
+        padding: 10px 15px; /* Reducir padding horizontal en móviles muy pequeños */
     }
 
     .logo-img {
-        max-height: 60px;
+        max-height: 60px; /* Logo más pequeño en móviles muy pequeños */
     }
 
     .hero h1 {
@@ -1179,21 +1008,19 @@ footer p {
     }
 
     .game-grid {
-        grid-template-columns: 1fr;
+        grid-template-columns: 1fr; /* Una columna en móviles muy pequeños */
     }
 
     footer {
-        padding: 15px;
+        padding: 15px; /* Reducir padding general del footer */
     }
-
     .footer-content {
-        padding: 0 15px;
+        padding: 0 15px; /* Asegurar padding en móviles muy pequeños */
     }
-
     .footer-links {
         flex-direction: column;
-        gap: 8px;
-        max-width: 250px;
+        gap: 8px; /* Reducir gap aún más cuando se apilan */
+        max-width: 250px; /* Un poco más estrecho para móviles muy pequeños */
     }
 
     .btn-primary {
@@ -1204,9 +1031,9 @@ footer p {
 
     .form-container, .info-card, .payment-details-card {
         padding: 20px;
-        margin: 20px 15px;
+        margin: 20px 15px; /* Ajustar margen para pantallas muy pequeñas */
     }
-
+    
     .form-container h2, .info-card h2, .payment-details-card h2 {
         font-size: 1.6em;
     }
@@ -1214,21 +1041,115 @@ footer p {
     .package-item, .payment-method-option {
         font-size: 0.95em;
         padding: 12px;
-        min-height: unset;
+        min-height: unset; /* Permitir que la altura se ajuste al contenido */
     }
+}
 
+/* ... (todo tu CSS anterior) ... */
+
+/* Estilos específicos para la página de Pago (payment.html) */
+
+/* Contenedor del botón de copiar y texto */
+.copy-container {
+    display: flex;
+    align-items: center;
+    gap: 10px; /* Espacio entre la etiqueta, el botón y el feedback */
+    flex-wrap: wrap; /* Permite que los elementos se envuelvan en pantallas pequeñas */
+    justify-content: flex-start; /* Alinea los elementos al inicio */
+    margin-bottom: 10px; /* Pequeño margen debajo del contenedor de copiar */
+}
+
+/* La dirección de billetera que permanece oculta */
+.copy-container .wallet-address {
+    display: none; /* Oculta la dirección real */
+}
+
+/* Etiqueta "Dirección de Billetera BEP20:" */
+.address-label {
+    font-weight: 600; /* Hace la etiqueta más negrita */
+    color: var(--text-color); /* Usa tu color de texto principal */
+    font-size: 0.95em; /* Ligeramente más pequeño para no dominar */
+    white-space: nowrap; /* Evita que el texto se rompa */
+}
+
+/* Botón de copiar */
+.copy-button {
+    background: var(--button-gradient); /* Usa el gradiente de tus botones principales */
+    color: var(--white); /* Texto blanco para el botón */
+    border: none;
+    padding: 8px 15px; /* Padding similar al de otros botones pequeños */
+    border-radius: 20px; /* Bordes más redondeados para que coincida con el estilo de botón */
+    cursor: pointer;
+    font-size: 0.9em; /* Tamaño de fuente ligeramente más pequeño */
+    font-weight: 600; /* Un poco más de peso para el texto */
+    transition: all 0.3s ease; /* Transición suave para hover */
+    box-shadow: 0 2px 8px var(--shadow-dark); /* Sombra similar a tus botones */
+    display: inline-flex; /* Permite alinear el texto y el posible ícono si se añade */
+    align-items: center;
+    gap: 5px; /* Espacio si hubiera un icono */
+}
+
+.copy-button:hover {
+    background: var(--button-hover-gradient); /* Gradiente de hover de tus botones */
+    transform: translateY(-1px); /* Ligerísimo efecto de elevación */
+    box-shadow: 0 4px 12px var(--shadow-dark); /* Sombra más pronunciada en hover */
+}
+
+.copy-button:active {
+    transform: translateY(0); /* Vuelve a la posición normal al hacer clic */
+    box-shadow: 0 1px 5px var(--shadow-dark); /* Sombra más pequeña al hacer clic */
+}
+
+
+/* Mensaje de feedback "¡Copiado!" */
+.copy-feedback {
+    display: none; /* Oculto por defecto, se muestra con JS */
+    margin-left: 10px;
+    color: var(--accent-green); /* Usa tu verde de acento para el éxito */
+    font-size: 0.9em;
+    font-weight: bold;
+    white-space: nowrap; /* Evita que se rompa el mensaje */
+}
+
+/* Asegúrate de que los estilos específicos de .payment-details-card
+   no entren en conflicto con .copy-container.
+   Puedes añadir un margen inferior si el copy-container no lo tiene ya.
+*/
+.payment-details-card ul {
+    list-style: none; /* Quita los puntos de lista predeterminados */
+    padding: 0; /* Elimina el padding predeterminado */
+    margin: 0; /* Elimina el margen predeterminado */
+}
+
+.payment-details-card ul li {
+    margin-bottom: 8px; /* Espacio entre los elementos de la lista */
+}
+
+/* Ajustes para que los campos de referencia no afecten el espaciado
+   cuando se muestran o se ocultan dinámicamente */
+.payment-fields-container {
+    margin-top: 20px; /* Espacio por encima de los campos de referencia */
+    padding-top: 15px;
+    border-top: 1px solid var(--border-color); /* Línea divisoria */
+}
+
+.payment-fields-container p {
+    text-align: left; /* Alinea el texto de las instrucciones de los campos */
+    margin-bottom: 15px;
+}
+
+/* Responsive adjustments */
+@media (max-width: 480px) {
     .copy-container {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 8px;
+        flex-direction: column; /* Apila la etiqueta y el botón en pantallas muy pequeñas */
+        align-items: flex-start; /* Alinea los elementos apilados a la izquierda */
+        gap: 8px; /* Reduce el espacio entre elementos apilados */
     }
-
     .copy-button {
-        width: auto;
+        width: auto; /* Permite que el botón se ajuste a su contenido */
         padding: 8px 12px;
         font-size: 0.85em;
     }
-
     .address-label, .copy-feedback {
         font-size: 0.85em;
     }
