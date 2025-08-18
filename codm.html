@@ -18,7 +18,7 @@
             display: block;
             margin-bottom: 8px;
             font-weight: 600;
-            color: #ffffff; /* Color modificado para mayor contraste */
+            color: #2c3e50; /* Color modificado para mayor contraste */
         }
 
         .input-container {
@@ -200,7 +200,7 @@
                     </div>
                 </div>
                 <div class="form-group-custom">
-                    <label for="codm-vinculation">3. Selecciona la Vinculación de tu Cuenta:</label>
+                    <label>3. Selecciona la Vinculación de tu Cuenta:</label>
                     <div class="custom-select-wrapper input-container">
                         <i class="fas fa-users icon"></i>
                         <select id="codm-vinculation" name="codmVinculation" required>
@@ -258,7 +258,6 @@
             const currencyDisplaySpan = document.getElementById('currency-display');
             
             let selectedPackage = null;
-            let customSelects = null;
 
             // Función para mostrar/ocultar la contraseña
             if (passwordInput && togglePassword) {
@@ -270,9 +269,10 @@
                 });
             }
 
-            // Función para crear el select personalizado
+            // Función para crear y manejar el select personalizado
             function createCustomSelect() {
                 const selectElement = document.getElementById("codm-vinculation");
+                const customSelectWrapper = selectElement.parentNode;
                 
                 const customSelectDiv = document.createElement("div");
                 customSelectDiv.setAttribute("class", "custom-select");
@@ -283,7 +283,8 @@
                 customSelectDiv.appendChild(selectSelectedDiv);
                 
                 const selectItemsDiv = document.createElement("div");
-                selectItemsDiv.setAttribute("class", "select-items select-hide");
+                selectItemsDiv.setAttribute("class", "select-items");
+                selectItemsDiv.style.display = "none";
                 
                 for (let i = 1; i < selectElement.length; i++) {
                     const optionDiv = document.createElement("div");
@@ -293,7 +294,6 @@
                         for (let j = 0; j < selectElement.length; j++) {
                             if (selectElement.options[j].innerHTML === this.innerHTML) {
                                 selectElement.selectedIndex = j;
-                                // Dispara el evento 'change' en el select oculto para que el formulario lo detecte
                                 vinculationInput.dispatchEvent(new Event('change'));
                                 break;
                             }
@@ -304,35 +304,30 @@
                 }
                 
                 customSelectDiv.appendChild(selectItemsDiv);
-                selectElement.parentNode.insertBefore(customSelectDiv, selectElement);
-                
+                customSelectWrapper.appendChild(customSelectDiv);
+
+                selectElement.style.display = "none";
+
                 selectSelectedDiv.addEventListener("click", function(e) {
                     e.stopPropagation();
-                    closeAllSelect(this);
-                    this.nextSibling.classList.toggle("select-hide");
+                    const selectItems = this.nextSibling;
+                    selectItems.style.display = selectItems.style.display === "none" ? "block" : "none";
                     this.classList.toggle("select-arrow-active");
                 });
                 
-                function closeAllSelect(elmnt) {
-                    const arr = [];
-                    const selectItems = document.getElementsByClassName("select-items");
-                    const selectSelected = document.getElementsByClassName("select-selected");
-                    for (let i = 0; i < selectSelected.length; i++) {
-                        if (elmnt === selectSelected[i]) {
-                            arr.push(i);
-                        } else {
-                            selectSelected[i].classList.remove("select-arrow-active");
+                document.addEventListener("click", function(e) {
+                    const customSelect = document.querySelector(".custom-select");
+                    if (!customSelect.contains(e.target)) {
+                        const selectItems = document.querySelector(".select-items");
+                        const selectSelected = document.querySelector(".select-selected");
+                        if (selectItems) {
+                            selectItems.style.display = "none";
+                        }
+                        if (selectSelected) {
+                            selectSelected.classList.remove("select-arrow-active");
                         }
                     }
-                    for (let i = 0; i < selectItems.length; i++) {
-                        if (arr.indexOf(i)) {
-                            selectItems[i].classList.add("select-hide");
-                        }
-                    }
-                }
-                
-                document.addEventListener("click", closeAllSelect);
-                return customSelectDiv;
+                });
             }
 
             function formatPrice(price, currency) {
