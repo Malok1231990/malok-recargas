@@ -4,11 +4,261 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Detalles de Pago - Malok Recargas</title>
-    <link rel="stylesheet" href="style.css">
+    
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-    <link rel="shortcut icon" href="images/favicon.ico" type="image/x-icon">
+    
     <style>
-        /* Estilos para el botón de copiar y el mensaje */
+        /* Variables y estilos generales (pueden ser definidos en un archivo principal) */
+        :root {
+            --primary-color: #007bff;
+            --accent-green: #28a745;
+            --accent-green-light: #d4edda;
+            --background-color: #f4f7f6;
+            --card-background: #ffffff;
+            --text-color: #333333;
+            --button-text-color: #ffffff;
+            --border-color: #e0e0e0;
+            --input-background: #fafafa;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background-color: var(--background-color);
+            margin: 0;
+            padding: 0;
+            line-height: 1.6;
+            color: var(--text-color);
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 2rem auto;
+            padding: 1rem;
+        }
+        
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem 2rem;
+            background-color: var(--card-background);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .logo-img {
+            max-width: 150px;
+            height: auto;
+        }
+        
+        .header-left, .header-right {
+            display: flex;
+            align-items: center;
+        }
+
+        .search-bar {
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+
+        .search-bar input {
+            padding: 8px 12px;
+            padding-right: 35px;
+            border: 1px solid var(--border-color);
+            border-radius: 20px;
+            background-color: var(--input-background);
+            font-size: 0.9em;
+        }
+
+        .search-bar .fas {
+            position: absolute;
+            right: 12px;
+            color: #999;
+        }
+
+        .payment-main {
+            padding: 2rem;
+            display: flex;
+            justify-content: center;
+        }
+
+        .form-container {
+            width: 100%;
+            max-width: 600px;
+            background-color: var(--card-background);
+            padding: 2.5rem;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        .form-container h2 {
+            text-align: center;
+            color: var(--primary-color);
+            margin-bottom: 1.5rem;
+            font-size: 1.8em;
+        }
+
+        .transaction-summary {
+            background-color: var(--input-background);
+            padding: 1.5rem;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+            margin-bottom: 2rem;
+        }
+
+        .transaction-summary h3 {
+            margin-top: 0;
+            color: var(--primary-color);
+            font-size: 1.4em;
+            border-bottom: 2px solid var(--primary-color);
+            padding-bottom: 10px;
+        }
+
+        .transaction-summary p {
+            margin: 5px 0;
+            font-size: 1em;
+        }
+
+        .transaction-summary .amount {
+            font-weight: bold;
+            color: var(--accent-green);
+            font-size: 1.2em;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 10px;
+            font-weight: bold;
+        }
+
+        .payment-methods {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .payment-method-option input[type="radio"] {
+            display: none;
+        }
+
+        .payment-method-option label {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            padding: 15px 20px;
+            border: 2px solid var(--border-color);
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .payment-method-option label:hover {
+            border-color: var(--primary-color);
+            box-shadow: 0 0 5px rgba(0, 123, 255, 0.3);
+        }
+
+        .payment-method-option input[type="radio"]:checked + label {
+            border-color: var(--primary-color);
+            background-color: rgba(0, 123, 255, 0.1);
+            box-shadow: 0 0 8px rgba(0, 123, 255, 0.4);
+        }
+
+        .payment-method-option i {
+            font-size: 1.5em;
+            color: var(--primary-color);
+        }
+
+        .payment-details-form {
+            margin-top: 20px;
+            padding: 1.5rem;
+            background-color: var(--input-background);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+        }
+        
+        .payment-details-form ul {
+            list-style: none;
+            padding: 0;
+            margin: 10px 0;
+        }
+
+        .payment-details-form li {
+            margin-bottom: 5px;
+            font-size: 0.95em;
+        }
+
+        .payment-details-form strong {
+            color: var(--primary-color);
+        }
+
+        .btn-primary {
+            display: block;
+            width: 100%;
+            padding: 15px;
+            margin-top: 2rem;
+            font-size: 1.1em;
+            font-weight: bold;
+            color: var(--button-text-color);
+            background-color: var(--primary-color);
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            background-color: #0056b3;
+        }
+
+        .btn-primary:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+
+        footer {
+            text-align: center;
+            padding: 1.5rem;
+            background-color: var(--card-background);
+            box-shadow: 0 -2px 4px rgba(0, 0, 0, 0.05);
+            margin-top: 2rem;
+            border-top: 1px solid var(--border-color);
+        }
+
+        .footer-content {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        .footer-links a {
+            color: var(--primary-color);
+            text-decoration: none;
+            margin: 0 10px;
+        }
+
+        .whatsapp-link {
+            background-color: var(--accent-green);
+            color: var(--button-text-color);
+            padding: 10px 20px;
+            border-radius: 25px;
+            text-decoration: none;
+            font-weight: bold;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            margin-top: 15px;
+            transition: background-color 0.3s ease;
+        }
+
+        .whatsapp-link:hover {
+            background-color: #1e8735;
+        }
+        
+        /* Estilos específicos para la página de pago */
         .copy-container {
             display: flex;
             align-items: center;
@@ -38,12 +288,10 @@
             font-size: 0.9em;
             font-weight: bold;
         }
-        /* Estilo para la etiqueta de la dirección */
         .address-label {
             font-weight: bold;
             color: var(--text-color);
         }
-        /* Estilo para los nuevos campos de correo y whatsapp */
         .input-group {
             margin-bottom: 15px;
         }
@@ -61,17 +309,16 @@
             border-radius: 5px;
             background-color: var(--input-background);
             color: var(--text-color);
-            box-sizing: border-box; /* Asegura que el padding no aumente el ancho */
+            box-sizing: border-box; 
         }
-        /* Estilo para el mensaje de éxito */
         .payment-success-message {
             margin-top: 30px;
             padding: 20px;
-            background-color: var(--accent-green-light); /* Un color de fondo suave para el éxito */
+            background-color: var(--accent-green-light); 
             border: 1px solid var(--accent-green);
             border-radius: 8px;
             text-align: center;
-            color: var(--accent-green); /* Color del texto */
+            color: var(--accent-green); 
         }
         .payment-success-message h2 {
             margin-top: 0;
@@ -80,7 +327,6 @@
         .payment-success-message p {
             margin-bottom: 0;
         }
-        /* Estilos para los pasos */
         .form-section-step {
             margin-top: 30px;
             padding-top: 20px;
@@ -92,7 +338,6 @@
             font-size: 1.3em;
             text-align: center;
         }
-        /* Nuevo estilo para el contenedor de la contraseña */
         .password-container {
             display: flex;
             align-items: center;
@@ -105,6 +350,10 @@
             cursor: pointer;
             font-size: 1.1em;
             padding: 5px;
+        }
+        .small-text {
+            font-size: 0.8em;
+            color: #888;
         }
     </style>
 </head>
@@ -127,7 +376,7 @@
         <div class="form-container">
             <h2>Confirmar Recarga y Seleccionar Método de Pago</h2>
             <div id="transaction-summary" class="transaction-summary">
-            </div>
+                </div>
 
             <form id="payment-form">
                 <div class="form-section-step">
@@ -135,14 +384,14 @@
                     <div class="form-group">
                         <label>Método de Pago:</label>
                         <div class="payment-methods" id="payment-methods">
-                        </div>
+                            </div>
                     </div>
                 </div>
 
                 <div class="form-section-step">
                     <h3>Paso 2: Realiza el Pago y Sube tu Comprobante</h3>
                     <div id="payment-details-form" class="payment-details-form">
-                    </div>
+                        </div>
                 </div>
                 
                 <div class="form-section-step">
@@ -157,6 +406,7 @@
                         <input type="tel" id="whatsappNumber" name="whatsappNumber" placeholder="Ej: 584121234567" required>
                     </div>
                 </div>
+
                 <div id="whatsapp-message-container" class="payment-confirmation-message" style="margin-top: 30px; margin-bottom: 20px; text-align: center; display: none;">
                     <p style="font-size: 1.1em; color: var(--text-color); margin-bottom: 15px;">
                         ¡Importante! Una vez realizado el pago con el método seleccionado, <strong>envía la captura de tu comprobante y tus datos de TikTok</strong> al siguiente número de WhatsApp para que tu recarga sea procesada rápidamente:
@@ -171,7 +421,7 @@
                         (Por favor, no olvides incluir tus datos de TikTok en el mensaje de WhatsApp).
                     </p>
                 </div>
-
+                
                 <button type="submit" class="btn-primary" id="finalize-recharge-btn" disabled>Finalizar Recarga</button>
             </form>
 
@@ -196,8 +446,8 @@
         </div>
     </footer>
 
-    <script src="script.js"></script>
     <script>
+        // Plantillas HTML para cada método de pago
         const paymentDetailsTemplates = {
             'pago-movil': `
                 <p><strong>Paso 1:</strong> Realiza el Pago Móvil a los siguientes datos:</p>
@@ -247,10 +497,10 @@
             `
         };
 
+        // Métodos de pago disponibles
         const paymentMethodsVES = [
             { id: 'pago-movil', name: 'Pago Móvil', type: 'ves', icon: 'fas fa-mobile-alt' }
         ];
-
         const paymentMethodsUSD = [
             { id: 'binance', name: 'Binance', type: 'usd', icon: 'fab fa-bitcoin' },
             { id: 'zinli', name: 'Zinli', type: 'usd', icon: 'fas fa-wallet' }
@@ -267,12 +517,14 @@
             const paymentMethodsDiv = document.getElementById('payment-methods');
             const paymentDetailsFormDiv = document.getElementById('payment-details-form');
             
+            // Cargar los detalles de la transacción desde el almacenamiento local
             const storedDetails = localStorage.getItem('transactionDetails');
             if (storedDetails) {
                 transactionDetails = JSON.parse(storedDetails);
                 updateTransactionSummary();
                 updatePaymentMethods();
 
+                // Lógica específica para TikTok
                 if (transactionDetails.game === "TikTok") {
                     whatsappMessageContainer.style.display = 'block';
                     finalizeBtn.style.display = 'none';
@@ -281,11 +533,13 @@
                     finalizeBtn.style.display = 'block';
                 }
             } else {
+                // Si no hay detalles, mostrar un mensaje de error y deshabilitar el formulario
                 transactionSummaryDiv.innerHTML = '<p>No se encontraron detalles de la transacción. Por favor, regresa a la página de inicio.</p>';
                 finalizeBtn.style.display = 'none';
                 whatsappMessageContainer.style.display = 'none';
             }
 
+            // Función para actualizar el resumen de la transacción
             function updateTransactionSummary() {
                 if (!transactionDetails) return;
 
@@ -365,6 +619,7 @@
                 }
             }
 
+            // Función para mostrar los métodos de pago según la moneda
             function updatePaymentMethods() {
                 paymentMethodsDiv.innerHTML = '';
                 const currentCurrency = transactionDetails.currency;
@@ -393,12 +648,14 @@
                 checkFormValidity();
             }
 
+            // Función para cargar los detalles del método de pago seleccionado
             function loadPaymentDetails(methodId) {
                 let methodHtml = paymentDetailsTemplates[methodId];
 
                 if (methodHtml) {
                     paymentDetailsFormDiv.innerHTML = methodHtml;
 
+                    // Ocultar la sección de subir comprobante para TikTok
                     if (transactionDetails.game === "TikTok") {
                         const fieldsContainer = paymentDetailsFormDiv.querySelector('.payment-fields-container');
                         if (fieldsContainer) {
@@ -416,7 +673,6 @@
                     if (copyButton) {
                         copyButton.addEventListener('click', handleCopyButtonClick);
                     }
-
                 } else {
                     paymentDetailsFormDiv.innerHTML = '<p>Selecciona un método de pago para ver los detalles.</p>';
                 }
@@ -426,6 +682,7 @@
                 document.getElementById('whatsappNumber').addEventListener('input', checkFormValidity);
             }
 
+            // Función para copiar texto al portapapeles
             async function handleCopyButtonClick(event) {
                 const button = event.currentTarget;
                 const targetId = button.dataset.copyTarget;
@@ -458,20 +715,20 @@
                 }
             }
 
+            // Función para verificar si el formulario es válido
             function checkFormValidity() {
                 const selectedRadio = document.querySelector('input[name="paymentMethod"]:checked');
                 const isMethodSelected = selectedRadio !== null;
                 
                 const emailInput = document.getElementById('email');
                 const whatsappInput = document.getElementById('whatsappNumber');
-
                 const isEmailFilled = emailInput && emailInput.value.trim() !== '';
                 const isEmailValid = emailInput && emailInput.checkValidity();
-
                 const isWhatsappFilled = whatsappInput && whatsappInput.value.trim() !== '';
 
                 let areDetailsFilled = true;
 
+                // Lógica de validación para TikTok (no requiere subir comprobante)
                 if (transactionDetails && transactionDetails.game === "TikTok") {
                     areDetailsFilled = true;
                 } else if (isMethodSelected) {
@@ -483,6 +740,7 @@
                     areDetailsFilled = false;
                 }
                 
+                // Habilitar/deshabilitar el botón de finalizar
                 if (transactionDetails.game !== "TikTok") {
                     finalizeBtn.disabled = !(isMethodSelected && areDetailsFilled && isEmailFilled && isEmailValid && isWhatsappFilled);
                 } else {
@@ -490,15 +748,18 @@
                 }
             }
 
+            // Manejar el envío del formulario
             document.getElementById('payment-form').addEventListener('submit', async (e) => {
                 e.preventDefault();
 
                 const formData = new FormData(paymentForm);
 
+                // Adjuntar los detalles de la transacción al objeto FormData
                 for (const key in transactionDetails) {
                     formData.append(key, transactionDetails[key]);
                 }
 
+                // Validaciones finales
                 const emailInput = document.getElementById('email');
                 const whatsappInput = document.getElementById('whatsappNumber');
                 
@@ -522,26 +783,26 @@
                     }
                 }
                 
-                console.log('Datos a enviar (FormData):');
-                for (let pair of formData.entries()) {
-                    console.log(pair[0]+ ': ' + pair[1]);
-                }
-                
+                // Deshabilitar el botón y mostrar "Enviando..."
                 finalizeBtn.disabled = true;
                 finalizeBtn.textContent = 'Enviando...';
                 
                 try {
+                    // Nota: Esta función requiere una implementación del lado del servidor (e.g., Netlify Function, PHP, Node.js)
+                    // para procesar el formulario y enviar el correo electrónico/notificación.
                     const response = await fetch('/.netlify/functions/process-payment', {
                         method: 'POST',
                         body: formData
                     });
 
                     if (response.ok) {
+                        // Ocultar el formulario y mostrar el mensaje de éxito
                         paymentForm.style.display = 'none';
                         whatsappMessageContainer.style.display = 'none';
                         successMessageDisplay.style.display = 'block';
                         localStorage.removeItem('transactionDetails');
 
+                        // Redirigir al inicio después de 5 segundos
                         setTimeout(() => {
                             window.location.href = 'index.html';
                         }, 5000);
