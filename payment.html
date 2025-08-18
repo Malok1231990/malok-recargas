@@ -152,8 +152,8 @@
                     </div>
 
                     <div class="input-group">
-                        <label for="whatsappNumber">Número de WhatsApp (Opcional, para contacto):</label>
-                        <input type="tel" id="whatsappNumber" name="whatsappNumber" placeholder="Ej: 584121234567">
+                        <label for="whatsappNumber">Número de WhatsApp (Para contacto):</label>
+                        <input type="tel" id="whatsappNumber" name="whatsappNumber" placeholder="Ej: 584121234567" required>
                     </div>
                 </div>
                 <div id="whatsapp-message-container" class="payment-confirmation-message" style="margin-top: 30px; margin-bottom: 20px; text-align: center; display: none;">
@@ -307,6 +307,7 @@
                 // --- INICIO DEL CÓDIGO MODIFICADO ---
                 const game = transactionDetails.game;
                 let playerInfoHtml = '';
+                let gameOrServiceLabel = (game === 'Netflix') ? 'Servicio' : 'Juego';
 
                 if (game === 'Roblox') {
                     const robloxEmailHtml = transactionDetails.robloxEmail ? `<p><strong>Correo de Roblox:</strong> ${transactionDetails.robloxEmail}</p>` : '';
@@ -323,6 +324,21 @@
                         `;
                     }
                     playerInfoHtml = `${robloxEmailHtml}${robloxPasswordHtml}`;
+                } else if (game === 'Netflix') {
+                    const netflixEmailHtml = transactionDetails.robloxEmail ? `<p><strong>Correo de Netflix:</strong> ${transactionDetails.robloxEmail}</p>` : '';
+                    let netflixPasswordHtml = '';
+                    if (transactionDetails.robloxPassword) {
+                        const maskedPassword = '•'.repeat(transactionDetails.robloxPassword.length);
+                        netflixPasswordHtml = `
+                            <p><strong>Contraseña de Netflix:</strong> 
+                                <span id="roblox-password">${maskedPassword}</span>
+                                <button type="button" class="toggle-password" id="toggle-roblox-password">
+                                    <i class="fas fa-eye"></i>
+                                </button>
+                            </p>
+                        `;
+                    }
+                    playerInfoHtml = `${netflixEmailHtml}${netflixPasswordHtml}`;
                 } else {
                     const playerIdHtml = transactionDetails.playerId ? `<p><strong>ID de Jugador:</strong> ${transactionDetails.playerId}</p>` : '';
                     playerInfoHtml = playerIdHtml;
@@ -330,26 +346,28 @@
 
                 transactionSummaryDiv.innerHTML = `
                     <h3>Resumen de tu Recarga</h3>
-                    <p><strong>Juego:</strong> ${game}</p>
+                    <p><strong>${gameOrServiceLabel}:</strong> ${game}</p>
                     ${playerInfoHtml}
                     <p><strong>Paquete:</strong> ${transactionDetails.package}</p>
                     <p><strong>Monto a Pagar:</strong> <span class="amount">${displayCurrency === 'VES' ? 'Bs.' : '$'} ${displayAmount.toFixed(2)} ${displayCurrency}</span>${otherCurrencyDisplay}</p>
                 `;
 
                 // Añadir el evento al nuevo botón de mostrar/ocultar contraseña
-                if (game === 'Roblox' && transactionDetails.robloxPassword) {
-                    const toggleButton = document.getElementById('toggle-roblox-password');
-                    const passwordSpan = document.getElementById('roblox-password');
-                    if (toggleButton && passwordSpan) {
-                        toggleButton.addEventListener('click', () => {
-                            if (passwordSpan.textContent === '•'.repeat(transactionDetails.robloxPassword.length)) {
-                                passwordSpan.textContent = transactionDetails.robloxPassword;
-                                toggleButton.innerHTML = '<i class="fas fa-eye-slash"></i>';
-                            } else {
-                                passwordSpan.textContent = '•'.repeat(transactionDetails.robloxPassword.length);
-                                toggleButton.innerHTML = '<i class="fas fa-eye"></i>';
-                            }
-                        });
+                if (game === 'Roblox' || game === 'Netflix') {
+                    if (transactionDetails.robloxPassword) {
+                        const toggleButton = document.getElementById('toggle-roblox-password');
+                        const passwordSpan = document.getElementById('roblox-password');
+                        if (toggleButton && passwordSpan) {
+                            toggleButton.addEventListener('click', () => {
+                                if (passwordSpan.textContent === '•'.repeat(transactionDetails.robloxPassword.length)) {
+                                    passwordSpan.textContent = transactionDetails.robloxPassword;
+                                    toggleButton.innerHTML = '<i class="fas fa-eye-slash"></i>';
+                                } else {
+                                    passwordSpan.textContent = '•'.repeat(transactionDetails.robloxPassword.length);
+                                    toggleButton.innerHTML = '<i class="fas fa-eye"></i>';
+                                }
+                            });
+                        }
                     }
                 }
                 // --- FIN DEL CÓDIGO MODIFICADO ---
@@ -455,10 +473,14 @@
                 const selectedRadio = document.querySelector('input[name="paymentMethod"]:checked');
                 const isMethodSelected = selectedRadio !== null;
                 
-                // Check if email is filled (it's always required now)
+                // Check if email and whatsapp are filled
                 const emailInput = document.getElementById('email');
+                const whatsappInput = document.getElementById('whatsappNumber');
+
                 const isEmailFilled = emailInput && emailInput.value.trim() !== '';
-                const isEmailValid = emailInput && emailInput.checkValidity(); // Check HTML5 validation for email
+                const isEmailValid = emailInput && emailInput.checkValidity();
+
+                const isWhatsappFilled = whatsappInput && whatsappInput.value.trim() !== '';
 
                 let areDetailsFilled = true;
 
@@ -474,12 +496,12 @@
                     areDetailsFilled = false;
                 }
                 
-                // Finalize button depends on method selected, details, and email
+                // Finalize button depends on method selected, details, email, AND whatsapp
                 if (transactionDetails.game !== "TikTok") {
-                    finalizeBtn.disabled = !(isMethodSelected && areDetailsFilled && isEmailFilled && isEmailValid);
+                    finalizeBtn.disabled = !(isMethodSelected && areDetailsFilled && isEmailFilled && isEmailValid && isWhatsappFilled);
                 } else {
-                    // For TikTok, button depends only on email being filled and valid
-                    finalizeBtn.disabled = !(isEmailFilled && isEmailValid); 
+                    // For TikTok, button depends only on email and whatsapp being filled and valid
+                    finalizeBtn.disabled = !(isEmailFilled && isEmailValid && isWhatsappFilled); 
                 }
             }
 
@@ -495,11 +517,19 @@
                     formData.append(key, transactionDetails[key]);
                 }
 
-                // Check for email again as it's now universally required and must be valid
+                // Check for email and whatsapp again as they are now universally required
                 const emailInput = document.getElementById('email');
+                const whatsappInput = document.getElementById('whatsappNumber');
+                
                 if (!emailInput || emailInput.value.trim() === '' || !emailInput.checkValidity()) {
                     alert('Por favor, ingresa un correo electrónico válido para recibir notificaciones.');
                     emailInput.focus();
+                    return;
+                }
+                
+                if (!whatsappInput || whatsappInput.value.trim() === '') {
+                    alert('Por favor, ingresa tu número de WhatsApp para poder contactarte y completar la recarga.');
+                    whatsappInput.focus();
                     return;
                 }
                 
