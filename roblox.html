@@ -3,38 +3,93 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Recarga de Robux - Malok Recargas</title>
+    <title>Recargar Robux - Malok Recargas</title>
+    <link rel="stylesheet" href="./style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
-    <link rel="stylesheet" href="assets/css/style.css">
-    <link rel="preload" href="assets/images/roblox-banner.webp" as="image">
-    <link rel="icon" href="assets/images/logo.png" type="image/x-icon">
+    <link rel="shortcut icon" href="./img/malok.webp" type="image/x-icon">
 </head>
 <body>
-
     <header>
         <div class="header-left">
             <a href="index.html">
-                <img src="assets/images/logo.png" alt="Malok Recargas Logo" class="logo-img">
+                <img src="./img/malok.webp" alt="Malok Recargas Logo" class="logo-img">
             </a>
         </div>
         <div class="header-right">
             <div class="search-bar">
-                <input type="text" placeholder="Buscar juego o servicio...">
                 <i class="fas fa-search"></i>
+                <input type="text" placeholder="Buscar juego o servicio...">
             </div>
-            <div class="custom-currency-selector">
+            <div class="custom-currency-selector" id="currency-selector">
                 <div class="selected-currency">
-                    <img src="assets/images/flag-venezuela.png" alt="Bandera de Venezuela">
-                    <span>VES</span>
+                    <img src="./img/bandera_ve.webp" alt="Venezuela Bandera" id="selected-flag">
+                    <span id="selected-text">Venezuela VES</span>
                     <i class="fas fa-chevron-down"></i>
                 </div>
                 <div class="currency-options">
-                    <div class="option" data-currency="USD">
-                        <img src="assets/images/flag-usa.png" alt="Bandera de USA">
-                        <span>USD</span>
+                    <div class="option" data-currency="VES" data-flag="./img/bandera_ve.webp" data-text="Venezuela VES">
+                        <img src="./img/bandera_ve.webp" alt="Venezuela Bandera"> <span>Venezuela VES</span>
                     </div>
-                    <div class="option" data-currency="COP">
-                        <img src="assets/images/flag-colombia.png" alt="Bandera de Colombia">
+                    <div class="option" data-currency="USD" data-flag="./img/bandera_usa.webp" data-text="USA USD">
+                        <img src="./img/bandera_usa.webp" alt="USA Bandera"> <span>USA USD</span>
+                    </div>
+                    <div class="option" data-currency="COP" data-flag="./img/bandera_co.webp" data-text="Colombia COP">
+                        <img src="./img/bandera_co.webp" alt="Colombia Bandera"> <span>Colombia COP</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main>
+        <section class="form-container">
+            <img src="./img/roblox_banner.webp" alt="Banner de Roblox" class="game-banner">
+            <h2>Recarga de Robux</h2>
+            <form id="recharge-form">
+                <div class="input-group">
+                    <label for="robloxEmail">Correo de Roblox:<span class="required-star">*</span></label>
+                    <input type="email" id="robloxEmail" name="robloxEmail" placeholder="ejemplo@correo.com" required>
+                </div>
+                <div class="input-group">
+                    <label for="robloxPassword">Contraseña de Roblox:<span class="required-star">*</span></label>
+                    <input type="password" id="robloxPassword" name="robloxPassword" placeholder="Ingresa tu contraseña" required>
+                </div>
+                
+                <h3>Selecciona tu Paquete</h3>
+                <p class="small-text">Los precios se muestran en la moneda seleccionada.</p>
+                <div class="package-list" id="package-list">
+                    </div>
+                
+                <h3>Resumen del Pedido</h3>
+                <div class="transaction-summary">
+                    <p>Paquete: <strong id="selected-package-summary">Aún no seleccionado</strong></p>
+                    <p>Total: <strong id="final-price">0.00 VES</strong></p>
+                </div>
+
+                <button type="submit" class="btn-primary" id="submit-btn" disabled>Finalizar Recarga</button>
+            </form>
+        </section>
+    </main>
+
+    <footer>
+        <div class="footer-content">
+            <p>&copy; 2025 Malok Recargas. Todos los derechos reservados.</p>
+            <div class="footer-links">
+                <a href="#">Sobre Nosotros</a>
+                <a href="#">Política de Privacidad</a>
+                <a href="#">Términos y Condiciones</a>
+                <a href="#">Contacto</a>
+            </div>
+            <a href="https://wa.me/tunumerodewhatsapp" class="whatsapp-link" target="_blank">
+                <i class="fab fa-whatsapp"></i>Habla con nosotros
+            </a>
+        </div>
+    </footer>
+
+    <script src="./js/common.js"></script>
+    <script src="./js/roblox.js"></script>
+</body>
+</html>                        <img src="assets/images/flag-colombia.png" alt="Bandera de Colombia">
                         <span>COP</span>
                     </div>
                     <div class="option" data-currency="VES">
