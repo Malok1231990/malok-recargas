@@ -3,9 +3,9 @@ const axios = require('axios');
 const { Formidable } = require('formidable');
 const nodemailer = require('nodemailer');
 const { createClient } = require('@supabase/supabase-js');
-const { Readable } = require('stream'); // Importar Readable para Streams
-const fs = require('fs'); // Módulo para operaciones con archivos
-const FormData = require('form-data'); // Para construir FormData para envíos a Telegram
+const { Readable } = require('stream');
+const fs = require = require('fs');
+const FormData = require('form-data');
 
 exports.handler = async function(event, context) {
     if (event.httpMethod !== "POST") {
@@ -49,7 +49,6 @@ exports.handler = async function(event, context) {
                 });
             });
 
-            // Formidable v3+ devuelve campos y archivos como arrays. Extraer el primer valor.
             data = Object.fromEntries(Object.entries(fields).map(([key, value]) => [key, Array.isArray(value) ? value[0] : value]));
             paymentReceiptFile = files['paymentReceipt'] ? files['paymentReceipt'][0] : null;
 
@@ -66,17 +65,6 @@ exports.handler = async function(event, context) {
             body: JSON.stringify({ message: `Error al procesar los datos de la solicitud: ${parseError.message || 'Unknown error'}. Por favor, verifica tus datos e inténtalo de nuevo.` })
         };
     }
-
-    // --- TEMPORAL: LOGS PARA DEBUGGING DE VARIABLES DE ENTORNO ---
-    console.log("DEBUG: TELEGRAM_BOT_TOKEN existe:", !!process.env.TELEGRAM_BOT_TOKEN);
-    console.log("DEBUG: TELEGRAM_CHAT_ID existe:", !!process.env.TELEGRAM_CHAT_ID);
-    console.log("DEBUG: SMTP_HOST:", process.env.SMTP_HOST);
-    console.log("DEBUG: SMTP_PORT:", process.env.SMTP_PORT);
-    console.log("DEBUG: SMTP_USER:", process.env.SMTP_USER);
-    console.log("DEBUG: SMTP_PASS (length):", process.env.SMTP_PASS ? process.env.SMTP_PASS.length : 'N/A');
-    console.log("DEBUG: SUPABASE_URL existe:", !!process.env.SUPABASE_URL);
-    console.log("DEBUG: SUPABASE_SERVICE_KEY existe:", !!process.env.SUPABASE_SERVICE_KEY);
-    // --- FIN TEMPORAL ---
 
     // Asegúrate de que las variables de entorno estén configuradas
     const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
@@ -95,11 +83,10 @@ exports.handler = async function(event, context) {
         };
     }
 
-    // Extraer datos del formulario (ya procesados por formidable)
+    // Extraer datos del formulario
     const { game, playerId, package: packageName, finalPrice, currency, paymentMethod, email, whatsappNumber } = data;
-    // NUEVO: Extraer campos específicos para Roblox
-    const robloxEmail = data.robloxEmail || null;
-    const robloxPassword = data.robloxPassword || null;
+    const robloxEmail = data.roblox_email || null; // Corregido: snake_case
+    const robloxPassword = data.roblox_password || null; // Corregido: snake_case
 
     let methodSpecificDetails = {};
     if (paymentMethod === 'pago-movil') {
@@ -113,10 +100,10 @@ exports.handler = async function(event, context) {
 
     // --- Guardar Transacción Inicial en Supabase ---
     let newTransactionData;
-    let id_transaccion_generado; // ID único generado para la transacción
+    let id_transaccion_generado;
 
     try {
-        id_transaccion_generado = `MALOK-${Date.now()}`; // Generar un ID único simple para la transacción
+        id_transaccion_generado = `MALOK-${Date.now()}`;
 
         const transactionToInsert = {
             id_transaccion: id_transaccion_generado,
@@ -129,20 +116,18 @@ exports.handler = async function(event, context) {
             email: email,
             whatsappNumber: whatsappNumber || null,
             methodDetails: methodSpecificDetails,
-            status: 'pendiente', // Estado inicial de la transacción
+            status: 'pendiente',
             telegram_chat_id: TELEGRAM_CHAT_ID,
-            // telegram_message_id: null, // Se actualizará después de enviar el mensaje a Telegram
             receipt_url: paymentReceiptFile ? paymentReceiptFile.filepath : null 
         };
-
-        // NUEVO: Añadir campos de Roblox si el juego es Roblox
+        
         if (game === 'Roblox') {
-            transactionToInsert.robloxEmail = robloxEmail;
-            transactionToInsert.robloxPassword = robloxPassword;
+            transactionToInsert.roblox_email = robloxEmail; // Corregido: snake_case
+            transactionToInsert.roblox_password = robloxPassword; // Corregido: snake_case
         }
 
         const { data: insertedData, error: insertError } = await supabase
-            .from('transactions') // Asegúrate de que 'transactions' es el nombre correcto de tu tabla en Supabase
+            .from('transactions')
             .insert(transactionToInsert)
             .select();
 
@@ -165,7 +150,6 @@ exports.handler = async function(event, context) {
     messageText += `*ID de Transacción:* \`${id_transaccion_generado || 'N/A'}\`\n`;
     messageText += `*Estado:* \`PENDIENTE\`\n\n`;
     messageText += `🎮 Juego: *${game}*\n`;
-    // MODIFICADO: Añadir campos de Roblox si existen, de lo contrario mostrar ID de Jugador
     if (game === 'Roblox') {
         messageText += `📧 Correo Roblox: ${robloxEmail || 'N/A'}\n`;
         messageText += `🔑 Contraseña Roblox: ${robloxPassword || 'N/A'}\n`;
@@ -225,17 +209,15 @@ exports.handler = async function(event, context) {
                 const formData = new FormData();
                 formData.append('chat_id', TELEGRAM_CHAT_ID);
                 
-                // *** CORRECCIÓN: Crear un stream Readable a partir del Buffer ***
                 const fileStream = new Readable();
                 fileStream.push(fileBuffer);
-                fileStream.push(null); // Indica el fin del stream
+                fileStream.push(null);
 
-                formData.append('document', fileStream, { // Pasamos el stream
+                formData.append('document', fileStream, {
                     filename: paymentReceiptFile.originalFilename || 'comprobante_pago.jpg',
                     contentType: paymentReceiptFile.mimetype || 'application/octet-stream',
-                    knownLength: fileBuffer.length // Importante para que FormData sepa el tamaño
+                    knownLength: fileBuffer.length
                 });
-                // *** FIN DE CORRECCIÓN ***
 
                 formData.append('caption', `Comprobante de pago para la transacción ${id_transaccion_generado}`);
 
@@ -297,7 +279,6 @@ exports.handler = async function(event, context) {
         }
 
         let playerInfoEmail = '';
-        // NUEVO: Añadir detalles de Roblox al correo si corresponde
         if (game === 'Roblox') {
             playerInfoEmail = `
                 <li><strong>Correo de Roblox:</strong> ${robloxEmail}</li>
@@ -331,9 +312,6 @@ exports.handler = async function(event, context) {
                 </div>
             `,
         };
-
-        // NOTA: La sección para adjuntar el comprobante al correo ha sido removida
-        // porque la lógica ahora prioriza enviarlo a Telegram.
 
         try {
             await transporter.sendMail(mailOptions);
