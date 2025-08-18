@@ -105,14 +105,14 @@
                 <input type="text" placeholder="Buscar juego...">
                 <i class="fas fa-search"></i>
             </div>
-            </div>
+        </div>
     </header>
 
     <main class="payment-main">
         <div class="form-container">
             <h2>Confirmar Recarga y Seleccionar Método de Pago</h2>
             <div id="transaction-summary" class="transaction-summary">
-                </div>
+            </div>
 
             <form id="payment-form">
                 <div class="form-section-step">
@@ -120,14 +120,14 @@
                     <div class="form-group">
                         <label>Método de Pago:</label>
                         <div class="payment-methods" id="payment-methods">
-                            </div>
+                        </div>
                     </div>
                 </div>
 
                 <div class="form-section-step">
                     <h3>Paso 2: Realiza el Pago y Sube tu Comprobante</h3>
                     <div id="payment-details-form" class="payment-details-form">
-                        </div>
+                    </div>
                 </div>
                 
                 <div class="form-section-step">
@@ -290,15 +290,27 @@
                     }
                 }
 
-                const playerIdHtml = transactionDetails.playerId ? `<p><strong>ID de Jugador:</strong> ${transactionDetails.playerId}</p>` : '';
+                // --- INICIO DEL CÓDIGO MODIFICADO ---
+                const game = transactionDetails.game;
+                let playerInfoHtml = '';
+
+                if (game === 'Roblox') {
+                    const robloxEmailHtml = transactionDetails.robloxEmail ? `<p><strong>Correo de Roblox:</strong> ${transactionDetails.robloxEmail}</p>` : '';
+                    const robloxPasswordHtml = transactionDetails.robloxPassword ? `<p><strong>Contraseña de Roblox:</strong> ${transactionDetails.robloxPassword}</p>` : '';
+                    playerInfoHtml = `${robloxEmailHtml}${robloxPasswordHtml}`;
+                } else {
+                    const playerIdHtml = transactionDetails.playerId ? `<p><strong>ID de Jugador:</strong> ${transactionDetails.playerId}</p>` : '';
+                    playerInfoHtml = playerIdHtml;
+                }
 
                 transactionSummaryDiv.innerHTML = `
-                    <p><strong>Juego:</strong> ${transactionDetails.game}</p>
-                    ${playerIdHtml}
-                    <p><strong>Plan Seleccionado:</strong> ${transactionDetails.package}</p>
-                    <p><strong>Total a Pagar:</strong> <span class="amount">${displayCurrency === 'VES' ? 'Bs.' : '$'} ${displayAmount.toFixed(2)} ${displayCurrency}</span>${otherCurrencyDisplay}</p>
-                    <p>Por favor, realiza el pago por el monto exacto y selecciona tu método a continuación.</p>
+                    <h3>Resumen de tu Recarga</h3>
+                    <p><strong>Juego:</strong> ${game}</p>
+                    ${playerInfoHtml}
+                    <p><strong>Paquete:</strong> ${transactionDetails.package}</p>
+                    <p><strong>Monto a Pagar:</strong> <span class="amount">${displayCurrency === 'VES' ? 'Bs.' : '$'} ${displayAmount.toFixed(2)} ${displayCurrency}</span>${otherCurrencyDisplay}</p>
                 `;
+                // --- FIN DEL CÓDIGO MODIFICADO ---
             }
 
             function updatePaymentMethods() {
@@ -461,7 +473,7 @@
                 // Log FormData entries for debugging (not the file content itself)
                 console.log('Datos a enviar (FormData):');
                 for (let pair of formData.entries()) {
-                   console.log(pair[0]+ ': ' + pair[1]);
+                    console.log(pair[0]+ ': ' + pair[1]);
                 }
                 
                 // Disable button and show loading message
