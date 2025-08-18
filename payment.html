@@ -260,7 +260,7 @@
         const paymentForm = document.getElementById('payment-form');
         const whatsappMessageContainer = document.getElementById('whatsapp-message-container');
         const finalizeBtn = document.getElementById('finalize-recharge-btn');
-        const successMessageDisplay = document.getElementById('success-message-display'); // Nuevo elemento
+        const successMessageDisplay = document.getElementById('success-message-display');
 
         document.addEventListener('DOMContentLoaded', () => {
             const transactionSummaryDiv = document.getElementById('transaction-summary');
@@ -276,14 +276,10 @@
                 if (transactionDetails.game === "TikTok") {
                     whatsappMessageContainer.style.display = 'block';
                     finalizeBtn.style.display = 'none';
-                    // Make email required for TikTok, but no file
-                    const emailInput = document.getElementById('email');
-                    if (emailInput) emailInput.required = true;
                 } else {
                     whatsappMessageContainer.style.display = 'none';
                     finalizeBtn.style.display = 'block';
                 }
-
             } else {
                 transactionSummaryDiv.innerHTML = '<p>No se encontraron detalles de la transacción. Por favor, regresa a la página de inicio.</p>';
                 finalizeBtn.style.display = 'none';
@@ -305,73 +301,68 @@
                     }
                 }
 
-                // --- INICIO DEL CÓDIGO MODIFICADO ---
                 const game = transactionDetails.game;
                 let playerInfoHtml = '';
                 let gameOrServiceLabel = (game === 'Netflix') ? 'Servicio' : 'Juego';
+                let passwordHtml = '';
+                let passwordToReveal = '';
 
-                if (game === 'Roblox') {
-                    const robloxEmailHtml = transactionDetails.robloxEmail ? `<p><strong>Correo de Roblox:</strong> ${transactionDetails.robloxEmail}</p>` : '';
-                    let robloxPasswordHtml = '';
+                // Lógica unificada para mostrar datos del jugador
+                if (game === 'Roblox' || game === 'Netflix') {
+                    const gameEmailHtml = transactionDetails.robloxEmail ? `<p><strong>Correo de ${game}:</strong> ${transactionDetails.robloxEmail}</p>` : '';
                     if (transactionDetails.robloxPassword) {
-                        const maskedPassword = '•'.repeat(transactionDetails.robloxPassword.length);
-                        robloxPasswordHtml = `
-                            <p><strong>Contraseña de Roblox:</strong> 
-                                <span id="roblox-password">${maskedPassword}</span>
-                                <button type="button" class="toggle-password" id="toggle-roblox-password">
-                                    <i class="fas fa-eye"></i>
-                                </button>
-                            </p>
-                        `;
+                        passwordToReveal = transactionDetails.robloxPassword;
                     }
-                    playerInfoHtml = `${robloxEmailHtml}${robloxPasswordHtml}`;
-                } else if (game === 'Netflix') {
-                    const netflixEmailHtml = transactionDetails.robloxEmail ? `<p><strong>Correo de Netflix:</strong> ${transactionDetails.robloxEmail}</p>` : '';
-                    let netflixPasswordHtml = '';
-                    if (transactionDetails.robloxPassword) {
-                        const maskedPassword = '•'.repeat(transactionDetails.robloxPassword.length);
-                        netflixPasswordHtml = `
-                            <p><strong>Contraseña de Netflix:</strong> 
-                                <span id="roblox-password">${maskedPassword}</span>
-                                <button type="button" class="toggle-password" id="toggle-roblox-password">
-                                    <i class="fas fa-eye"></i>
-                                </button>
-                            </p>
-                        `;
+                    playerInfoHtml = `${gameEmailHtml}`;
+                } else if (game === 'Call of Duty Mobile') {
+                    const gameEmailHtml = transactionDetails.codmEmail ? `<p><strong>Correo de ${game}:</strong> ${transactionDetails.codmEmail}</p>` : '';
+                    if (transactionDetails.codmPassword) {
+                        passwordToReveal = transactionDetails.codmPassword;
                     }
-                    playerInfoHtml = `${netflixEmailHtml}${netflixPasswordHtml}`;
+                    const gameVinculationHtml = transactionDetails.codmVinculation ? `<p><strong>Vinculación:</strong> ${transactionDetails.codmVinculation}</p>` : '';
+                    playerInfoHtml = `${gameEmailHtml}${gameVinculationHtml}`;
                 } else {
+                    // Para otros juegos, mostramos el ID de Jugador
                     const playerIdHtml = transactionDetails.playerId ? `<p><strong>ID de Jugador:</strong> ${transactionDetails.playerId}</p>` : '';
                     playerInfoHtml = playerIdHtml;
+                }
+
+                // Generar HTML de la contraseña si existe
+                if (passwordToReveal) {
+                    const maskedPassword = '•'.repeat(passwordToReveal.length);
+                    passwordHtml = `
+                        <p><strong>Contraseña:</strong> 
+                            <span id="game-password">${maskedPassword}</span>
+                            <button type="button" class="toggle-password" id="toggle-game-password">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                        </p>
+                    `;
                 }
 
                 transactionSummaryDiv.innerHTML = `
                     <h3>Resumen de tu Recarga</h3>
                     <p><strong>${gameOrServiceLabel}:</strong> ${game}</p>
                     ${playerInfoHtml}
+                    ${passwordHtml}
                     <p><strong>Paquete:</strong> ${transactionDetails.package}</p>
                     <p><strong>Monto a Pagar:</strong> <span class="amount">${displayCurrency === 'VES' ? 'Bs.' : '$'} ${displayAmount.toFixed(2)} ${displayCurrency}</span>${otherCurrencyDisplay}</p>
                 `;
 
-                // Añadir el evento al nuevo botón de mostrar/ocultar contraseña
-                if (game === 'Roblox' || game === 'Netflix') {
-                    if (transactionDetails.robloxPassword) {
-                        const toggleButton = document.getElementById('toggle-roblox-password');
-                        const passwordSpan = document.getElementById('roblox-password');
-                        if (toggleButton && passwordSpan) {
-                            toggleButton.addEventListener('click', () => {
-                                if (passwordSpan.textContent === '•'.repeat(transactionDetails.robloxPassword.length)) {
-                                    passwordSpan.textContent = transactionDetails.robloxPassword;
-                                    toggleButton.innerHTML = '<i class="fas fa-eye-slash"></i>';
-                                } else {
-                                    passwordSpan.textContent = '•'.repeat(transactionDetails.robloxPassword.length);
-                                    toggleButton.innerHTML = '<i class="fas fa-eye"></i>';
-                                }
-                            });
+                // Añadir el evento al botón de mostrar/ocultar contraseña si el elemento existe
+                const toggleButton = document.getElementById('toggle-game-password');
+                if (toggleButton) {
+                    toggleButton.addEventListener('click', () => {
+                        const passwordSpan = document.getElementById('game-password');
+                        if (passwordSpan.textContent === '•'.repeat(passwordToReveal.length)) {
+                            passwordSpan.textContent = passwordToReveal;
+                            toggleButton.innerHTML = '<i class="fas fa-eye-slash"></i>';
+                        } else {
+                            passwordSpan.textContent = '•'.repeat(passwordToReveal.length);
+                            toggleButton.innerHTML = '<i class="fas fa-eye"></i>';
                         }
-                    }
+                    });
                 }
-                // --- FIN DEL CÓDIGO MODIFICADO ---
             }
 
             function updatePaymentMethods() {
@@ -411,14 +402,13 @@
                     if (transactionDetails.game === "TikTok") {
                         const fieldsContainer = paymentDetailsFormDiv.querySelector('.payment-fields-container');
                         if (fieldsContainer) {
-                            fieldsContainer.style.display = 'none'; // Oculta la subida del comprobante para TikTok
+                            fieldsContainer.style.display = 'none';
                         }
                     } else {
-                        // Only add event listener for the file input if it's not TikTok
                         const fileInput = document.getElementById('payment-receipt');
                         if (fileInput) {
                             fileInput.addEventListener('change', checkFormValidity);
-                            fileInput.required = true; // Asegura que el archivo es requerido para otros juegos
+                            fileInput.required = true;
                         }
                     }
 
@@ -432,7 +422,6 @@
                 }
                 checkFormValidity();
 
-                // Add event listeners to email and whatsapp inputs for validity check
                 document.getElementById('email').addEventListener('input', checkFormValidity);
                 document.getElementById('whatsappNumber').addEventListener('input', checkFormValidity);
             }
@@ -469,12 +458,10 @@
                 }
             }
 
-
             function checkFormValidity() {
                 const selectedRadio = document.querySelector('input[name="paymentMethod"]:checked');
                 const isMethodSelected = selectedRadio !== null;
                 
-                // Check if email and whatsapp are filled
                 const emailInput = document.getElementById('email');
                 const whatsappInput = document.getElementById('whatsappNumber');
 
@@ -486,9 +473,8 @@
                 let areDetailsFilled = true;
 
                 if (transactionDetails && transactionDetails.game === "TikTok") {
-                    areDetailsFilled = true; // No required fields for TikTok, instructions are for WhatsApp
+                    areDetailsFilled = true;
                 } else if (isMethodSelected) {
-                    // Only check the file input for non-TikTok games
                     const fileInput = document.getElementById('payment-receipt');
                     if (fileInput && fileInput.files.length === 0) {
                         areDetailsFilled = false;
@@ -497,28 +483,22 @@
                     areDetailsFilled = false;
                 }
                 
-                // Finalize button depends on method selected, details, email, AND whatsapp
                 if (transactionDetails.game !== "TikTok") {
                     finalizeBtn.disabled = !(isMethodSelected && areDetailsFilled && isEmailFilled && isEmailValid && isWhatsappFilled);
                 } else {
-                    // For TikTok, button depends only on email and whatsapp being filled and valid
                     finalizeBtn.disabled = !(isEmailFilled && isEmailValid && isWhatsappFilled); 
                 }
             }
 
-
             document.getElementById('payment-form').addEventListener('submit', async (e) => {
                 e.preventDefault();
 
-                // Get form data using FormData API
                 const formData = new FormData(paymentForm);
 
-                // Add transactionDetails to formData (these are not direct form inputs)
                 for (const key in transactionDetails) {
                     formData.append(key, transactionDetails[key]);
                 }
 
-                // Check for email and whatsapp again as they are now universally required
                 const emailInput = document.getElementById('email');
                 const whatsappInput = document.getElementById('whatsappNumber');
                 
@@ -534,7 +514,6 @@
                     return;
                 }
                 
-                // Check for payment receipt if it's not a TikTok game
                 if (transactionDetails.game !== "TikTok") {
                     const paymentReceipt = document.getElementById('payment-receipt');
                     if (!paymentReceipt || paymentReceipt.files.length === 0) {
@@ -542,36 +521,30 @@
                         return;
                     }
                 }
-
-                // Log FormData entries for debugging (not the file content itself)
+                
                 console.log('Datos a enviar (FormData):');
                 for (let pair of formData.entries()) {
                     console.log(pair[0]+ ': ' + pair[1]);
                 }
                 
-                // Disable button and show loading message
                 finalizeBtn.disabled = true;
                 finalizeBtn.textContent = 'Enviando...';
                 
                 try {
-                    // Send FormData directly; fetch will set Content-Type header to multipart/form-data automatically
                     const response = await fetch('/.netlify/functions/process-payment', {
                         method: 'POST',
                         body: formData
                     });
 
                     if (response.ok) {
-                        // Show success message and hide form
                         paymentForm.style.display = 'none';
-                        whatsappMessageContainer.style.display = 'none'; // Hide TikTok specific message if shown
+                        whatsappMessageContainer.style.display = 'none';
                         successMessageDisplay.style.display = 'block';
+                        localStorage.removeItem('transactionDetails');
 
-                        localStorage.removeItem('transactionDetails'); // Clear stored details
-
-                        // Redirect after a short delay
                         setTimeout(() => {
                             window.location.href = 'index.html';
-                        }, 5000); // 5 seconds
+                        }, 5000);
                     } else {
                         const errorData = await response.json();
                         alert(`Ocurrió un error: ${errorData.message || response.statusText}. Por favor, verifica tus datos e inténtalo de nuevo.`);
