@@ -18,7 +18,7 @@
             display: block;
             margin-bottom: 8px;
             font-weight: 600;
-            color: #2c3e50; /* Color modificado para mayor contraste */
+            color: #ffffff; /* Color modificado para mayor contraste */
         }
 
         .input-container {
@@ -37,36 +37,14 @@
             transition: border-color 0.3s, box-shadow 0.3s;
             box-sizing: border-box;
         }
-        
-        /* Estilo para el campo de selección */
-        .custom-select-wrapper select {
-            width: 100%;
-            padding: 12px 45px 12px 40px;
-            font-size: 16px;
-            border: 2px solid #ddd;
-            border-radius: 25px;
-            background-color: #f9f9f9;
-            transition: border-color 0.3s, box-shadow 0.3s;
-            box-sizing: border-box;
-            -webkit-appearance: none;
-            -moz-appearance: none;
-            appearance: none;
-            cursor: pointer;
-        }
-        
-        .custom-select-wrapper select:focus {
+
+        .input-container input:focus,
+        .custom-select:focus {
             outline: none;
             border-color: #007bff;
             box-shadow: 0 0 8px rgba(0, 123, 255, 0.2);
         }
 
-        .input-container input:focus,
-        .custom-select-wrapper select:focus {
-            outline: none;
-            border-color: #007bff;
-            box-shadow: 0 0 8px rgba(0, 123, 255, 0.2);
-        }
-        
         .input-container .icon {
             position: absolute;
             left: 15px;
@@ -92,6 +70,79 @@
 
         .toggle-password:hover {
             color: #555;
+        }
+
+        /* Estilos para el select personalizado */
+        .custom-select {
+            position: relative;
+            width: 100%;
+            cursor: pointer;
+        }
+
+        .select-selected {
+            width: 100%;
+            padding: 12px 45px 12px 40px;
+            font-size: 16px;
+            border: 2px solid #ddd;
+            border-radius: 25px;
+            background-color: #f9f9f9;
+            transition: border-color 0.3s, box-shadow 0.3s;
+            box-sizing: border-box;
+            display: flex;
+            align-items: center;
+        }
+
+        .select-selected:after {
+            position: absolute;
+            content: "\f078"; /* Icono de flecha hacia abajo de Font Awesome */
+            font-family: 'Font Awesome 5 Free';
+            font-weight: 900;
+            top: 50%;
+            right: 15px;
+            transform: translateY(-50%);
+            color: #aaa;
+            transition: color 0.3s;
+        }
+        
+        .select-selected.select-arrow-active:after {
+            content: "\f077"; /* Icono de flecha hacia arriba de Font Awesome */
+        }
+        
+        .select-items {
+            position: absolute;
+            background-color: #fff;
+            border: 1px solid #ddd;
+            border-radius: 15px;
+            border-top: none;
+            z-index: 99;
+            top: 100%;
+            left: 0;
+            right: 0;
+            max-height: 200px;
+            overflow-y: auto;
+            margin-top: 5px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            display: none;
+        }
+
+        .select-items div {
+            padding: 12px 15px;
+            cursor: pointer;
+            border-bottom: 1px solid #eee;
+            transition: background-color 0.2s;
+        }
+
+        .select-items div:last-child {
+            border-bottom: none;
+        }
+
+        .select-items div:hover, .same-as-selected {
+            background-color: #f1f1f1;
+        }
+
+        /* Oculta el select original */
+        .custom-select-wrapper select {
+            display: none;
         }
     </style>
 </head>
@@ -150,7 +201,7 @@
                 </div>
                 <div class="form-group-custom">
                     <label for="codm-vinculation">3. Selecciona la Vinculación de tu Cuenta:</label>
-                    <div class="input-container">
+                    <div class="custom-select-wrapper input-container">
                         <i class="fas fa-users icon"></i>
                         <select id="codm-vinculation" name="codmVinculation" required>
                             <option value="" disabled selected>Selecciona tu tipo de vinculación</option>
@@ -207,6 +258,7 @@
             const currencyDisplaySpan = document.getElementById('currency-display');
             
             let selectedPackage = null;
+            let customSelects = null;
 
             // Función para mostrar/ocultar la contraseña
             if (passwordInput && togglePassword) {
@@ -216,6 +268,71 @@
                     togglePassword.classList.toggle('fa-eye');
                     togglePassword.classList.toggle('fa-eye-slash');
                 });
+            }
+
+            // Función para crear el select personalizado
+            function createCustomSelect() {
+                const selectElement = document.getElementById("codm-vinculation");
+                
+                const customSelectDiv = document.createElement("div");
+                customSelectDiv.setAttribute("class", "custom-select");
+                
+                const selectSelectedDiv = document.createElement("div");
+                selectSelectedDiv.setAttribute("class", "select-selected");
+                selectSelectedDiv.innerHTML = selectElement.options[selectElement.selectedIndex].innerHTML;
+                customSelectDiv.appendChild(selectSelectedDiv);
+                
+                const selectItemsDiv = document.createElement("div");
+                selectItemsDiv.setAttribute("class", "select-items select-hide");
+                
+                for (let i = 1; i < selectElement.length; i++) {
+                    const optionDiv = document.createElement("div");
+                    optionDiv.innerHTML = selectElement.options[i].innerHTML;
+                    optionDiv.addEventListener("click", function(e) {
+                        selectSelectedDiv.innerHTML = this.innerHTML;
+                        for (let j = 0; j < selectElement.length; j++) {
+                            if (selectElement.options[j].innerHTML === this.innerHTML) {
+                                selectElement.selectedIndex = j;
+                                // Dispara el evento 'change' en el select oculto para que el formulario lo detecte
+                                vinculationInput.dispatchEvent(new Event('change'));
+                                break;
+                            }
+                        }
+                        selectSelectedDiv.click();
+                    });
+                    selectItemsDiv.appendChild(optionDiv);
+                }
+                
+                customSelectDiv.appendChild(selectItemsDiv);
+                selectElement.parentNode.insertBefore(customSelectDiv, selectElement);
+                
+                selectSelectedDiv.addEventListener("click", function(e) {
+                    e.stopPropagation();
+                    closeAllSelect(this);
+                    this.nextSibling.classList.toggle("select-hide");
+                    this.classList.toggle("select-arrow-active");
+                });
+                
+                function closeAllSelect(elmnt) {
+                    const arr = [];
+                    const selectItems = document.getElementsByClassName("select-items");
+                    const selectSelected = document.getElementsByClassName("select-selected");
+                    for (let i = 0; i < selectSelected.length; i++) {
+                        if (elmnt === selectSelected[i]) {
+                            arr.push(i);
+                        } else {
+                            selectSelected[i].classList.remove("select-arrow-active");
+                        }
+                    }
+                    for (let i = 0; i < selectItems.length; i++) {
+                        if (arr.indexOf(i)) {
+                            selectItems[i].classList.add("select-hide");
+                        }
+                    }
+                }
+                
+                document.addEventListener("click", closeAllSelect);
+                return customSelectDiv;
             }
 
             function formatPrice(price, currency) {
@@ -262,6 +379,7 @@
 
             const initialCurrency = localStorage.getItem('selectedCurrency') || 'VES';
             updatePackages(initialCurrency);
+            createCustomSelect();
 
             emailInput.addEventListener('input', checkFormValidity);
             passwordInput.addEventListener('input', checkFormValidity);
