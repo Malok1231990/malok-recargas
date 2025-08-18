@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Recargar CP - Malok Recargas</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <link rel="shortcut icon" href="images/malok_logo.png" type="image/x-icon">
+</head>
+<body>
+    <header>
+        <div class="header-left">
+            <a href="index.html" class="logo-link">
+                <img src="images/malok_logo.png" alt="Malok Recargas Logo" class="logo-img">
+            </a>
+        </div>
+        <div class="header-right">
+            <div class="search-bar">
+                <input type="text" placeholder="Buscar juego...">
+                <i class="fas fa-search"></i>
+            </div>
+            <div class="custom-currency-selector" id="custom-currency-selector">
+                <div class="selected-currency" id="selected-currency">
+                    <img src="images/flag_ve.png" alt="Venezuela Flag"> <span>Bs. (VES)</span> <i class="fas fa-chevron-down"></i>
+                </div>
+                <div class="currency-options" id="currency-options">
+                    <div class="option" data-value="VES">
+                        <img src="images/flag_ve.png" alt="Venezuela Flag"> <span>Bs. (VES)</span>
+                    </div>
+                    <div class="option" data-value="USD">
+                        <img src="images/flag_us.png" alt="USA Flag"> <span>$ (USD)</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="roblox-main">
+        <div class="form-container">
+            <img src="images/codm_banner.jpg" alt="Call of Duty Mobile Banner" class="game-banner">
+            <h2>Recargar CP</h2>
+            <div class="game-info">
+                <p>Moneda actual: <span id="currency-display">USD</span></p>
+                <p>Ingresa tus datos de Call of Duty Mobile para la recarga.</p>
+            </div>
+
+            <form id="codm-recharge-form">
+                <div class="form-group">
+                    <label for="codm-email">1. Ingresa tu Correo de Call of Duty Mobile:</label>
+                    <input type="email" id="codm-email" name="robloxEmail" placeholder="ejemplo@correo.com" required>
+                </div>
+                <div class="form-group">
+                    <label for="codm-password">2. Ingresa tu Contraseña de Call of Duty Mobile:</label>
+                    <input type="password" id="codm-password" name="robloxPassword" placeholder="Ingresa tu contraseña" required>
+                </div>
+                
+                <div class="form-group">
+                    <label>3. Selecciona tu Paquete de CP:</label>
+                    <div class="package-list" id="package-list">
+                    </div>
+                </div>
+
+                <button type="submit" class="btn-primary" id="confirm-recharge-btn" disabled>Confirmar Recarga</button>
+            </form>
+        </div>
+    </main>
+
+    <footer>
+        <div class="footer-content">
+            <p>&copy; 2025 Malok Recargas. Todos los derechos reservados.</p>
+            <div class="footer-links">
+                <a href="privacy.html">Políticas de Privacidad</a>
+                <a href="terms.html">Términos de Servicio</a>
+            </div>
+            <a href="https://wa.me/584126949631" target="_blank" class="whatsapp-link">
+                <i class="fab fa-whatsapp"></i> Contáctanos por WhatsApp
+            </a>
+        </div>
+    </footer>
+
+    <script src="script.js"></script>
+    <script>
+        // Paquetes de CP con precios en USD y VES fijos
+        const codmPackages = [
+            { id: 1, name: '80 CP', priceUSD: 1.00, priceVES: 220.00 },
+            { id: 2, name: '240 CP', priceUSD: 3.00, priceVES: 660.00 },
+            { id: 3, name: '400 CP', priceUSD: 5.00, priceVES: 1100.00 },
+            { id: 4, name: '800 CP', priceUSD: 10.00, priceVES: 2200.00 },
+            { id: 5, name: '2000 CP', priceUSD: 25.00, priceVES: 5500.00 },
+            { id: 6, name: '5000 CP', priceUSD: 60.00, priceVES: 13200.00 }
+        ];
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const emailInput = document.getElementById('codm-email');
+            const passwordInput = document.getElementById('codm-password');
+            const packageListDiv = document.getElementById('package-list');
+            const confirmBtn = document.getElementById('confirm-recharge-btn');
+            const currencyDisplaySpan = document.getElementById('currency-display');
+            
+            let selectedPackage = null;
+
+            function formatPrice(price, currency) {
+                if (currency === 'VES') {
+                    return `Bs. ${price.toFixed(2)}`;
+                } else {
+                    return `$${price.toFixed(2)}`;
+                }
+            }
+
+            function updatePackages(currentCurrency) {
+                currencyDisplaySpan.textContent = currentCurrency;
+                packageListDiv.innerHTML = '';
+                codmPackages.forEach(pkg => {
+                    let displayPrice = (currentCurrency === 'VES') ? pkg.priceVES : pkg.priceUSD;
+                    const packageItem = document.createElement('div');
+                    packageItem.classList.add('package-item');
+                    packageItem.dataset.id = pkg.id;
+                    packageItem.dataset.priceUsd = pkg.priceUSD;
+                    packageItem.dataset.priceVes = pkg.priceVES;
+                    packageItem.innerHTML = `
+                        <span>${pkg.name}</span>
+                        <span class="price">${formatPrice(displayPrice, currentCurrency)}</span>
+                    `;
+                    packageItem.addEventListener('click', () => {
+                        if (selectedPackage) {
+                            selectedPackage.classList.remove('selected');
+                        }
+                        packageItem.classList.add('selected');
+                        selectedPackage = packageItem;
+                        checkFormValidity();
+                    });
+                    packageListDiv.appendChild(packageItem);
+                });
+                checkFormValidity();
+            }
+
+            function checkFormValidity() {
+                const emailValid = emailInput.value.trim() !== '';
+                const passwordValid = passwordInput.value.trim() !== '';
+                confirmBtn.disabled = !(emailValid && passwordValid && selectedPackage);
+            }
+
+            const initialCurrency = localStorage.getItem('selectedCurrency') || 'VES';
+            updatePackages(initialCurrency);
+
+            emailInput.addEventListener('input', checkFormValidity);
+            passwordInput.addEventListener('input', checkFormValidity);
+
+            window.addEventListener('currencyChanged', (event) => {
+                const newCurrency = event.detail.currency;
+                updatePackages(newCurrency);
+            });
+
+            document.getElementById('codm-recharge-form').addEventListener('submit', (e) => {
+                e.preventDefault();
+                if (selectedPackage) {
+                    const codmEmail = emailInput.value.trim();
+                    const codmPassword = passwordInput.value.trim();
+                    const packageName = selectedPackage.querySelector('span:first-child').textContent;
+                    const basePriceUSD = parseFloat(selectedPackage.dataset.priceUsd);
+                    const basePriceVES = parseFloat(selectedPackage.dataset.priceVes);
+                    const selectedCurrency = localStorage.getItem('selectedCurrency') || 'VES';
+                    const finalPrice = (selectedCurrency === 'VES') ? basePriceVES : basePriceUSD;
+                    
+                    const transactionDetails = {
+                        game: "Call of Duty Mobile",
+                        robloxEmail: codmEmail,
+                        robloxPassword: codmPassword,
+                        package: packageName,
+                        priceUSD: basePriceUSD.toFixed(2),
+                        finalPrice: finalPrice.toFixed(2),
+                        currency: selectedCurrency
+                    };
+
+                    localStorage.setItem('transactionDetails', JSON.stringify(transactionDetails));
+                    window.location.href = 'payment.html';
+                } else {
+                    console.error('Por favor, selecciona un plan de recarga.');
+                }
+            });
+        });
+    </script>
+</body>
+</html>
