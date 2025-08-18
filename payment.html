@@ -60,17 +60,17 @@
             border-radius: 5px;
             background-color: var(--input-background);
             color: var(--text-color);
-            box-sizing: border-box; /* Asegura que el padding no aumente el ancho */
+            box-sizing: border-box;
         }
         /* Estilo para el mensaje de éxito */
         .payment-success-message {
             margin-top: 30px;
             padding: 20px;
-            background-color: var(--accent-green-light); /* Un color de fondo suave para el éxito */
+            background-color: var(--accent-green-light);
             border: 1px solid var(--accent-green);
             border-radius: 8px;
             text-align: center;
-            color: var(--accent-green); /* Color del texto */
+            color: var(--accent-green);
         }
         .payment-success-message h2 {
             margin-top: 0;
@@ -112,7 +112,7 @@
         <div class="form-container">
             <h2>Confirmar Recarga y Seleccionar Método de Pago</h2>
             <div id="transaction-summary" class="transaction-summary">
-                </div>
+            </div>
 
             <form id="payment-form">
                 <div class="form-section-step">
@@ -120,14 +120,14 @@
                     <div class="form-group">
                         <label>Método de Pago:</label>
                         <div class="payment-methods" id="payment-methods">
-                            </div>
+                        </div>
                     </div>
                 </div>
 
                 <div class="form-section-step">
                     <h3>Paso 2: Realiza el Pago y Sube tu Comprobante</h3>
                     <div id="payment-details-form" class="payment-details-form">
-                        </div>
+                    </div>
                 </div>
                 
                 <div class="form-section-step">
@@ -223,6 +223,202 @@
                 <p><strong>Paso 1:</strong> Transfiere el monto exacto a nuestra cuenta Zinli.</p>
                 <ul>
                     <li><strong>Usuario Zinli:</strong> miladelarocaedwar04@gmail.com</li>
+                </ul>
+                <div class="payment-fields-container">
+                    <p><strong>Paso 2:</strong> Sube tu comprobante de pago.</p>
+                    <label for="payment-receipt">Subir Comprobante de Pago:</label>
+                    <input type="file" id="payment-receipt" name="paymentReceipt" accept="image/*,application/pdf" required>
+                </div>
+            `
+        };
+
+        const paymentMethodsVES = [
+            { id: 'pago-movil', name: 'Pago Móvil', type: 'ves', icon: 'fas fa-mobile-alt' }
+        ];
+
+        const paymentMethodsUSD = [
+            { id: 'binance', name: 'Binance', type: 'usd', icon: 'fab fa-bitcoin' },
+            { id: 'zinli', name: 'Zinli', type: 'usd', icon: 'fas fa-wallet' }
+        ];
+
+        let transactionDetails = null;
+        const paymentForm = document.getElementById('payment-form');
+        const whatsappMessageContainer = document.getElementById('whatsapp-message-container');
+        const finalizeBtn = document.getElementById('finalize-recharge-btn');
+        const successMessageDisplay = document.getElementById('success-message-display');
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const transactionSummaryDiv = document.getElementById('transaction-summary');
+            const paymentMethodsDiv = document.getElementById('payment-methods');
+            const paymentDetailsFormDiv = document.getElementById('payment-details-form');
+            
+            const storedDetails = localStorage.getItem('transactionDetails');
+            if (storedDetails) {
+                transactionDetails = JSON.parse(storedDetails);
+                updateTransactionSummary();
+                updatePaymentMethods();
+
+                if (transactionDetails.game === "TikTok") {
+                    whatsappMessageContainer.style.display = 'block';
+                    finalizeBtn.style.display = 'none';
+                    const emailInput = document.getElementById('email');
+                    if (emailInput) emailInput.required = true;
+                } else {
+                    whatsappMessageContainer.style.display = 'none';
+                    finalizeBtn.style.display = 'block';
+                }
+
+            } else {
+                transactionSummaryDiv.innerHTML = '<p>No se encontraron detalles de la transacción. Por favor, regresa a la página de inicio.</p>';
+                finalizeBtn.style.display = 'none';
+                whatsappMessageContainer.style.display = 'none';
+            }
+
+            function updateTransactionSummary() {
+                if (!transactionDetails) return;
+
+                const displayAmount = parseFloat(transactionDetails.finalPrice);
+                const displayCurrency = transactionDetails.currency;
+                
+                let otherCurrencyDisplay = '';
+                if (transactionDetails.priceUSD && transactionDetails.priceVES) {
+                    if (displayCurrency === 'VES') {
+                        otherCurrencyDisplay = ` (~ $${parseFloat(transactionDetails.priceUSD).toFixed(2)} USD)`;
+                    } else if (displayCurrency === 'USD') {
+                        otherCurrencyDisplay = ` (~ Bs. ${parseFloat(transactionDetails.priceVES).toFixed(2)} VES)`;
+                    }
+                }
+                
+                // Muestra el ID de Jugador solo si existe y no es de Roblox
+                let playerIdHtml = '';
+                if (transactionDetails.playerId && transactionDetails.game !== 'Roblox') {
+                    playerIdHtml = `<p><strong>ID de Jugador:</strong> ${transactionDetails.playerId}</p>`;
+                }
+                
+                // Muestra el correo de Roblox si existe
+                let robloxInfoHtml = '';
+                if (transactionDetails.game === 'Roblox' && transactionDetails.robloxEmail) {
+                    robloxInfoHtml = `<p><strong>Correo de Roblox:</strong> ${transactionDetails.robloxEmail}</p>`;
+                }
+
+                transactionSummaryDiv.innerHTML = `
+                    <p><strong>Juego:</strong> ${transactionDetails.game}</p>
+                    ${playerIdHtml}
+                    ${robloxInfoHtml}
+                    <p><strong>Plan Seleccionado:</strong> ${transactionDetails.package}</p>
+                    <p><strong>Total a Pagar:</strong> <span class="amount">${displayCurrency === 'VES' ? 'Bs.' : '$'} ${displayAmount.toFixed(2)} ${displayCurrency}</span>${otherCurrencyDisplay}</p>
+                    <p>Por favor, realiza el pago por el monto exacto y selecciona tu método a continuación.</p>
+                `;
+            }
+
+            function updatePaymentMethods() {
+                paymentMethodsDiv.innerHTML = '';
+                const currentCurrency = transactionDetails.currency;
+                const methods = currentCurrency === 'VES' ? paymentMethodsVES : paymentMethodsUSD;
+
+                methods.forEach(method => {
+                    const methodItem = document.createElement('div');
+                    methodItem.classList.add('payment-method-option');
+                    methodItem.innerHTML = `
+                        <input type="radio" id="method-${method.id}" name="paymentMethod" value="${method.id}" data-type="${method.type}">
+                        <label for="method-${method.id}">
+                            <i class="${method.icon}"></i>
+                            <span>${method.name}</span>
+                        </label>
+                    `;
+                    paymentMethodsDiv.appendChild(methodItem);
+                });
+
+                paymentMethodsDiv.querySelectorAll('input[name="paymentMethod"]').forEach(radio => {
+                    radio.addEventListener('change', (event) => {
+                        const selectedMethodId = event.target.value;
+                        loadPaymentDetails(selectedMethodId);
+                        checkFormValidity();
+                    });
+                });
+                checkFormValidity();
+            }
+
+            function loadPaymentDetails(methodId) {
+                let methodHtml = paymentDetailsTemplates[methodId];
+
+                if (methodHtml) {
+                    paymentDetailsFormDiv.innerHTML = methodHtml;
+
+                    if (transactionDetails.game === "TikTok") {
+                        const fieldsContainer = paymentDetailsFormDiv.querySelector('.payment-fields-container');
+                        if (fieldsContainer) {
+                            fieldsContainer.style.display = 'none';
+                        }
+                    } else {
+                        const fileInput = document.getElementById('payment-receipt');
+                        if (fileInput) {
+                            fileInput.addEventListener('change', checkFormValidity);
+                            fileInput.required = true;
+                        }
+                    }
+
+                    const copyButton = paymentDetailsFormDiv.querySelector('.copy-button');
+                    if (copyButton) {
+                        copyButton.addEventListener('click', handleCopyButtonClick);
+                    }
+
+                } else {
+                    paymentDetailsFormDiv.innerHTML = '<p>Selecciona un método de pago para ver los detalles.</p>';
+                }
+                checkFormValidity();
+
+                document.getElementById('email').addEventListener('input', checkFormValidity);
+                document.getElementById('whatsappNumber').addEventListener('input', checkFormValidity);
+            }
+
+            async function handleCopyButtonClick(event) {
+                const button = event.currentTarget;
+                const targetId = button.dataset.copyTarget;
+                const textToCopyElement = document.getElementById(targetId);
+                const feedbackElement = document.getElementById(`${targetId}-copy-feedback`);
+
+                if (textToCopyElement && navigator.clipboard) {
+                    try {
+                        await navigator.clipboard.writeText(textToCopyElement.textContent);
+                        if (feedbackElement) {
+                            feedbackElement.textContent = '¡Copiado!';
+                            feedbackElement.style.display = 'inline-block';
+                            setTimeout(() => {
+                                feedbackElement.style.display = 'none';
+                            }, 1500);
+                        }
+                    } catch (err) {
+                        console.error('Error al copiar: ', err);
+                        if (feedbackElement) {
+                            feedbackElement.textContent = 'Error al copiar';
+                            feedbackElement.style.display = 'inline-block';
+                            setTimeout(() => {
+                                feedbackElement.style.display = 'none';
+                            }, 1500);
+                        }
+                        alert('No se pudo copiar el texto. Por favor, cópialo manualmente.');
+                    }
+                } else {
+                    alert('Tu navegador no soporta la copia automática o no se encontró el elemento. Por favor, selecciona y copia la dirección manualmente.');
+                }
+            }
+
+
+            function checkFormValidity() {
+                const selectedRadio = document.querySelector('input[name="paymentMethod"]:checked');
+                const isMethodSelected = selectedRadio !== null;
+                
+                const emailInput = document.getElementById('email');
+                const isEmailFilled = emailInput && emailInput.value.trim() !== '';
+                const isEmailValid = emailInput && emailInput.checkValidity();
+
+                let areDetailsFilled = true;
+
+                if (transactionDetails && transactionDetails.game === "TikTok") {
+                    areDetailsFilled = true;
+                } else if (isMethodSelected) {
+                    const fileInput = document.getElementById('payment-r            <li><strong>Usuario Zinli:</strong> miladelarocaedwar04@gmail.com</li>
                 </ul>
                 <div class="payment-fields-container">
                     <p><strong>Paso 2:</strong> Sube tu comprobante de pago.</p>
