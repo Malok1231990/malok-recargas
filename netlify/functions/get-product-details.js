@@ -1,5 +1,4 @@
 // netlify/functions/get-product-details.js
-
 const { createClient } = require('@supabase/supabase-js');
 
 exports.handler = async function(event, context) {
@@ -20,8 +19,7 @@ exports.handler = async function(event, context) {
 
     // 3. Configuración de Supabase (usando variables de entorno)
     const supabaseUrl = process.env.SUPABASE_URL;
-    // 🟢 CORRECCIÓN: Usamos la clave de servicio (temporalmente) ya que la ANON_KEY falta.
-    const supabaseAnonKey = process.env.SUPABASE_SERVICE_KEY; 
+    const supabaseAnonKey = process.env.SUPABASE_ANON_KEY; 
     
     // Asegúrate de que las variables de entorno están configuradas en Netlify
     if (!supabaseUrl || !supabaseAnonKey) {
@@ -35,11 +33,17 @@ exports.handler = async function(event, context) {
     const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
     try {
-        // 4. Consultar el producto por el slug y sus paquetes relacionados
+        // 4. Consulta a Supabase
+        // Hacemos una única consulta para obtener el producto y sus paquetes relacionados (JOIN implícito)
         const { data: producto, error } = await supabase
             .from('productos')
             .select(`
-                *,
+                id,
+                nombre, 
+                slug, 
+                descripcion,
+                banner_url,
+                // Aquí obtenemos todos los paquetes relacionados al producto por su 'producto_id'
                 paquetes (
                     nombre_paquete, 
                     precio_usd, 
@@ -79,7 +83,7 @@ exports.handler = async function(event, context) {
         console.error("Error en la función get-product-details:", error.message);
         return {
             statusCode: 500,
-            body: JSON.stringify({ message: `Error del servidor: ${error.message}` })
+            body: JSON.stringify({ message: "Error interno del servidor al cargar el producto.", details: error.message })
         };
     }
 }
