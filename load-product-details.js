@@ -1,16 +1,13 @@
 // load-product-details.js
 
 document.addEventListener('DOMContentLoaded', () => {
-    // Estas variables son accesibles por todas las funciones anidadas (closure).
-    // Su declaración aquí asegura que puedan ser usadas por 'handlePackageClick' y 'rechargeForm.addEventListener'.
+    // Estas variables son accesibles por todas las funciones anidadas (closure)
     let selectedPackage = null;
-    let currentProductData = null; 
-    const productContainer = document.getElementById('product-container'); // Contenedor de la info del producto
-    const rechargeForm = document.getElementById('recharge-form'); // El formulario de recarga
+    let currentProductData = null; // Variable para almacenar los datos del producto actual
+    const productContainer = document.getElementById('product-container');
+    const rechargeForm = document.getElementById('recharge-form');
 
-    // --- 1. FUNCIONES DE AYUDA ---
-
-    // Obtener el valor del parámetro 'slug' de la URL
+    // 1. Funciones de ayuda
     function getSlugFromUrl() {
         const params = new URLSearchParams(window.location.search);
         return params.get('slug');
@@ -36,70 +33,193 @@ document.addEventListener('DOMContentLoaded', () => {
         
         // 1. Manejo de la selección de paquetes
         packageOptions.forEach(option => {
-            option.removeEventListener('click', handlePackageClick); // Evita duplicados
+            // Es buena práctica remover el listener antes de adjuntarlo si la función se llama 
+            // más de una vez por si el DOM no se limpia completamente.
+            option.removeEventListener('click', handlePackageClick); 
             option.addEventListener('click', handlePackageClick);
         });
-
-        // 2. Selección inicial (opcional: si quieres que el primero se seleccione por defecto)
-        // if (packageOptions.length > 0 && !selectedPackage) {
-        //     handlePackageClick.call(packageOptions[0]);
-        // }
+        
+        // 2. Seleccionar el primer paquete por defecto al cargar/renderizar
+        if (packageOptions.length > 0) {
+            let shouldSelectDefault = true;
+            
+            // Revisar si el paquete previamente seleccionado existe todavía en el DOM
+            if (selectedPackage && document.body.contains(selectedPackage)) {
+                // El paquete seleccionado existe, nos aseguramos de que esté resaltado.
+                packageOptions.forEach(opt => opt.classList.remove('selected'));
+                selectedPackage.classList.add('selected');
+                shouldSelectDefault = false;
+            } 
+            
+            // Si no hay paquete seleccionado (o el anterior se perdió/invalidó), seleccionamos el primero
+            if (shouldSelectDefault) {
+                packageOptions[0].classList.add('selected');
+                selectedPackage = packageOptions[0];
+            }
+        }
     }
 
-    // Actualiza los precios en la UI según la moneda seleccionada
+
+    // Función para renderizar el HTML de los paquetes
+    function renderProductPackages(data, currency) {
+        const packageOptionsGrid = document.getElementById('package-options-grid');
+        
+        if (!packageOptionsGrid) {
+            console.error("El contenedor de paquetes (#package-options-grid) no fue encontrado en el HTML.");
+            return;
+        }
+        
+        packageOptionsGrid.innerHTML = ''; // Limpiar el contenido de carga
+
+        if (!data.paquetes || data.paquetes.length === 0) {
+            packageOptionsGrid.innerHTML = '<p class="empty-message">Aún no hay paquetes de recarga disponibles para este juego.</p>';
+            return;
+        }
+
+        const currencySymbol = currency === 'VES' ? 'Bs.' : '$';
+
+        data.paquetes.forEach(pkg => {
+            // Asegurarse de que las propiedades existen y son números válidos
+            const usdPrice = parseFloat(pkg.precio_usd || 0).toFixed(2);
+            const vesPrice = parseFloat(pkg.precio_ves || 0).toFixed(2);
+            const displayPrice = currency === 'VES' ? vesPrice : usdPrice;
+
+            const packageHtml = `
+                <div 
+                    class="package-option" 
+                    data-package-name="${pkg.nombre_paquete}"
+                    data-price-usd="${usdPrice}"
+                    data-price-ves="${vesPrice}"
+                >
+                    <div class="package-name">${pkg.nombre_paquete}</div>
+                    <div class="package-price">${currencySymbol} ${displayPrice}</div>
+                </div>
+            `;
+            packageOptionsGrid.insertAdjacentHTML('beforeend', packageHtml);
+        });
+        
+        // ¡¡¡CLAVE!!! Adjuntar eventos después de renderizar
+        attachPackageEventListeners();
+    }
+    
+    // Función para actualizar SÓLO los precios de la UI cuando cambia la moneda
     function updatePackagesUI(currency) {
         if (!currentProductData || !currentProductData.paquetes) return;
 
         const packageOptionsGrid = document.getElementById('package-options-grid');
+        if (!packageOptionsGrid) return; 
+        
         const currencySymbol = currency === 'VES' ? 'Bs.' : '$';
-        // Convertir 'precio_ves' a 'priceVes' para usar con dataset.
-        const priceKey = currency === 'VES' ? 'priceVes' : 'priceUsd'; 
 
+        // Recorrer los paquetes y actualizar el precio
         const packageElements = packageOptionsGrid.querySelectorAll('.package-option');
         packageElements.forEach(element => {
-            // Acceder directamente al dataset usando la key corregida (Ej: dataset.priceVes)
-            const priceValue = element.dataset[priceKey]; 
-            
-            if (priceValue) {
-                 const price = parseFloat(priceValue).toFixed(2);
-                 element.querySelector('.package-price').textContent = `${currencySymbol} ${price}`;
-            }
+            // data-price-usd se mapea a element.dataset.priceUsd (camelCase)
+            const priceKeyDataset = currency === 'VES' ? 'priceVes' : 'priceUsd';
+            const price = parseFloat(element.dataset[priceKeyDataset]).toFixed(2);
+            element.querySelector('.package-price').textContent = `${currencySymbol} ${price}`;
         });
     }
 
-    // --- 2. MANEJADOR DEL FORMULARIO (LA SOLUCIÓN PRINCIPAL) ---
 
-    if (rechargeForm) {
-        rechargeForm.addEventListener('submit', (event) => {
-            event.preventDefault(); // 🛑 CLAVE: Detiene la recarga de la página y permite que JS maneje el envío.
+    // Función principal para cargar los detalles del producto
+    async function loadProductDetails() {
+        const slug = getSlugFromUrl();
+        if (!slug) {
+            if (productContainer) {
+                 productContainer.innerHTML = '<h2 class="error-message">❌ Error: No se especificó el juego.</h2><p style="text-align:center;"><a href="index.html">Volver a la página principal</a></p>';
+            }
+            const pageTitle = document.getElementById('page-title');
+            if (pageTitle) pageTitle.textContent = 'Error - Malok Recargas';
+            return;
+        }
+
+        try {
+            // Llama a tu Netlify Function para obtener el producto
+            const response = await fetch(`/.netlify/functions/get-product-details?slug=${slug}`);
             
-            // 1. Validar Paquete Seleccionado
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(`Error ${response.status}: ${errorData.message}`);
+            }
+
+            const data = await response.json();
+            
+            // 2. Cargar datos en la UI (FIX)
+            if (data) {
+                currentProductData = data; // Almacenar los datos
+                
+                // INICIO DE COMPROBACIONES DEFENSIVAS
+                const pageTitle = document.getElementById('page-title');
+                if (pageTitle) pageTitle.textContent = `${data.nombre} - Malok Recargas`;
+
+                const productName = document.getElementById('product-name');
+                if (productName) productName.textContent = data.nombre;
+
+                const productDescription = document.getElementById('product-description');
+                if (productDescription) productDescription.textContent = data.descripcion;
+
+                const bannerImage = document.getElementById('product-banner-image');
+                if (bannerImage) {
+                    bannerImage.src = data.banner_url || 'images/default_banner.jpg';
+                    bannerImage.alt = data.nombre;
+                }
+                // FIN DE COMPROBACIONES DEFENSIVAS
+                
+                const initialCurrency = localStorage.getItem('selectedCurrency') || 'VES';
+                
+                // Renderizar los paquetes
+                renderProductPackages(data, initialCurrency); 
+
+                // Adjuntar Listener al cambio de moneda (script.js debe disparar este evento)
+                window.addEventListener('currencyChanged', (event) => {
+                    updatePackagesUI(event.detail.currency);
+                });
+
+            } else {
+                if (productContainer) {
+                    productContainer.innerHTML = '<h2 class="error-message">❌ Producto no encontrado.</h2><p style="text-align:center;"><a href="index.html">Volver a la página principal</a></p>';
+                }
+            }
+
+        } catch (error) {
+            console.error('Error al cargar detalles del producto:', error);
+            if (productContainer) {
+                productContainer.innerHTML = '<h2 class="error-message">❌ Error al conectar con el servidor.</h2><p style="text-align:center;">Por favor, recarga la página o vuelve más tarde.</p>';
+            }
+            const pageTitle = document.getElementById('page-title');
+            if (pageTitle) pageTitle.textContent = 'Error de Carga - Malok Recargas';
+        }
+    }
+    
+    // 3. Manejo del envío del formulario (ESTO DEBE ESTAR AQUÍ PARA EJECUTARSE SOLO UNA VEZ)
+    if (rechargeForm) {
+        rechargeForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+
             if (!selectedPackage) {
-                alert('Paso 2: Por favor, selecciona un paquete de recarga para continuar.');
+                alert('Por favor, selecciona un paquete de recarga.');
                 return;
             }
 
-            // 2. Validar ID de Jugador
             const playerIdInput = document.getElementById('player-id-input');
             const playerId = playerIdInput ? playerIdInput.value.trim() : '';
 
             if (!playerId) {
-                alert('Paso 1: Por favor, ingresa tu ID de Jugador.');
-                playerIdInput.focus(); 
+                alert('Por favor, ingresa tu ID de Jugador.');
                 return;
             }
             
-            // 3. Obtener datos del paquete seleccionado
+            // Obtener datos del paquete seleccionado
             const packageName = selectedPackage.dataset.packageName;
             const basePriceUSD = parseFloat(selectedPackage.dataset.priceUsd);
             const basePriceVES = parseFloat(selectedPackage.dataset.priceVes);
-            
-            // 4. Obtener moneda y calcular precio final
             const selectedCurrency = localStorage.getItem('selectedCurrency') || 'VES';
+            
             // Calcular precio final
             const finalPrice = (selectedCurrency === 'VES') ? basePriceVES : basePriceUSD;
             
-            // 5. Construir objeto de la transacción para 'payment.html'
+            // Construir objeto de la transacción para 'payment.html'
             const transactionDetails = {
                 game: currentProductData ? currentProductData.nombre : 'Juego Desconocido',
                 playerId: playerId,
@@ -110,93 +230,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 currency: selectedCurrency 
             };
 
-            // 6. Guardar la transacción en localStorage
             localStorage.setItem('transactionDetails', JSON.stringify(transactionDetails));
-            
-            // 7. Redirigir a payment.html
             window.location.href = 'payment.html';
         });
-    }
-
-
-    // --- 3. FUNCIÓN PRINCIPAL DE CARGA DE DETALLES ---
-
-    async function loadProductDetails() {
-        const slug = getSlugFromUrl();
-        if (!slug) {
-            if (productContainer) productContainer.innerHTML = '<h2 class="error-message">❌ Producto no especificado.</h2>';
-            return;
-        }
-
-        try {
-            // Llamada a la Netlify Function para obtener el producto
-            const response = await fetch(`/.netlify/functions/get-product-details?slug=${slug}`);
-            
-            if (!response.ok) {
-                throw new Error(`Error ${response.status}: No se pudo cargar el producto.`);
-            }
-
-            const data = await response.json();
-            currentProductData = data; // Guardamos los datos en la variable global
-
-            // Rellenar la información estática del producto
-            document.getElementById('page-title').textContent = `${data.nombre} - Malok Recargas`;
-            document.getElementById('product-name').textContent = data.nombre;
-            document.getElementById('product-description').textContent = data.descripcion || 'Recarga fácil y rápido.';
-            
-            const productBanner = document.getElementById('product-banner');
-            if (productBanner) {
-                productBanner.src = data.banner_url || 'images/default_banner.jpg';
-                productBanner.alt = data.nombre;
-            }
-
-
-            // Rellenar las opciones de paquete
-            const packageOptionsGrid = document.getElementById('package-options-grid');
-            if (packageOptionsGrid) {
-                packageOptionsGrid.innerHTML = ''; // Limpiar el mensaje de carga
-                
-                if (data.paquetes && data.paquetes.length > 0) {
-                    const selectedCurrency = localStorage.getItem('selectedCurrency') || 'VES';
-                    const currencySymbol = selectedCurrency === 'VES' ? 'Bs.' : '$';
-                    const priceKey = selectedCurrency === 'VES' ? 'precio_ves' : 'precio_usd'; 
-
-                    data.paquetes.forEach(pkg => {
-                        // Usamos la notación de corchetes para acceder al precio dinámicamente
-                        const price = parseFloat(pkg[priceKey.replace('_', '')]).toFixed(2); 
-                        const packageHtml = `
-                            <div class="package-option" 
-                                data-package-name="${pkg.nombre_paquete}"
-                                data-price-usd="${pkg.precio_usd}"
-                                data-price-ves="${pkg.precio_ves}"
-                                data-package-id="${pkg.id}"
-                            >
-                                <span class="package-name">${pkg.nombre_paquete}</span>
-                                <span class="package-price">${currencySymbol} ${price}</span>
-                            </div>
-                        `;
-                        packageOptionsGrid.insertAdjacentHTML('beforeend', packageHtml);
-                    });
-                } else {
-                     packageOptionsGrid.innerHTML = '<p class="empty-message">No hay paquetes disponibles para este producto.</p>';
-                }
-
-                // Paso Clave: Adjuntar listener de selección de paquetes
-                attachPackageEventListeners();
-            }
-
-
-            // Listener para el cambio de moneda (desde script.js)
-            window.addEventListener('currencyChanged', (e) => {
-                updatePackagesUI(e.detail.currency);
-            });
-            updatePackagesUI(localStorage.getItem('selectedCurrency') || 'VES'); // Ejecución inicial
-
-        } catch (error) {
-            console.error('Error al cargar detalles del producto:', error);
-            if (productContainer) productContainer.innerHTML = '<h2 class="error-message">❌ Error al conectar con el servidor.</h2><p style="text-align:center;">Por favor, recarga la página o vuelve más tarde.</p>';
-            document.getElementById('page-title').textContent = 'Error de Carga - Malok Recargas';
-        }
     }
 
     loadProductDetails();
