@@ -8,207 +8,276 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <link rel="shortcut icon" href="images/favicon.ico" type="image/x-icon">
     
-<style>
-    /* ==================================== */
-    /* === ESTILOS PARA LA SELECCIÓN DE PAQUETES EN product.html === */
-    /* ==================================== */
-
-    /* 1. Contenedor de Opciones (Grid) */
-    /* Utiliza CSS Grid para organizar los paquetes en una cuadrícula de tamaño flexible. */
-    .package-options {
-        display: grid;
-        /* Crea columnas que se ajustan automáticamente. Cada una tendrá un mínimo de 140px de ancho. */
-        grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); 
-        gap: 15px; /* Espacio entre los paquetes */
-        padding: 10px 0;
-        margin-top: 15px;
-    }
-
-    /* 2. Estilo Base del Recuadro de Paquete */
-    .package-option {
-        background-color: var(--card-bg);
-        border: 2px solid var(--border-color);
-        padding: 15px;
-        border-radius: 8px;
-        cursor: pointer;
-        transition: all 0.2s ease-in-out;
-        text-align: center;
-        display: flex;
-        flex-direction: column;
-        justify-content: space-between;
-        min-height: 80px; /* Altura mínima para uniformidad */
-    }
-
-    /* Estilo de Paquete al pasar el mouse (Hover) */
-    .package-option:hover {
-        border-color: var(--primary-blue);
-        box-shadow: 0 0 10px var(--shadow-light);
-    }
-
-    /* Estilo de Paquete Seleccionado (CRÍTICO) */
-    .package-option.selected {
-        border-color: var(--primary-blue);
-        background: var(--selected-item-gradient); /* Usar el gradiente */
-        box-shadow: 0 0 15px var(--shadow-light);
-        color: #ffffff; /* Asegura que el texto sea blanco */
-    }
-
-    .package-name {
-        font-weight: 700;
-        font-size: 1em;
-        margin-bottom: 5px;
-        color: var(--text-color);
-    }
-
-    .package-option.selected .package-name {
-        color: #ffffff;
-    }
-
-    .package-price {
-        font-size: 1.2em;
-        font-weight: 800;
-        color: var(--accent-green); /* Precio en verde por defecto */
-    }
-
-    .package-option.selected .package-price {
-        color: #fff; /* Precio blanco en la opción seleccionada */
-    }
-
-    /* ==================================== */
-    /* === ESTILOS DE LA PÁGINA DE PRODUCTO (MAIN LAYOUT) === */
-    /* ==================================== */
-
-    /* Contenedor principal de la página de producto */
-    .product-main {
-        display: flex; /* Habilita Flexbox para las dos columnas */
-        gap: 30px; /* Espacio entre las columnas */
-        max-width: 1200px;
-        margin: 40px auto;
-        padding: 0 20px;
-        align-items: flex-start; /* Alinea las columnas arriba */
-    }
-
-    /* Columna de Información del Producto (Izquierda) */
-    .product-info {
-        flex: 1 1 55%; /* Ocupa un poco más de la mitad en desktop */
-        min-width: 300px; /* Mínimo ancho para evitar aplastamiento */
-    }
-
-    /* Columna de Formulario de Recarga (Derecha) */
-    .product-form-container {
-        flex: 1 1 40%;
-        min-width: 300px;
-        background-color: var(--card-bg);
-        padding: 30px;
-        border-radius: 12px;
-        box-shadow: 0 4px 15px var(--shadow-dark);
-        border: 1px solid var(--border-color);
-    }
-
-    /* Imagen/Banner del Producto */
-    .product-banner-img {
-        width: 100%;
-        max-height: 400px; /* Limitar la altura para que no sea demasiado grande */
-        object-fit: cover;
-        border-radius: 10px;
-        margin-bottom: 20px;
-        box-shadow: 0 4px 10px var(--shadow-dark);
-    }
-
-    /* Título y Descripción */
-    .product-title {
-        color: var(--text-color);
-        font-size: 2.2em;
-        margin-top: 0;
-        margin-bottom: 10px;
-    }
-
-    .secondary-text {
-        color: var(--secondary-text);
-        line-height: 1.6;
-        white-space: pre-wrap; /* Mantiene saltos de línea y formato del texto */
-    }
-
-    /* Estilos del Formulario */
-    .section-title {
-        font-size: 1.2em;
-        font-weight: 700;
-        color: var(--primary-blue);
-        margin-top: 25px;
-        margin-bottom: 15px;
-        border-bottom: 2px solid var(--border-color);
-        padding-bottom: 5px;
-    }
-
-    .player-id-label {
-        color: var(--text-color);
-        font-weight: 600;
-        display: block;
-        margin-bottom: 8px;
-    }
-
-    #player-id-input {
-        width: 100%;
-        padding: 12px;
-        border: 1px solid var(--border-color);
-        border-radius: 6px;
-        background-color: var(--input-bg);
-        color: var(--text-color);
-        font-size: 1em;
-        box-sizing: border-box;
-        transition: border-color 0.3s;
-    }
-
-    #player-id-input:focus {
-        border-color: var(--primary-blue);
-        outline: none;
-    }
-    
-    .warning-message {
-        font-size: 0.85em;
-        color: var(--secondary-text);
-        margin-top: 20px;
-        text-align: center;
-    }
-
-    /* ==================================== */
-    /* === MEDIA QUERY PARA MÓVILES (LA CORRECCIÓN) === */
-    /* ==================================== */
-    @media (max-width: 768px) {
-        .product-main {
-            /* 1. APILAR: Cambiar la dirección para que los elementos se apilen verticalmente */
-            flex-direction: column; 
-            margin: 20px auto; /* Reducir margen superior e inferior */
-            padding: 0 15px; /* Ajustar padding lateral */
-            gap: 20px; /* Reducir el espacio entre las secciones apiladas */
+    <style>
+        /* SOLUCIÓN CLAVE para evitar el desbordamiento horizontal en móviles */
+        body {
+            overflow-x: hidden; 
         }
 
-        .product-info,
-        .product-form-container {
-            /* 2. OCUPAR ANCHO COMPLETO: Asegurar que cada columna ocupe el 100% del ancho disponible */
-            flex: 1 1 100%;
-            min-width: auto; /* CRÍTICO: Eliminar la restricción de min-width para evitar desbordamiento */
-            padding: 20px; /* Asegurar un padding interno decente */
-        }
-        
-        .product-title {
-            font-size: 1.8em;
-        }
+        /* ==================================== */
+        /* === ESTILOS PARA LA SELECCIÓN DE PAQUETES EN product.html === */
+        /* ==================================== */
 
-        .product-banner-img {
-            max-height: 300px;
-        }
-        
-        /* Ajuste para que los paquetes se vean mejor en una sola columna si es necesario, 
-           aunque el auto-fit debería manejarlo bien */
+        /* 1. Contenedor de Opciones (Grid) */
+        /* Utiliza CSS Grid para organizar los paquetes en una cuadrícula de tamaño flexible. */
         .package-options {
-            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            display: grid;
+            /* Crea columnas que se ajustan automáticamente. Cada una tendrá un mínimo de 140px de ancho. */
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); 
+            gap: 15px; /* Espacio entre los paquetes */
+            padding: 10px 0;
+            margin-top: 15px;
         }
-    }
-</style>
+
+        /* 2. Estilo Base del Recuadro de Paquete (La Solución al "Enorme") */
+        .package-option {
+            /* Diseño de la tarjeta */
+            background-color: var(--card-bg);
+            border: 2px solid var(--border-color);
+            border-radius: 8px;
+            padding: 15px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            
+            /* Control de Tamaño y Contenido */
+            display: flex; 
+            flex-direction: column; 
+            justify-content: center; /* Centra el contenido verticalmente */
+            min-height: 80px; /* Altura mínima para una buena presentación */
+            box-sizing: border-box; /* Asegura que padding no aumente el tamaño total */
+        }
+
+        /* Efecto visual al pasar el ratón */
+        .package-option:hover {
+            border-color: var(--hover-blue);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 10px var(--shadow-dark);
+        }
+
+        /* 3. Estilo para el Paquete SELECCIONADO (La Solución al "No Seleccionable") */
+        /* Esta clase se añade desde load-product-details.js y proporciona feedback visual. */
+        .package-option.selected {
+            border-color: var(--primary-blue); /* Borde azul brillante */
+            background: var(--selected-item-gradient); /* Fondo con gradiente para destacar */
+            box-shadow: 0 0 15px var(--shadow-light); /* Efecto de resplandor azul */
+            transform: scale(1.02); /* Pequeño realce */
+            color: white !important; /* Asegura que el texto sea blanco para el contraste */
+        }
+
+        /* 4. Estilos Internos del Paquete */
+        .package-name {
+            font-size: 1em;
+            font-weight: 500;
+            color: inherit; /* Hereda el color del padre (será blanco si está 'selected') */
+            margin-bottom: 5px;
+        }
+
+        .package-price {
+            font-size: 1.4em;
+            font-weight: 700;
+            color: white; /* El precio siempre en blanco es un buen contraste */
+        }
+
+        /* 5. Ajustes Responsivos para móviles */
+        @media (max-width: 600px) {
+            /* En móviles, permitimos que solo haya una columna si es muy estrecho o dos */
+            .package-options {
+                grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); 
+                gap: 10px;
+            }
+            
+            .package-option {
+                padding: 10px;
+                min-height: 70px;
+            }
+
+            .package-name {
+                font-size: 0.9em;
+            }
+
+            .package-price {
+                font-size: 1.2em;
+            }
+        }
+
+        /* Contenedor principal de la página de producto */
+        .product-main {
+            display: flex; /* Habilita Flexbox para las dos columnas */
+            gap: 30px; /* Espacio entre las columnas */
+            max-width: 1200px;
+            margin: 40px auto;
+            padding: 0 20px;
+            align-items: flex-start; /* Alinea las columnas arriba */
+        }
+
+        /* Columna de Información del Producto (Izquierda) */
+        .product-info {
+            flex: 1 1 55%; /* Ocupa un poco más de la mitad en desktop */
+            min-width: 300px; /* Mínimo ancho para evitar aplastamiento */
+        }
+
+        /* Imagen/Banner del Producto */
+        .product-banner-image {
+            width: 100%;
+            height: auto;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            box-shadow: 0 8px 15px var(--shadow-dark);
+        }
+
+        .product-title {
+            color: var(--text-color);
+            font-size: 2.2em;
+            margin-bottom: 10px;
+        }
+
+        /* Columna del Formulario de Recarga (Derecha) */
+        .product-form-container {
+            flex: 1 1 40%; /* Ocupa el resto en desktop */
+            background-color: var(--card-bg);
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px var(--shadow-dark);
+            min-width: 300px; 
+        }
+
+        .section-title {
+            color: var(--accent-green);
+            font-size: 1.2em;
+            margin-top: 25px;
+            margin-bottom: 15px;
+            font-weight: 700;
+        }
+
+        /* Estilos del Formulario */
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: var(--secondary-text);
+        }
+
+        #player-id-input {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            background-color: var(--input-bg);
+            color: var(--text-color);
+            font-size: 1em;
+            transition: border-color 0.3s;
+        }
+        
+        #player-id-input:focus {
+            border-color: var(--primary-blue);
+            outline: none;
+        }
+
+        /* GRID DE OPCIONES DE PAQUETES (El FIX clave) */
+        #package-options-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); /* 2 o 3 columnas autoajustables */
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+
+        .package-option {
+            background-color: var(--input-bg);
+            color: var(--secondary-text);
+            border: 2px solid var(--border-color);
+            border-radius: 8px;
+            padding: 15px 10px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            height: 100%;
+        }
+
+        .package-option:hover {
+            border-color: var(--hover-blue);
+            background-color: #333333;
+        }
+
+        .package-option.selected {
+            border-color: var(--primary-blue);
+            background: var(--selected-item-gradient); /* Usar gradiente para resaltar */
+            color: #ffffff;
+            box-shadow: 0 0 15px var(--shadow-light);
+            transform: scale(1.03);
+        }
+
+        .package-name {
+            font-weight: 700;
+            font-size: 1.1em;
+            margin-bottom: 5px;
+        }
+
+        .package-price {
+            font-size: 1.2em;
+            font-weight: 900;
+            color: inherit; /* Hereda el color (blanco si está seleccionado, gris si no) */
+        }
+
+        /* Estilo del botón de compra */
+        .recharge-button {
+            width: 100%;
+            padding: 15px;
+            font-size: 1.1em;
+            font-weight: bold;
+            color: var(--button-text-color);
+            background: var(--button-gradient);
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: opacity 0.3s;
+        }
+
+        .recharge-button:hover {
+            opacity: 0.9;
+        }
+        
+        /* Mensaje de advertencia bajo el botón */
+        .warning-message {
+            font-size: 0.85em;
+            color: var(--secondary-text);
+            text-align: center;
+            margin-top: 20px;
+        }
+        
+        .warning-message a {
+            color: var(--accent-green);
+            text-decoration: none;
+        }
+
+
+        /* AJUSTES RESPONSIVOS (para móvil) */
+        @media (max-width: 850px) {
+            .product-main {
+                flex-direction: column; /* Apila las columnas en móvil */
+                margin-top: 20px;
+            }
+
+            .product-info {
+                order: 1; /* La información del juego va primero */
+            }
+
+            .product-form-container {
+                order: 2; /* El formulario va segundo */
+                padding: 20px;
+            }
+            
+            #package-options-grid {
+                grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); /* Se hacen más pequeños en móvil */
+            }
+        }
+    </style>
 </head>
 <body>
-<header>
+    <header>
         <div class="header-left">
             <a href="index.html" class="logo-link">
                 <img src="images/malok_logo.png" alt="Malok Recargas Logo" class="logo-img">
@@ -267,7 +336,7 @@
     </main>
 
     <footer>
-        </footer>
+    </footer>
 
     <script src="script.js"></script>
     <script src="load-product-details.js"></script>
