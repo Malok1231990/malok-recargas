@@ -15,11 +15,9 @@ exports.handler = async function(event, context) {
         };
     }
 
-    // 1. Configuración de Supabase (usando variables de entorno)
     const supabaseUrl = process.env.SUPABASE_URL;
     const supabaseAnonKey = process.env.SUPABASE_ANON_KEY; 
     
-    // **CHECK CRÍTICO:** Asegura que las credenciales están presentes
     if (!supabaseUrl || !supabaseAnonKey) {
         console.error("Faltan variables de entorno de Supabase.");
         return { 
@@ -31,7 +29,7 @@ exports.handler = async function(event, context) {
     const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
     try {
-        // 2. Consulta a Supabase
+        // Consulta limpia a Supabase:
         const { data: producto, error } = await supabase
             .from('productos')
             .select(`
@@ -40,25 +38,23 @@ exports.handler = async function(event, context) {
                 slug,
                 descripcion,
                 banner_url,
-                // La consulta de paquetes (embedding) es el punto más sensible
                 paquetes (
                     nombre_paquete, 
                     precio_usd, 
                     precio_ves, 
                     orden
                 )
-            `)
+            `) // <<< CONSULTA LIMPIA SIN COMENTARIOS INTERNOS
             .eq('slug', slug)
             .maybeSingle(); 
             
-        // 3. Manejar errores de consulta de Supabase (FIX CLAVE)
+        // Manejar errores de consulta de Supabase
         if (error) {
             console.error("Error de Supabase al obtener producto:", error);
-            // Capturamos el mensaje de error explícito de Supabase
             throw new Error(error.message || "Error desconocido en la consulta a Supabase."); 
         }
 
-        // 4. Manejar el caso de producto no encontrado
+        // Manejar el caso de producto no encontrado
         if (!producto) {
             return {
                 statusCode: 404,
@@ -66,12 +62,12 @@ exports.handler = async function(event, context) {
             };
         }
 
-        // 5. Ordenar los paquetes
+        // Ordenar los paquetes
         if (producto.paquetes && producto.paquetes.length > 0) {
             producto.paquetes.sort((a, b) => a.orden - b.orden);
         }
 
-        // 6. Devolver los datos
+        // Devolver los datos
         return {
             statusCode: 200,
             headers: { "Content-Type": "application/json" },
@@ -79,11 +75,11 @@ exports.handler = async function(event, context) {
         };
 
     } catch (error) {
+        // Devolvemos el error de la consulta de Supabase al frontend
         console.error("Error FATAL en la función get-product-details:", error.message);
-        // Devolvemos el error explícito que capturamos arriba o un mensaje genérico.
         return {
             statusCode: 500,
-            body: JSON.stringify({ message: `Error interno del servidor al cargar el producto: ${error.message}` }),
+            body: JSON.stringify({ message: `Error interno del servidor al cargar el producto: "${error.message}"` }),
         };
     }
 }
