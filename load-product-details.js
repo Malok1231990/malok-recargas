@@ -1,6 +1,7 @@
 // load-product-details.js
 
 document.addEventListener('DOMContentLoaded', () => {
+    // Estas variables son accesibles por todas las funciones anidadas (closure)
     let selectedPackage = null;
     let currentProductData = null; // Variable para almacenar los datos del producto actual
     const productContainer = document.getElementById('product-container');
@@ -12,11 +13,57 @@ document.addEventListener('DOMContentLoaded', () => {
         return params.get('slug');
     }
 
+    // Función que se encarga del evento de clic en un paquete
+    function handlePackageClick() {
+        const packageOptions = document.querySelectorAll('.package-option');
+        
+        // 1. Deseleccionar todos
+        packageOptions.forEach(opt => opt.classList.remove('selected'));
+        
+        // 2. Seleccionar el actual (usando 'this' que es el elemento clickeado)
+        this.classList.add('selected');
+        selectedPackage = this; // Actualiza la variable global
+        
+        console.log('Paquete seleccionado:', selectedPackage.dataset.packageName);
+    }
+    
+    // Función para adjuntar eventos de clic a los paquetes y manejar la selección inicial
+    function attachPackageEventListeners() {
+        const packageOptions = document.querySelectorAll('.package-option');
+        
+        // 1. Manejo de la selección de paquetes
+        packageOptions.forEach(option => {
+            // Es buena práctica remover el listener antes de adjuntarlo si la función se llama 
+            // más de una vez por si el DOM no se limpia completamente.
+            option.removeEventListener('click', handlePackageClick); 
+            option.addEventListener('click', handlePackageClick);
+        });
+        
+        // 2. Seleccionar el primer paquete por defecto al cargar/renderizar
+        if (packageOptions.length > 0) {
+            let shouldSelectDefault = true;
+            
+            // Revisar si el paquete previamente seleccionado existe todavía en el DOM
+            if (selectedPackage && document.body.contains(selectedPackage)) {
+                // El paquete seleccionado existe, nos aseguramos de que esté resaltado.
+                packageOptions.forEach(opt => opt.classList.remove('selected'));
+                selectedPackage.classList.add('selected');
+                shouldSelectDefault = false;
+            } 
+            
+            // Si no hay paquete seleccionado (o el anterior se perdió/invalidó), seleccionamos el primero
+            if (shouldSelectDefault) {
+                packageOptions[0].classList.add('selected');
+                selectedPackage = packageOptions[0];
+            }
+        }
+    }
+
+
     // Función para renderizar el HTML de los paquetes
     function renderProductPackages(data, currency) {
         const packageOptionsGrid = document.getElementById('package-options-grid');
         
-        // Comprobación defensiva del elemento (IMPORTANTE)
         if (!packageOptionsGrid) {
             console.error("El contenedor de paquetes (#package-options-grid) no fue encontrado en el HTML.");
             return;
@@ -30,7 +77,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         const currencySymbol = currency === 'VES' ? 'Bs.' : '$';
-        const priceKey = currency === 'VES' ? 'precio_ves' : 'precio_usd';
 
         data.paquetes.forEach(pkg => {
             // Asegurarse de que las propiedades existen y son números válidos
@@ -52,7 +98,7 @@ document.addEventListener('DOMContentLoaded', () => {
             packageOptionsGrid.insertAdjacentHTML('beforeend', packageHtml);
         });
         
-        // Adjuntar eventos después de renderizar
+        // ¡¡¡CLAVE!!! Adjuntar eventos después de renderizar
         attachPackageEventListeners();
     }
     
@@ -61,15 +107,14 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!currentProductData || !currentProductData.paquetes) return;
 
         const packageOptionsGrid = document.getElementById('package-options-grid');
-        if (!packageOptionsGrid) return; // Comprobación defensiva
+        if (!packageOptionsGrid) return; 
         
         const currencySymbol = currency === 'VES' ? 'Bs.' : '$';
-        const priceKey = currency === 'VES' ? 'precio_ves' : 'precio_usd';
 
         // Recorrer los paquetes y actualizar el precio
         const packageElements = packageOptionsGrid.querySelectorAll('.package-option');
         packageElements.forEach(element => {
-            // Reemplazamos '_' en price_usd/price_ves con mayúsculas 'U'/'V' para que coincida con dataset (dataset.priceUsd)
+            // data-price-usd se mapea a element.dataset.priceUsd (camelCase)
             const priceKeyDataset = currency === 'VES' ? 'priceVes' : 'priceUsd';
             const price = parseFloat(element.dataset[priceKeyDataset]).toFixed(2);
             element.querySelector('.package-price').textContent = `${currencySymbol} ${price}`;
@@ -104,7 +149,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (data) {
                 currentProductData = data; // Almacenar los datos
                 
-                // INICIO DE COMPROBACIONES DEFENSIVAS (FIX para "Cannot set properties of null")
+                // INICIO DE COMPROBACIONES DEFENSIVAS
                 const pageTitle = document.getElementById('page-title');
                 if (pageTitle) pageTitle.textContent = `${data.nombre} - Malok Recargas`;
 
@@ -147,76 +192,47 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
     
-    // Función para manejar la selección de paquetes y el envío del formulario
-    function attachPackageEventListeners() {
-        const packageOptions = document.querySelectorAll('.package-option');
-        
-        // 1. Manejo de la selección de paquetes
-        packageOptions.forEach(option => {
-            option.addEventListener('click', () => {
-                // Deseleccionar todos
-                packageOptions.forEach(opt => opt.classList.remove('selected'));
-                // Seleccionar el actual
-                option.classList.add('selected');
-                selectedPackage = option;
-            });
-        });
-        
-        // 2. Seleccionar el primer paquete por defecto al cargar/renderizar
-        if (packageOptions.length > 0) {
-            // Si selectedPackage es null o ya no existe en el DOM (recarga), seleccionamos el primero
-            if (!selectedPackage || !document.body.contains(selectedPackage)) {
-                packageOptions[0].classList.add('selected');
-                selectedPackage = packageOptions[0];
-            } else if (!selectedPackage.classList.contains('selected')) {
-                // Si el paquete previamente seleccionado todavía existe, nos aseguramos de que esté resaltado.
-                selectedPackage.classList.add('selected');
+    // 3. Manejo del envío del formulario (ESTO DEBE ESTAR AQUÍ PARA EJECUTARSE SOLO UNA VEZ)
+    if (rechargeForm) {
+        rechargeForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+
+            if (!selectedPackage) {
+                alert('Por favor, selecciona un paquete de recarga.');
+                return;
             }
-        }
 
+            const playerIdInput = document.getElementById('player-id-input');
+            const playerId = playerIdInput ? playerIdInput.value.trim() : '';
 
-        // 3. Manejo del envío del formulario
-        if (rechargeForm) {
-            rechargeForm.addEventListener('submit', (e) => {
-                e.preventDefault();
+            if (!playerId) {
+                alert('Por favor, ingresa tu ID de Jugador.');
+                return;
+            }
+            
+            // Obtener datos del paquete seleccionado
+            const packageName = selectedPackage.dataset.packageName;
+            const basePriceUSD = parseFloat(selectedPackage.dataset.priceUsd);
+            const basePriceVES = parseFloat(selectedPackage.dataset.priceVes);
+            const selectedCurrency = localStorage.getItem('selectedCurrency') || 'VES';
+            
+            // Calcular precio final
+            const finalPrice = (selectedCurrency === 'VES') ? basePriceVES : basePriceUSD;
+            
+            // Construir objeto de la transacción para 'payment.html'
+            const transactionDetails = {
+                game: currentProductData ? currentProductData.nombre : 'Juego Desconocido',
+                playerId: playerId,
+                packageName: packageName,
+                priceUSD: basePriceUSD.toFixed(2), 
+                priceVES: basePriceVES.toFixed(2), // Añadido para referencia
+                finalPrice: finalPrice.toFixed(2), 
+                currency: selectedCurrency 
+            };
 
-                if (!selectedPackage) {
-                    alert('Por favor, selecciona un paquete de recarga.');
-                    return;
-                }
-
-                const playerIdInput = document.getElementById('player-id-input');
-                const playerId = playerIdInput ? playerIdInput.value.trim() : '';
-
-                if (!playerId) {
-                    alert('Por favor, ingresa tu ID de Jugador.');
-                    return;
-                }
-                
-                // Obtener datos del paquete seleccionado
-                const packageName = selectedPackage.dataset.packageName;
-                const basePriceUSD = parseFloat(selectedPackage.dataset.priceUsd);
-                const basePriceVES = parseFloat(selectedPackage.dataset.priceVes);
-                const selectedCurrency = localStorage.getItem('selectedCurrency') || 'VES';
-                
-                // Calcular precio final
-                const finalPrice = (selectedCurrency === 'VES') ? basePriceVES : basePriceUSD;
-                
-                // Construir objeto de la transacción para 'payment.html'
-                const transactionDetails = {
-                    game: currentProductData ? currentProductData.nombre : 'Juego Desconocido',
-                    playerId: playerId,
-                    packageName: packageName,
-                    priceUSD: basePriceUSD.toFixed(2), 
-                    priceVES: basePriceVES.toFixed(2), // Añadido para referencia
-                    finalPrice: finalPrice.toFixed(2), 
-                    currency: selectedCurrency 
-                };
-
-                localStorage.setItem('transactionDetails', JSON.stringify(transactionDetails));
-                window.location.href = 'payment.html';
-            });
-        }
+            localStorage.setItem('transactionDetails', JSON.stringify(transactionDetails));
+            window.location.href = 'payment.html';
+        });
     }
 
     loadProductDetails();
