@@ -9,6 +9,94 @@
     <link rel="shortcut icon" href="images/favicon.ico" type="image/x-icon">
     
     <style>
+
+        /* ==================================== */
+/* === ESTILOS PARA LA SELECCIÓN DE PAQUETES EN product.html === */
+/* ==================================== */
+
+/* 1. Contenedor de Opciones (Grid) */
+/* Utiliza CSS Grid para organizar los paquetes en una cuadrícula de tamaño flexible. */
+.package-options {
+    display: grid;
+    /* Crea columnas que se ajustan automáticamente. Cada una tendrá un mínimo de 140px de ancho. */
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); 
+    gap: 15px; /* Espacio entre los paquetes */
+    padding: 10px 0;
+    margin-top: 15px;
+}
+
+/* 2. Estilo Base del Recuadro de Paquete (La Solución al "Enorme") */
+.package-option {
+    /* Diseño de la tarjeta */
+    background-color: var(--card-bg);
+    border: 2px solid var(--border-color);
+    border-radius: 8px;
+    padding: 15px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    
+    /* Control de Tamaño y Contenido */
+    display: flex; 
+    flex-direction: column; 
+    justify-content: center; /* Centra el contenido verticalmente */
+    min-height: 80px; /* Altura mínima para una buena presentación */
+    box-sizing: border-box; /* Asegura que padding no aumente el tamaño total */
+}
+
+/* Efecto visual al pasar el ratón */
+.package-option:hover {
+    border-color: var(--hover-blue);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 10px var(--shadow-dark);
+}
+
+/* 3. Estilo para el Paquete SELECCIONADO (La Solución al "No Seleccionable") */
+/* Esta clase se añade desde load-product-details.js y proporciona feedback visual. */
+.package-option.selected {
+    border-color: var(--primary-blue); /* Borde azul brillante */
+    background: var(--selected-item-gradient); /* Fondo con gradiente para destacar */
+    box-shadow: 0 0 15px var(--shadow-light); /* Efecto de resplandor azul */
+    transform: scale(1.02); /* Pequeño realce */
+    color: white !important; /* Asegura que el texto sea blanco para el contraste */
+}
+
+/* 4. Estilos Internos del Paquete */
+.package-name {
+    font-size: 1em;
+    font-weight: 500;
+    color: inherit; /* Hereda el color del padre (será blanco si está 'selected') */
+    margin-bottom: 5px;
+}
+
+.package-price {
+    font-size: 1.4em;
+    font-weight: 700;
+    color: white; /* El precio siempre en blanco es un buen contraste */
+}
+
+/* 5. Ajustes Responsivos para móviles */
+@media (max-width: 600px) {
+    /* En móviles, permitimos que solo haya una columna si es muy estrecho o dos */
+    .package-options {
+        grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); 
+        gap: 10px;
+    }
+    
+    .package-option {
+        padding: 10px;
+        min-height: 70px;
+    }
+
+    .package-name {
+        font-size: 0.9em;
+    }
+
+    .package-price {
+        font-size: 1.2em;
+    }
+}
+
         /* Contenedor principal de la página de producto */
         .product-main {
             display: flex; /* Habilita Flexbox para las dos columnas */
