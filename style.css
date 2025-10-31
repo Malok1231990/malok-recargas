@@ -1154,3 +1154,75 @@ footer p {
         font-size: 0.85em;
     }
 }
+
+/* 1. Contenedor de las tarjetas (Grid/Flex) */
+.product-grid {
+    display: grid;
+    /* Esto crea 4 columnas en escritorios. Ajusta si deseas menos/más */
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); 
+    gap: 20px; /* Espacio entre las tarjetas */
+    padding: 20px 0;
+}
+
+/* 2. Estilo de la Tarjeta de Juego (El contenedor <a>) */
+.game-card {
+    display: flex; /* Usamos flexbox dentro de la tarjeta */
+    flex-direction: column;
+    text-align: center;
+    background-color: var(--card-bg);
+    border-radius: 8px;
+    overflow: hidden; /* Importante para que la imagen no se salga */
+    text-decoration: none;
+    color: var(--text-color);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    min-height: 280px; /* Ayuda a que todas las tarjetas tengan una altura mínima consistente */
+}
+
+.game-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 20px var(--shadow-dark);
+}
+
+/* 3. Corrección de la Imagen (¡El punto más importante!) */
+.game-card img {
+    /* 100% del ancho de la tarjeta */
+    width: 100%; 
+    /* Altura definida o limitada para que no se estire demasiado */
+    height: 120px; 
+    /* **LA SOLUCIÓN A LA DISTORSIÓN:** Asegura que la imagen cubra el área sin estirarse, recortando si es necesario */
+    object-fit: cover; 
+    /* Esquinas redondeadas en la parte superior de la imagen */
+    border-top-left-radius: 8px; 
+    border-top-right-radius: 8px;
+    margin-bottom: 10px; /* Espacio entre la imagen y el texto */
+}
+
+/* 4. Estilo del texto */
+.game-card h2 {
+    font-size: 1.1em;
+    margin: 0 10px 5px;
+}
+
+.game-description {
+    font-size: 0.85em;
+    color: var(--secondary-text);
+    padding: 0 10px 10px;
+    /* Limita el número de líneas para mantener la consistencia */
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Ajuste Responsive para que las tarjetas no sean demasiado pequeñas */
+@media (max-width: 600px) {
+    .product-grid {
+        /* En móviles, solo 2 columnas */
+        grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); 
+        gap: 15px;
+    }
+    .game-card {
+        min-height: 250px;
+    }
+}
