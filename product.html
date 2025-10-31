@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title id="page-title">Cargando Recarga - Malok Recargas</title> 
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <link rel="shortcut icon" href="images/favicon.ico" type="image/x-icon">
+</head>
+<body>
+    <header>
+        <div class="header-left">
+            <a href="index.html" class="logo-link">
+                <img src="images/malok_logo.png" alt="Malok Recargas Logo" class="logo-img">
+            </a>
+        </div>
+        <div class="header-right">
+            <div class="search-bar">
+                <input type="text" placeholder="Buscar juego...">
+                <i class="fas fa-search"></i>
+            </div>
+            <div class="custom-currency-selector" id="custom-currency-selector">
+                <div class="selected-currency" id="selected-currency">
+                    </div>
+                <div class="currency-options" id="currency-options">
+                    </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="game-page-content">
+        <div class="game-banner" id="game-banner-container">
+            </div>
+
+        <div class="game-recharge-container">
+            <div class="recharge-details-card">
+                <form id="product-recharge-form">
+                    <h2 id="form-title">Selecciona tu Recarga</h2>
+
+                    <div class="input-group">
+                        <label for="player-id" id="player-id-label">ID de Jugador</label>
+                        <input type="text" id="player-id-input" name="playerId" placeholder="Ingresa tu ID de Jugador" required>
+                    </div>
+
+                    <p class="section-title">Selecciona la Recarga:</p>
+                    
+                    <div class="package-options" id="package-options-grid"> 
+                        <p id="packages-loading">Cargando opciones...</p>
+                    </div>
+                    
+                    <button type="submit" class="recharge-button">Comprar Ahora</button>
+                    <p class="warning-message">Al hacer clic en Comprar, aceptas nuestros <a href="terms.html">Términos de Servicio</a> y <a href="privacy.html">Políticas de Privacidad</a>.</p>
+                </form>
+            </div>
+        </div>
+    </main>
+
+    <footer>
+        <div class="footer-content">
+            <p>&copy; 2025 Malok Recargas. Todos los derechos reservados.</p>
+            <div class="footer-links">
+                <a href="privacy.html">Políticas de Privacidad</a>
+                <a href="terms.html">Términos de Servicio</a>
+            </div>
+            <a href="https://wa.me/584126949631" target="_blank" class="whatsapp-link">
+                <i class="fab fa-whatsapp"></i> Contáctanos por WhatsApp
+            </a>
+        </div>
+    </footer>
+
+    <script src="script.js"></script>
+    <script src="load-product-details.js"></script> 
+</body>
+</html>
