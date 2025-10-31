@@ -2,12 +2,10 @@
 const { createClient } = require('@supabase/supabase-js');
 
 exports.handler = async function(event, context) {
-    // 1. Verificar el método HTTP
     if (event.httpMethod !== "GET") {
         return { statusCode: 405, body: "Method Not Allowed" };
     }
     
-    // 2. Obtener el slug del producto desde los query parameters de la URL
     const slug = event.queryStringParameters.slug;
 
     if (!slug) {
@@ -17,11 +15,11 @@ exports.handler = async function(event, context) {
         };
     }
 
-    // 3. Configuración de Supabase (usando variables de entorno)
+    // 1. Configuración de Supabase (usando variables de entorno)
     const supabaseUrl = process.env.SUPABASE_URL;
     const supabaseAnonKey = process.env.SUPABASE_ANON_KEY; 
     
-    // Asegúrate de que las variables de entorno están configuradas en Netlify
+    // **CHECK CRÍTICO:** Asegura que las credenciales están presentes
     if (!supabaseUrl || !supabaseAnonKey) {
         console.error("Faltan variables de entorno de Supabase.");
         return { 
@@ -33,17 +31,16 @@ exports.handler = async function(event, context) {
     const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
     try {
-        // 4. Consulta a Supabase
-        // Hacemos una única consulta para obtener el producto y sus paquetes relacionados (JOIN implícito)
+        // 2. Consulta a Supabase
         const { data: producto, error } = await supabase
             .from('productos')
             .select(`
                 id,
-                nombre, 
-                slug, 
+                nombre,
+                slug,
                 descripcion,
                 banner_url,
-                // Aquí obtenemos todos los paquetes relacionados al producto por su 'producto_id'
+                // La consulta de paquetes (embedding) es el punto más sensible
                 paquetes (
                     nombre_paquete, 
                     precio_usd, 
@@ -52,14 +49,16 @@ exports.handler = async function(event, context) {
                 )
             `)
             .eq('slug', slug)
-            .maybeSingle(); // Solo esperar un resultado
+            .maybeSingle(); 
             
+        // 3. Manejar errores de consulta de Supabase (FIX CLAVE)
         if (error) {
-            console.error("Error al obtener producto por slug:", error);
-            throw new Error(error.message);
+            console.error("Error de Supabase al obtener producto:", error);
+            // Capturamos el mensaje de error explícito de Supabase
+            throw new Error(error.message || "Error desconocido en la consulta a Supabase."); 
         }
 
-        // 5. Manejar el caso de producto no encontrado
+        // 4. Manejar el caso de producto no encontrado
         if (!producto) {
             return {
                 statusCode: 404,
@@ -67,12 +66,12 @@ exports.handler = async function(event, context) {
             };
         }
 
-        // 6. Opcional pero recomendado: Ordenar los paquetes por el campo 'orden'
+        // 5. Ordenar los paquetes
         if (producto.paquetes && producto.paquetes.length > 0) {
             producto.paquetes.sort((a, b) => a.orden - b.orden);
         }
 
-        // 7. Devolver los datos del producto
+        // 6. Devolver los datos
         return {
             statusCode: 200,
             headers: { "Content-Type": "application/json" },
@@ -80,10 +79,11 @@ exports.handler = async function(event, context) {
         };
 
     } catch (error) {
-        console.error("Error en la función get-product-details:", error.message);
+        console.error("Error FATAL en la función get-product-details:", error.message);
+        // Devolvemos el error explícito que capturamos arriba o un mensaje genérico.
         return {
             statusCode: 500,
-            body: JSON.stringify({ message: "Error interno del servidor al cargar el producto.", details: error.message })
+            body: JSON.stringify({ message: `Error interno del servidor al cargar el producto: ${error.message}` }),
         };
     }
 }
