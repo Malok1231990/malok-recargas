@@ -1175,7 +1175,7 @@ footer p {
     text-decoration: none;
     color: var(--text-color);
     transition: transform 0.3s ease, box-shadow 0.3s ease;
-    min-height: 280px; /* Ayuda a que todas las tarjetas tengan una altura mínima consistente */
+    min-height: 340px; /* Ayuda a que todas las tarjetas tengan una altura mínima consistente */
 }
 
 .game-card:hover {
@@ -1188,7 +1188,7 @@ footer p {
     /* 100% del ancho de la tarjeta */
     width: 100%; 
     /* Altura definida o limitada para que no se estire demasiado */
-    height: 100%; 
+    height: 180px; 
     /* **LA SOLUCIÓN A LA DISTORSIÓN:** Asegura que la imagen cubra el área sin estirarse, recortando si es necesario */
     object-fit: contain; 
     /* Esquinas redondeadas en la parte superior de la imagen */
