@@ -1190,7 +1190,7 @@ footer p {
     /* Altura definida o limitada para que no se estire demasiado */
     height: 120px; 
     /* **LA SOLUCIÓN A LA DISTORSIÓN:** Asegura que la imagen cubra el área sin estirarse, recortando si es necesario */
-    object-fit: cover; 
+    object-fit: contain; 
     /* Esquinas redondeadas en la parte superior de la imagen */
     border-top-left-radius: 8px; 
     border-top-right-radius: 8px;
