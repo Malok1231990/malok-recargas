@@ -290,7 +290,7 @@ section {
 
 /* ESTILO ESPECÍFICO PARA EL HERO SECTION EN INDEX.HTML */
 .hero {
-    background: var(--hover-blue); /* Gradiente azul vibrante */
+    background: var(--card-bg); /* Gradiente azul vibrante */
     padding: 60px 25px;
     border-radius: 15px;
     margin-bottom: 30px;
