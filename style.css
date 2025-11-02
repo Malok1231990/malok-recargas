@@ -1,7 +1,7 @@
 /* Variables de Colores para Malok Recargas (Estilo Moderno y Limpio) */
 :root {
     --primary-blue: #007bff; /* Azul estándar */
-    --dark-bg: #1a1a1a; /* Fondo principal muy oscuro */
+    --bg-color: #1a1a1a; /* Fondo principal muy oscuro */
     --card-bg: #2a2a2a; /* Fondo para tarjetas y elementos */
     --text-color: #e0e0e0; /* Texto claro */
     --secondary-text: #b0b0b0; /* Texto secundario gris */
