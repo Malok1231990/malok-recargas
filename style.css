@@ -1,7 +1,7 @@
 /* Variables de Colores para Malok Recargas (Estilo Moderno y Limpio) */
-/* style.css - Bloque :root con los nombres de la DB */
+/* style.css - Bloque :root con nombres de la DB (guiones bajos) */
 :root {
-    /* 🟢 ¡NUEVOS NOMBRES que COINCIDEN con las claves de la DB! */
+    /* 🟢 VARIABLES QUE COINCIDEN CON LA DB (Usando guiones bajos) */
     --primary_blue: #007bff; /* Azul estándar */
     --dark_bg: #1a1a1a; /* Fondo principal muy oscuro */
     --card_bg: #2a2a2a; /* Fondo para tarjetas y elementos */
@@ -13,14 +13,25 @@
     --shadow_dark: rgba(0, 0, 0, 0.4); /* Sombra oscura */
     --shadow_light: rgba(0, 123, 255, 0.2); /* Sombra de brillo azul */
 
-    /* Nuevas variables para un diseño más profundo y distintivo */
+    /* Nuevas variables (También usan guiones bajos) */
     --input_bg: #1f1f1f; /* Fondo más oscuro para inputs */
     --selected_item_gradient: linear-gradient(90deg, #007bff, #0056b3); /* Gradiente para elementos seleccionados */
     --button_gradient: linear-gradient(45deg, #007bff, #0056b3); /* Gradiente para botones */
-    --button_text_color: #ffffff; /* Color de texto para botones */
+    --button_hover_gradient: linear-gradient(45deg, #0056b3, #004085); /* Gradiente de hover para botones */
+    --button_text_color: #ffffff; /* (Asegúrate de que esta clave también esté en tu DB si es dinámica) */
+
+    /* Colores para los nuevos diseños de paquetes/pagos (referencias actualizadas) */
+    --item_border_hover: var(--primary_blue); /* Actualizado: var(--primary-blue) -> var(--primary_blue) */
+    --item_shadow_hover: 0 4px 15px rgba(0, 123, 255, 0.4);
+    --item_selected_bg: var(--primary_blue);
+    --item_selected_text: #ffffff;
+    --item_selected_border: var(--primary_blue);
+    --item_selected_shadow: 0 0 20px rgba(0, 123, 255, 0.6);
+
+    --white: #ffffff; /* Añadida para el check del package-item */
 
     /* Variables funcionales (se mantienen) */
-    --header-height: 70px;
+    --header-height: 70px; 
 }
 
 /* Estilos Generales */
