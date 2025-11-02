@@ -1,31 +1,26 @@
 /* Variables de Colores para Malok Recargas (Estilo Moderno y Limpio) */
+/* style.css - Bloque :root con los nombres de la DB */
 :root {
-    --primary-blue: #007bff; /* Azul estándar */
-    --dark-bg: #1a1a1a; /* Fondo principal muy oscuro */
-    --card-bg: #2a2a2a; /* Fondo para tarjetas y elementos */
-    --text-color: #e0e0e0; /* Texto claro */
-    --secondary-text: #b0b0b0; /* Texto secundario gris */
-    --accent-green: #28a745; /* Verde para acentos de éxito/WhatsApp */
-    --border-color: #444444; /* Borde sutil */
-    --hover-blue: #0056b3; /* Azul más oscuro para hover */
-    --shadow-dark: rgba(0, 0, 0, 0.4); /* Sombra oscura */
-    --shadow-light: rgba(0, 123, 255, 0.2); /* Sombra de brillo azul */
+    /* 🟢 ¡NUEVOS NOMBRES que COINCIDEN con las claves de la DB! */
+    --primary_blue: #007bff; /* Azul estándar */
+    --dark_bg: #1a1a1a; /* Fondo principal muy oscuro */
+    --card_bg: #2a2a2a; /* Fondo para tarjetas y elementos */
+    --text_color: #e0e0e0; /* Texto claro */
+    --secondary_text: #b0b0b0; /* Texto secundario gris */
+    --accent_green: #28a745; /* Verde para acentos de éxito/WhatsApp */
+    --border_color: #444444; /* Borde sutil */
+    --hover_blue: #0056b3; /* Azul más oscuro para hover */
+    --shadow_dark: rgba(0, 0, 0, 0.4); /* Sombra oscura */
+    --shadow_light: rgba(0, 123, 255, 0.2); /* Sombra de brillo azul */
 
     /* Nuevas variables para un diseño más profundo y distintivo */
-    --input-bg: #1f1f1f; /* Fondo más oscuro para inputs */
-    --selected-item-gradient: linear-gradient(90deg, #007bff, #0056b3); /* Gradiente para elementos seleccionados */
-    --button-gradient: linear-gradient(45deg, #007bff, #0056b3); /* Gradiente para botones */
-    --button-hover-gradient: linear-gradient(45deg, #0056b3, #004085); /* Gradiente de hover para botones */
+    --input_bg: #1f1f1f; /* Fondo más oscuro para inputs */
+    --selected_item_gradient: linear-gradient(90deg, #007bff, #0056b3); /* Gradiente para elementos seleccionados */
+    --button_gradient: linear-gradient(45deg, #007bff, #0056b3); /* Gradiente para botones */
+    --button_text_color: #ffffff; /* Color de texto para botones */
 
-    /* Colores para los nuevos diseños de paquetes/pagos */
-    --item-border-hover: var(--primary-blue);
-    --item-shadow-hover: 0 4px 15px rgba(0, 123, 255, 0.4);
-    --item-selected-bg: var(--primary-blue);
-    --item-selected-text: #ffffff; /* Aseguramos blanco para texto seleccionado */
-    --item-selected-border: var(--primary-blue);
-    --item-selected-shadow: 0 0 20px rgba(0, 123, 255, 0.6);
-
-    --white: #ffffff; /* Añadida para el check del package-item */
+    /* Variables funcionales (se mantienen) */
+    --header-height: 70px;
 }
 
 /* Estilos Generales */
