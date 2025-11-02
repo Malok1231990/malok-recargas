@@ -1,3 +1,33 @@
+// script.js COMPLETO Y MODIFICADO
+
+// 🎯 FUNCIÓN PARA CARGAR Y APLICAR LA CONFIGURACIÓN DE COLORES
+async function applySiteConfig() {
+    try {
+        // Llama a la Netlify Function que lee Supabase
+        // (Asegúrate de que esta función esté implementada en netlify/functions/get-site-config.js)
+        const response = await fetch('/.netlify/functions/get-site-config');
+        
+        if (!response.ok) {
+            throw new Error(`Error ${response.status}: No se pudo cargar la configuración del sitio.`);
+        }
+
+        const config = await response.json();
+        
+        // Aplicar las variables CSS al :root (document.documentElement es el <html>)
+        for (const [key, value] of Object.entries(config)) {
+            // Solo aplica variables que tienen el prefijo --
+            if (value && key.startsWith('--')) {
+                document.documentElement.style.setProperty(key, value);
+            }
+        }
+        
+    } catch (error) {
+        console.error('[CLIENTE] Error al aplicar configuración de colores:', error.message);
+        // Si falla, el sitio seguirá usando los colores por defecto definidos en style.css
+    }
+}
+
+
 document.addEventListener('DOMContentLoaded', () => {
     // ---- Lógica para el nuevo selector de moneda personalizado ----
     const customCurrencySelector = document.getElementById('custom-currency-selector');
@@ -70,8 +100,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // Solo ejecutar la lógica de filtrado si estamos en la página que tiene el 'product-grid'
             if (productGrid) {
-                // MODIFICACIÓN: Buscamos las tarjetas cada vez para capturar las que se cargaron dinámicamente
-                const gameCards = productGrid.querySelectorAll('.game-card'); 
+                // MODIFICACIÓN: Buscamos las tarjetas cada vez para capturar las que se cargaron dinámicamente
+                const gameCards = productGrid.querySelectorAll('.game-card'); 
 
                 gameCards.forEach(card => {
                     const gameName = card.querySelector('h2').textContent.toLowerCase(); // Obtener el nombre del juego
@@ -85,11 +115,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
     }
-
-    // NOTA: La lógica de verificación de Nick y envío a Telegram directamente desde el frontend
-    // que estaba en el script.js original (para freefire.html) ha sido eliminada de este script global.
-    // Ahora, el envío a Telegram se maneja exclusivamente desde payment_details.html
-    // a través de la Netlify Function 'recargar.js', que es más seguro y robusto.
-    // La verificación de Nick (si se implementa) se haría en una función de Netlify separada
-    // y se llamaría desde la página específica del juego.
+    
+    // 🎯 LLAMADA CLAVE: Aplicar la configuración de colores al cargar la página.
+    applySiteConfig();
 });
