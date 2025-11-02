@@ -164,6 +164,22 @@ document.addEventListener('DOMContentLoaded', () => {
                     bannerImage.src = data.banner_url || 'images/default_banner.jpg';
                     bannerImage.alt = data.nombre;
                 }
+                
+                // 🎯 NUEVA LÓGICA: MOSTRAR/OCULTAR CAMPO ID
+                const playerIdSection = document.getElementById('player-id-section');
+                const playerIdInput = document.getElementById('player-id-input');
+
+                if (playerIdSection && playerIdInput) {
+                    if (data.require_id === true) {
+                        // Si requiere ID, se muestra
+                        playerIdSection.style.display = 'block'; 
+                    } else {
+                        // Si NO requiere ID, se oculta completamente
+                        playerIdSection.style.display = 'none';
+                        // También vaciamos el valor para evitar enviar IDs por error si no se requieren
+                        playerIdInput.value = '';
+                    }
+                }
                 // FIN DE COMPROBACIONES DEFENSIVAS
                 
                 const initialCurrency = localStorage.getItem('selectedCurrency') || 'VES';
@@ -203,11 +219,15 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             const playerIdInput = document.getElementById('player-id-input');
-            const playerId = playerIdInput ? playerIdInput.value.trim() : '';
+            // Si el campo ID no es requerido, playerId será una cadena vacía ('')
+            const playerId = playerIdInput ? playerIdInput.value.trim() : ''; 
 
-            if (!playerId) {
-                alert('Por favor, ingresa tu ID de Jugador.');
-                return;
+            // 🎯 NUEVA LÓGICA DE VALIDACIÓN: Solo pedir el ID si el producto lo requiere
+            if (currentProductData && currentProductData.require_id === true) {
+                if (!playerId) {
+                    alert('Por favor, ingresa tu ID de Jugador.');
+                    return;
+                }
             }
             
             // Obtener datos del paquete seleccionado
@@ -222,7 +242,8 @@ document.addEventListener('DOMContentLoaded', () => {
             // Construir objeto de la transacción para 'payment.html'
             const transactionDetails = {
                 game: currentProductData ? currentProductData.nombre : 'Juego Desconocido',
-                playerId: playerId,
+                // Enviamos el ID, que puede ser vacío si no se requiere, o el valor ingresado
+                playerId: playerId, 
                 packageName: packageName,
                 priceUSD: basePriceUSD.toFixed(2), 
                 priceVES: basePriceVES.toFixed(2), // Añadido para referencia

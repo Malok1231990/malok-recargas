@@ -38,13 +38,14 @@ exports.handler = async function(event, context) {
                 slug,
                 descripcion,
                 banner_url,
+                require_id,
                 paquetes (
                     nombre_paquete, 
                     precio_usd, 
                     precio_ves, 
                     orden
                 )
-            `) // <<< CONSULTA LIMPIA SIN COMENTARIOS INTERNOS
+            `) // <<< ¡CAMBIO CLAVE! Se agregó 'require_id'
             .eq('slug', slug)
             .maybeSingle(); 
             
