@@ -4,7 +4,6 @@ const { createClient } = require('@supabase/supabase-js');
 
 // 🟢 MAPEO: Definimos la relación entre la columna de la DB y la variable CSS
 const DB_TO_CSS_MAP = {
-    'hero_bg': '--banner-color',
     'dark_bg': '--bg-color', 
     'card_bg': '--card-bg',
     'primary_blue': '--primary-blue',
