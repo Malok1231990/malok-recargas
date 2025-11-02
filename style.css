@@ -1226,3 +1226,27 @@ footer p {
         min-height: 250px;
     }
 }
+
+/* --- Estilos para la sección HERO en index.html --- */
+.hero {
+    /* * Usamos --card-bg para que se distinga del fondo principal (body), 
+     * que usa --bg-color
+     */
+    background-color: var(--card-bg); 
+    padding: 30px 20px;
+    margin-bottom: 20px;
+    border-radius: 10px;
+    box-shadow: 0 4px 10px var(--shadow-dark);
+    text-align: center;
+}
+
+.hero h1 {
+    font-size: 2.2em;
+    color: var(--primary-blue); /* Usar el color de acento */
+    margin-bottom: 10px;
+}
+
+.hero p {
+    font-size: 1.1em;
+    color: var(--text-color);
+}
