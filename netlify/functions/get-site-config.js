@@ -66,7 +66,7 @@ exports.handler = async function(event, context) {
             };
         }
 
-        // --- 4. Mapeo de Claves (De DB a CSaS) ---
+        // --- 4. Mapeo de Clavesa (De DB a CSaS) ---
         const cssConfig = {};
         for (const [dbKey, value] of Object.entries(config)) {
             const cssKey = DB_TO_CSS_MAP[dbKey];
