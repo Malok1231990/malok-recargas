@@ -1,4 +1,4 @@
-// netlify/functions/get-site-config.js
+// netlify/functions/get-site-config.js (CORREGIDO)
 
 const { createClient } = require('@supabase/supabase-js');
 
@@ -18,33 +18,43 @@ exports.handler = async function(event, context) {
         };
     }
 
-    // Usar la clave ANÓNIMA para lecturas públicas (más seguro)
     const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
     try {
-        // Obtenemos la configuración del sitio (asumiendo que tiene una única fila con ID 1)
+        // 🟢 CORRECCIÓN: Usar AS para mapear las columnas de la DB a las variables CSS (Kebab-Case)
         const { data: config, error } = await supabase
-            .from('configuracion_sitio') // Usa el nombre de tu tabla de configuración
-            .select('*')
-            .eq('id', 1) // Asume que la configuración está en el ID 1
+            .from('configuracion_sitio') 
+            .select(`
+                dark_bg:--bg-color,
+                card_bg:--card-bg,
+                primary_blue:--primary-blue,
+                accent_green:--accent-green,
+                text_color:--text-color,
+                secondary_text:--secondary-text,
+                input_bg:--input-bg,
+                button_gradient:--button-gradient,
+                hover_blue:--hover-blue,
+                selected_item_gradient:--selected-item-gradient,
+                shadow_dark:--shadow-dark,
+                border_color:--border-color,
+                shadow_light:--shadow-light,
+                button_text_color:--button-text-color 
+            `) 
+            .eq('id', 1) 
             .single(); 
             
-        // Si hay error en la DB o no se encuentra la configuración, devolvemos un objeto vacío para usar CSS por defecto
+        // Si hay error en la DB o no se encuentra la configuración
         if (error || !config) {
             console.warn(`[NETLIFY] Advertencia: Error o configuración no encontrada. Usando valores por defecto. Error: ${error ? error.message : 'No data'}`);
-            // Devolver un objeto vacío o valores por defecto
+            // Devolver un objeto vacío para que el cliente use el CSS por defecto, o definir fallbacks
             return {
                 statusCode: 200,
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    '--primary-blue': '#007bff',
-                    '--dark-bg': '#1a1a1a',
-                    // ... (añade aquí todos los valores por defecto de style.css)
-                }),
+                body: JSON.stringify({}), // Devolvemos vacío
             };
         }
 
-        // Devolvemos la configuración (que incluye los colores como --nombre-variable)
+        // 🏆 ÉXITO: El objeto 'config' ahora tiene las claves CSS (ej: {"--bg-color": "#XXXXXX"})
         return {
             statusCode: 200,
             headers: { "Content-Type": "application/json" },
@@ -55,7 +65,7 @@ exports.handler = async function(event, context) {
         console.error("Error FATAL en la función get-site-config:", error.message);
         return {
             statusCode: 500,
-            body: JSON.stringify({ message: "Error interno del servidor al obtener configuración." }),
+            body: JSON.stringify({ message: "Error interno del servidor al obtener la configuración.", details: error.message }),
         };
     }
 };
