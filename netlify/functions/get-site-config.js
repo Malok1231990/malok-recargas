@@ -3,21 +3,26 @@
 const { createClient } = require('@supabase/supabase-js');
 
 // 🟢 MAPEO: Definimos la relación entre la columna de la DB y la variable CSS
+// netlify/functions/get-site-config.js
+
+// 🟢 MAPEO ACTUALIZADO: La clave de la DB ahora se mapea a la variable CSS con el mismo nombre.
 const DB_TO_CSS_MAP = {
-    'dark_bg': '--bg-color', 
-    'card_bg': '--card-bg',
-    'primary_blue': '--primary-blue',
-    'accent_green': '--accent-green',
-    'text_color': '--text-color',
-    'secondary_text': '--secondary-text',
-    'input_bg': '--input-bg',
-    'button_gradient': '--button-gradient',
-    'hover_blue': '--hover-blue',
-    'selected_item_gradient': '--selected-item-gradient',
-    'shadow_dark': '--shadow-dark',
-    'border_color': '--border-color',
-    'shadow_light': '--shadow-light',
-    'button_text_color': '--button-text-color', 
+    // Columna de la DB (clave)  : Nombre de la variable CSS (valor)
+    'primary_blue'          : '--primary_blue', 
+    'dark_bg'               : '--dark_bg',      
+    'card_bg'               : '--card_bg',
+    'text_color'            : '--text_color',
+    'secondary_text'        : '--secondary_text',
+    'accent_green'          : '--accent_green',
+    'border_color'          : '--border_color',
+    'hover_blue'            : '--hover_blue',
+    'shadow_dark'           : '--shadow_dark',
+    'shadow_light'          : '--shadow_light',
+    'input_bg'              : '--input_bg',
+    'selected_item_gradient': '--selected_item_gradient',
+    'button_gradient'       : '--button_gradient',
+    'button_hover_gradient' : '--button_hover_gradient', // Nuevo
+    'button_text_color'     : '--button_text_color', 
     // Asegúrate de que esta lista sea idéntica a las columnas de tu tabla
 };
 
