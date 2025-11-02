@@ -165,19 +165,25 @@ document.addEventListener('DOMContentLoaded', () => {
                     bannerImage.alt = data.nombre;
                 }
                 
-                // 🎯 NUEVA LÓGICA: MOSTRAR/OCULTAR CAMPO ID
-                const playerIdSection = document.getElementById('player-id-section');
-                const playerIdInput = document.getElementById('player-id-input');
+                // 🎯 NUEVA LÓGICA: MOSTRAR CAMPO ID O MENSAJE DE WHATSAPP
+                const playerIdInputGroup = document.getElementById('player-id-input-group');
+                const whatsappMessage = document.getElementById('whatsapp-info-message');
+                const stepOneTitle = document.getElementById('step-one-title');
 
-                if (playerIdSection && playerIdInput) {
+                if (playerIdInputGroup && whatsappMessage && stepOneTitle) {
                     if (data.require_id === true) {
-                        // Si requiere ID, se muestra
-                        playerIdSection.style.display = 'block'; 
+                        // Requiere ID
+                        playerIdInputGroup.style.display = 'block'; 
+                        whatsappMessage.style.display = 'none';
+                        stepOneTitle.textContent = 'Paso 1: Ingresa tu ID';
                     } else {
-                        // Si NO requiere ID, se oculta completamente
-                        playerIdSection.style.display = 'none';
-                        // También vaciamos el valor para evitar enviar IDs por error si no se requieren
-                        playerIdInput.value = '';
+                        // NO requiere ID, muestra el mensaje de WhatsApp
+                        playerIdInputGroup.style.display = 'none';
+                        whatsappMessage.style.display = 'block';
+                        stepOneTitle.textContent = 'Paso 1: Asistencia Requerida';
+                        // Aseguramos que el campo ID esté vacío para no enviar datos innecesarios
+                        const playerIdInput = document.getElementById('player-id-input');
+                        if(playerIdInput) playerIdInput.value = '';
                     }
                 }
                 // FIN DE COMPROBACIONES DEFENSIVAS
@@ -222,10 +228,10 @@ document.addEventListener('DOMContentLoaded', () => {
             // Si el campo ID no es requerido, playerId será una cadena vacía ('')
             const playerId = playerIdInput ? playerIdInput.value.trim() : ''; 
 
-            // 🎯 NUEVA LÓGICA DE VALIDACIÓN: Solo pedir el ID si el producto lo requiere
+            // 🎯 LÓGICA DE VALIDACIÓN CONDICIONAL
             if (currentProductData && currentProductData.require_id === true) {
                 if (!playerId) {
-                    alert('Por favor, ingresa tu ID de Jugador.');
+                    alert('Por favor, ingresa tu ID de Jugador. Este campo es obligatorio para este producto.');
                     return;
                 }
             }
@@ -248,7 +254,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 priceUSD: basePriceUSD.toFixed(2), 
                 priceVES: basePriceVES.toFixed(2), // Añadido para referencia
                 finalPrice: finalPrice.toFixed(2), 
-                currency: selectedCurrency 
+                currency: selectedCurrency,
+                // Agregamos el flag de asistencia para usarlo en la página de pago
+                requiresAssistance: currentProductData.require_id !== true 
             };
 
             localStorage.setItem('transactionDetails', JSON.stringify(transactionDetails));

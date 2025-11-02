@@ -142,6 +142,25 @@
             margin-bottom: 15px;
             font-weight: 700;
         }
+        
+        /* ESTILO PARA EL MENSAJE DE WHATSAPP */
+        .whatsapp-message-box {
+            padding: 15px;
+            background-color: #3b3b3b; /* Color de fondo oscuro */
+            border-radius: 8px;
+            border-left: 5px solid var(--primary-blue);
+            margin-bottom: 20px;
+            font-size: 0.95em;
+        }
+        
+        .whatsapp-message-box p {
+            margin: 0;
+            color: #d1d1d1;
+        }
+        
+        .whatsapp-message-box strong {
+            color: var(--accent-green);
+        }
 
         /* Estilos del Formulario */
         .form-group label {
@@ -277,12 +296,19 @@
             <div class="product-form-container">
                 <form id="recharge-form">
                     
-                    <div id="player-id-section"> 
-                        <p class="section-title">Paso 1: Ingresa tu ID/Correo</p>
-                        <div class="form-group">
+                    <div id="step-one-container"> 
+                        <p class="section-title" id="step-one-title">Paso 1: Ingresa tu ID/Correo</p>
+                        
+                        <div id="player-id-input-group" class="form-group">
                             <label for="player-id-input" class="player-id-label">ID de Usuario (O Correo Segun el Caso)</label>
                             <input type="text" id="player-id-input" name="playerId" placeholder="Ingresa tu ID/Correo de Usuario"> 
                         </div>
+                        
+                        <div id="whatsapp-info-message" class="whatsapp-message-box" style="display:none;">
+                             <p><strong>Recarga con Asistencia:</strong></p>
+                             <p>Debido a que este producto no cuenta con un método de recarga directa por ID, la asistencia para completar la compra se solicitará **vía WhatsApp** después de confirmar su pago. Le pediremos acceso a la cuenta para finalizar el proceso.</p>
+                        </div>
+
                     </div>
                     <p class="section-title">Paso 2: Selecciona la Recarga</p>
                     
