@@ -109,7 +109,8 @@ header {
 }
 
 .search-bar input {
-    background-color: var(--dark-bg);
+    /* CORRECCIÓN: Usando la variable --input-bg */
+    background-color: var(--input-bg); 
     border: 1px solid var(--border-color);
     border-radius: 20px;
     padding: 10px 15px 10px 40px;
@@ -132,12 +133,16 @@ header {
     font-size: 1em;
 }
 
-/* Selector de Moneda */
+/* ==================================== */
+/* 🎯 ESTILOS CORREGIDOS DEL SELECTOR DE MONEDA */
+/* ==================================== */
+
 .custom-currency-selector {
     position: relative;
     cursor: pointer;
     user-select: none;
-    background-color: var(--dark-bg);
+    /* CORRECCIÓN: Usando la variable --input-bg */
+    background-color: var(--input-bg); 
     border: 1px solid var(--border-color);
     border-radius: 20px;
     padding: 10px 15px;
@@ -147,6 +152,8 @@ header {
     transition: all 0.3s ease;
     min-width: 120px; /* Asegura un ancho mínimo */
     justify-content: space-between; /* Espacia los elementos */
+    /* CRÍTICO: Asegura que el selector esté por encima del contenido */
+    z-index: 10; 
     box-sizing: border-box; /* Incluye padding en el ancho */
 }
 
@@ -169,174 +176,83 @@ header {
     object-fit: cover;
 }
 
-.selected-currency span {
-    font-weight: 600;
-    color: var(--text-color);
-    white-space: nowrap; /* Evita que el texto se rompa */
-}
-
-.selected-currency i {
-    font-size: 0.8em;
-    transition: transform 0.3s ease;
-    color: var(--secondary-text);
-    margin-left: auto; /* Mueve la flecha a la derecha */
-}
-
-.custom-currency-selector.show .selected-currency i {
-    transform: rotate(180deg);
-}
-
+/* CRÍTICO: Estilos para el contenedor de opciones (Inicialmente oculto) */
 .currency-options {
     position: absolute;
-    top: calc(100% + 8px);
+    top: 100%; /* Colocar justo debajo del selector principal */
     left: 0;
     right: 0;
-    background-color: var(--card-bg);
+    margin-top: 5px; /* Pequeño espacio */
+    background-color: var(--card-bg); /* Fondo de la lista */
     border: 1px solid var(--border-color);
-    border-radius: 10px;
-    box-shadow: 0 4px 12px var(--shadow-dark);
-    z-index: 10;
-    display: none;
-    overflow: hidden;
+    border-radius: 12px;
+    box-shadow: 0 4px 15px var(--shadow-dark);
+    overflow: hidden; /* Ocultar contenido que se desborda */
+    
+    /* Estado por defecto: Oculto */
+    max-height: 0;
     opacity: 0;
-    transform: translateY(10px);
-    transition: opacity 0.3s ease, transform 0.3s ease;
+    visibility: hidden;
+    /* CRÍTICO: Transiciones para la animación de apertura/cierre */
+    transition: max-height 0.3s ease-out, opacity 0.3s ease-out, visibility 0.3s;
+    z-index: 20; /* Asegurar que esté por encima de todo */
+    box-sizing: border-box;
 }
 
-.custom-currency-selector.show .currency-options { /* Corregir la clase show para el selector principal */
-    display: block;
+/* CRÍTICO: Clase para mostrar las opciones (Toggleado por script.js) */
+.currency-options.open {
+    max-height: 300px; /* Suficientemente grande para mostrar todas las opciones */
     opacity: 1;
-    transform: translateY(0);
+    visibility: visible;
+    padding: 8px 0; /* Padding interno solo cuando está abierto */
 }
 
-.currency-options .option {
-    padding: 12px 18px;
+/* Estilo para cada opción individual */
+.option {
     display: flex;
     align-items: center;
     gap: 8px;
+    padding: 10px 15px;
+    cursor: pointer;
     transition: background-color 0.2s ease;
+    font-size: 0.95em;
 }
 
-.currency-options .option:hover {
-    background-color: var(--dark-bg);
-    color: var(--primary-blue);
+.option:hover {
+    background-color: var(--input-bg); /* Ligeramente más oscuro en hover */
 }
 
-.currency-options .option img {
+.option img {
     height: 20px;
     width: 20px;
     border-radius: 50%;
     object-fit: cover;
 }
 
-/* Botones */
-.btn-primary {
-    background: var(--button-gradient); /* Usar gradiente para el botón */
-    color: #ffffff; /* Aseguramos blanco */
-    padding: 12px 25px;
-    border: none;
-    border-radius: 25px;
-    cursor: pointer;
-    font-size: 1.1em;
-    font-weight: 700;
-    transition: all 0.3s ease; /* Transición para todos los cambios */
-    box-shadow: 0 3px 10px var(--shadow-dark);
-    display: block;
-    margin: 20px auto;
-    letter-spacing: 0.5px;
-}
+/* ==================================== */
+/* === ESTILOS GENERALES DE PRODUCTOS (game-card) === */
+/* ==================================== */
 
-.btn-primary:hover {
-    background: var(--button-hover-gradient); /* Gradiente de hover */
-    transform: translateY(-2px);
-    box-shadow: 0 5px 15px var(--shadow-dark);
-}
-
-.btn-primary:disabled {
-    background: var(--border-color); /* Color sólido para deshabilitado */
-    cursor: not-allowed;
-    transform: none;
-    box-shadow: none;
-    opacity: 0.6;
-}
-
-.btn-secondary {
-    background-color: var(--secondary-text);
-    color: #ffffff; /* Aseguramos blanco */
-    padding: 9px 18px;
-    border: none;
-    border-radius: 20px;
-    cursor: pointer;
-    font-size: 0.95em;
-    transition: background-color 0.3s ease, transform 0.2s ease;
-    box-shadow: 0 2px 6px var(--shadow-dark);
-}
-
-.btn-secondary:hover {
-    background-color: #7a8288;
-    transform: translateY(-1px);
-}
-
-/* Secciones principales */
-section {
-    background-color: var(--card-bg);
-    padding: 35px;
-    margin-bottom: 25px;
-    border-radius: 12px;
-    box-shadow: 0 5px 15px var(--shadow-dark);
-    text-align: center;
-    border: 1px solid var(--border-color);
-}
-
-/* ESTILO ESPECÍFICO PARA EL HERO SECTION EN INDEX.HTML */
-.hero {
-    background: var(--hover-blue); /* Gradiente azul vibrante */
-    padding: 60px 25px;
-    border-radius: 15px;
-    margin-bottom: 30px;
-    color: #ffffff; /* Aseguramos blanco */
-    box-shadow: 0 0 25px rgba(0, 123, 255, 0.6); /* Sombra de brillo más intensa */
-    border: none; /* Eliminar borde si el gradiente es el foco */
-}
-
-.hero h1 {
-    font-size: 2.8em;
-    color: #ffffff; /* Aseguramos blanco */
-    margin-bottom: 12px;
-    line-height: 1.2;
-    text-shadow: 2px 2px 5px rgba(0, 0, 0, 0.7);
-}
-
-.hero p {
-    font-size: 1.2em;
-    color: rgba(255, 255, 255, 0.9);
-    max-width: 700px;
-    margin: 0 auto;
-}
-
-/* Tarjetas de Juegos - DISEÑO COMPLETAMENTE NUEVO (Home Page) */
-.game-grid {
+.product-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); /* Ajuste de minmax */
+    /* Repite automáticamente columnas con un ancho mínimo de 200px */
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); 
     gap: 25px;
-    justify-content: center;
-    margin-top: 25px;
+    padding: 20px 0;
 }
 
 .game-card {
-    background-color: var(--dark-bg); /* Fondo más oscuro para la tarjeta */
-    border: 2px solid var(--border-color); /* Borde más pronunciado */
-    border-radius: 15px; /* Más redondeado */
+    background-color: var(--card-bg);
+    border-radius: 12px;
+    border: 1px solid var(--border-color);
     overflow: hidden;
     text-decoration: none;
     color: var(--text-color);
-    transition: transform 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease;
+    transition: all 0.3s ease;
     display: flex;
     flex-direction: column;
-    align-items: stretch;
-    padding-bottom: 20px;
-    position: relative;
-    box-shadow: 0 8px 20px var(--shadow-dark); /* Sombra más grande */
+    min-height: 350px; /* Asegura que todas las tarjetas tengan una altura mínima consistente */
+    box-shadow: 0 5px 15px var(--shadow-dark); /* Sombra más grande */
 }
 
 .game-card:hover {
@@ -355,132 +271,161 @@ section {
 
 .game-card h2 {
     font-size: 1.6em; /* Título ligeramente más pequeño para mejor ajuste */
-    margin: 20px 0 10px;
+    margin: 20px 0 10px 0;
     color: var(--primary-blue);
-    flex-grow: 1;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    text-align: center;
     padding: 0 15px;
-    min-height: 60px; /* Asegura un alto mínimo para el título */
-    line-height: 1.3; /* Ajuste para títulos largos */
+    text-shadow: none;
 }
 
-/* Nuevo estilo para la descripción */
-.game-card .game-description {
-    font-size: 0.95em;
-    color: var(--secondary-text); /* Color gris para la descripción */
-    margin: 0 15px 15px; /* Margen alrededor de la descripción */
+.game-description {
+    font-size: 0.9em;
+    color: var(--secondary-text);
+    padding: 0 15px 15px;
     text-align: center;
-    line-height: 1.4;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
 }
 
-/* Input de Jugador (Aplicado a todas las páginas de formulario) */
+/* ==================================== */
+/* === ESTILOS PARA LA SELECCIÓN DE PAQUETES (product.html) === */
+/* ==================================== */
+
+.product-details {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+.product-header {
+    text-align: center;
+    margin-bottom: 30px;
+}
+
+.product-header img {
+    max-width: 100%;
+    height: auto;
+    max-height: 250px;
+    border-radius: 12px;
+    box-shadow: 0 8px 20px var(--shadow-dark);
+}
+
+.recharge-form-card {
+    background-color: var(--card-bg);
+    border-radius: 12px;
+    padding: 30px;
+    box-shadow: 0 5px 15px var(--shadow-dark);
+    border: 1px solid var(--border-color);
+    margin-top: 30px;
+}
+
+.section-title {
+    color: var(--text-color);
+    font-size: 1.3em;
+    font-weight: 700;
+    margin-top: 25px;
+    margin-bottom: 15px;
+    padding-bottom: 8px;
+    border-bottom: 2px solid var(--primary-blue);
+    text-align: left;
+}
+
+/* 1. Campos de Entrada (ID/Correo) */
 .input-group {
-    margin-bottom: 20px;
-    text-align: center;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 10px;
+    margin-bottom: 25px;
 }
 
 .input-group label {
+    display: block;
+    margin-bottom: 10px;
     font-weight: 600;
-    margin-bottom: 8px;
-    color: var(--text-color);
-    font-size: 1em;
-}
-
-.input-group input[type="text"],
-.input-group input[type="number"],
-.input-group select {
-    width: 100%;
-    max-width: 350px;
-    padding: 12px 18px;
-    border: 1px solid var(--border-color);
-    border-radius: 8px;
-    background-color: var(--input-bg); /* Fondo más oscuro para inputs */
-    color: var(--text-color);
-    font-size: 1em;
-    outline: none;
-    transition: border-color 0.3s ease, box-shadow 0.3s ease;
-    box-sizing: border-box; /* Incluye padding en el 100% del ancho */
-}
-
-.input-group input[type="text"]:focus,
-.input-group input[type="number"]:focus,
-.input-group select:focus {
-    border-color: var(--primary-blue);
-    box-shadow: 0 0 8px var(--shadow-light);
-}
-
-.form-group input::placeholder {
     color: var(--secondary-text);
 }
 
-.player-name-display {
-    font-weight: 600;
-    color: var(--accent-green);
-    margin-top: 10px;
-    min-height: 1.2em;
-    font-size: 1.1em;
+.input-group input[type="text"] {
+    width: 100%;
+    padding: 12px 15px;
+    background-color: var(--input-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    color: var(--text-color);
+    font-size: 1em;
+    transition: border-color 0.3s, box-shadow 0.3s;
+    box-sizing: border-box;
 }
 
-/* Opciones de Paquetes - NUEVO DISEÑO Y VISIBILIDAD FORZADA */
-.package-list {
-    display: grid !important; /* ¡FORZAMOS DISPLAY GRID! */
-    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); /* Columnas responsivas */
+.input-group input[type="text"]:focus {
+    border-color: var(--primary-blue);
+    box-shadow: 0 0 8px var(--shadow-light);
+    outline: none;
+}
+
+/* 2. Contenedor de Opciones (Grid) */
+.package-options {
+    display: grid;
+    /* En pantallas grandes: 3 columnas (mínimo 140px) */
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); 
     gap: 15px;
-    margin-bottom: 20px;
-    visibility: visible !important; /* ¡FORZAMOS VISIBILIDAD! */
-    opacity: 1 !important; /* ¡FORZAMOS OPACIDAD! */
-    height: auto !important; /* Aseguramos que tome la altura necesaria */
-    overflow: visible !important; /* Aseguramos que no haya recortes */
+    padding: 10px 0;
+    margin-top: 15px;
 }
 
-.package-item {
-    background-color: var(--card-bg); /* Fondo de tarjeta */
+/* 3. Estilo Base del Recuadro de Paquete */
+.package-option {
+    background-color: var(--input-bg);
     border: 2px solid var(--border-color);
     border-radius: 10px;
     padding: 15px;
     cursor: pointer;
-    transition: all 0.3s ease;
-    display: flex !important; /* ¡FORZAMOS DISPLAY FLEX! */
-    flex-direction: column; /* Apilar contenido verticalmente */
-    align-items: center;
-    justify-content: center;
     text-align: center;
-    box-shadow: 0 2px 8px var(--shadow-dark);
-    position: relative; /* Para el pseudo-elemento de check */
-    min-height: 100px; /* Altura mínima para que sean visibles */
-    visibility: visible !important; /* ¡FORZAMOS VISIBILIDAD! */
-    opacity: 1 !important; /* ¡FORZAMOS OPACIDAD! */
-    box-sizing: border-box; /* Incluye padding en el ancho */
+    transition: all 0.3s ease;
+    position: relative;
+    box-shadow: 0 2px 5px var(--shadow-dark);
+    min-height: 120px; /* Altura mínima para consistencia */
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
 }
 
-.package-item:hover {
+/* 4. Estado de Hover y Seleccionado */
+.package-option:hover {
     border-color: var(--item-border-hover);
-    transform: translateY(-5px); /* Más elevación al pasar el mouse */
     box-shadow: var(--item-shadow-hover);
 }
 
-/* Efecto de "check" al seleccionar */
-.package-item.selected {
-    background: var(--selected-item-gradient); /* Gradiente para seleccionado */
+.package-option.selected {
+    background: var(--item-selected-bg);
     color: var(--item-selected-text);
     border-color: var(--item-selected-border);
-    transform: translateY(-2px) scale(1.02); /* Ligeramente más grande y elevado */
     box-shadow: var(--item-selected-shadow);
+    transform: scale(1.05); /* Ligeramente más grande */
 }
 
-.package-item.selected .price {
-    color: var(--item-selected-text); /* Precio también blanco al seleccionar */
+/* 5. Contenido del Paquete */
+.package-name {
+    font-size: 1.1em;
+    font-weight: 700;
+    margin-bottom: 5px;
 }
 
-/* Icono de check para el elemento seleccionado */
-.package-item.selected::after {
-    content: '\f00c'; /* FontAwesome check icon */
+.package-price {
+    font-size: 1.4em;
+    font-weight: 800;
+    color: var(--accent-green); /* Color para precio por defecto */
+    margin-top: 5px;
+}
+
+.package-option.selected .package-price {
+    color: var(--item-selected-text); /* Blanco cuando está seleccionado */
+}
+
+/* 6. Indicador de Seleccionado (Checkmark) */
+.package-option.selected::after {
+    content: "\f00c"; /* Icono de checkmark de Font Awesome */
     font-family: 'Font Awesome 5 Free';
     font-weight: 900;
     position: absolute;
@@ -498,185 +443,49 @@ section {
     border: 1px solid var(--white);
 }
 
-.package-item span:first-child { /* Nombre del paquete/diamantes */
-    font-size: 1.05em; /* Ligeramente más pequeño */
-    font-weight: 600;
-    margin-bottom: 5px;
-}
-
-.package-item .price {
-    font-weight: 700;
-    color: var(--accent-green);
-    font-size: 1.25em; /* Precio más grande */
-}
-
-/* Métodos de Pago - NUEVO DISEÑO */
-.payment-methods {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); /* Más grandes y flexibles */
-    gap: 20px;
-    margin-top: 25px;
-}
-
-.payment-method-option {
-    background-color: var(--card-bg);
-    border: 2px solid var(--border-color);
-    border-radius: 12px; /* Más redondeado */
-    padding: 20px;
-    text-align: center;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    box-shadow: 0 3px 10px var(--shadow-dark);
-    position: relative; /* Para el pseudo-elemento de check */
-    box-sizing: border-box; /* Incluye padding en el ancho */
-}
-
-.payment-method-option:hover {
-    border-color: var(--item-border-hover);
-    transform: translateY(-5px);
-    box-shadow: var(--item-shadow-hover);
-}
-
-.payment-method-option input[type="radio"] {
-    display: none;
-}
-
-.payment-method-option input[type="radio"]:checked + label {
-    background: var(--selected-item-gradient);
-    color: var(--item-selected-text);
-    border-color: var(--item-selected-border);
-    transform: scale(1.02);
-    box-shadow: var(--item-selected-shadow);
-}
-
-/* Icono de check para el método de pago seleccionado */
-.payment-method-option input[type="radio"]:checked + label::after {
-    content: '\f00c'; /* FontAwesome check icon */
-    font-family: 'Font Awesome 5 Free';
-    font-weight: 900;
-    position: absolute;
-    top: 8px;
-    right: 8px;
-    color: #ffffff; /* Aseguramos blanco */
-    background-color: var(--accent-green);
-    border-radius: 50%;
-    width: 24px;
-    height: 24px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 0.8em;
-    border: 1px solid #ffffff; /* Aseguramos blanco */
-}
-
-.payment-method-option label {
-    width: 100%;
-    height: 100%;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    padding: 10px;
-    border-radius: 8px;
-    transition: all 0.3s ease;
-    color: var(--text-color);
-    font-weight: 600;
-}
-
-.payment-method-option label img {
-    height: 55px; /* Logos más grandes */
-    width: auto;
-    object-fit: contain;
-    margin-bottom: 10px;
-    filter: grayscale(0.2); /* Ligeramente desaturado */
-    transition: filter 0.3s ease;
-}
-
-.payment-method-option input[type="radio"]:checked + label img {
-    filter: grayscale(0); /* Color completo al seleccionar */
-}
-
-
-/* Footer - CORREGIDO PARA AJUSTE EN MÓVILES */
-footer {
-    background-color: var(--card-bg);
-    color: var(--secondary-text);
-    padding: 20px;
-    text-align: center;
+/* 7. Botón de Comprar Ahora */
+.recharge-button {
     margin-top: 30px;
-    border-top: 1px solid var(--border-color);
-    box-shadow: 0 -2px 8px var(--shadow-dark);
-    width: 100%; /* Asegura que el footer ocupe todo el ancho */
-    box-sizing: border-box; /* Incluye padding en el 100% del ancho */
+    width: 100%;
+    /* Utiliza los estilos de botón definidos globalmente */
 }
 
-.footer-content {
-    max-width: 1000px;
-    margin: 0 auto;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 12px;
-    padding: 0 20px; /* Añadido padding horizontal para que no se pegue a los bordes en escritorio/tablet */
-    box-sizing: border-box; /* Incluye padding en el ancho */
-}
-
-footer p {
-    margin-bottom: 0;
+/* 8. Mensaje de advertencia */
+.warning-message {
     font-size: 0.9em;
-}
-
-.footer-links {
-    display: flex;
-    gap: 18px;
-    flex-wrap: wrap;
-    justify-content: center;
-    width: 100%; /* Asegura que los enlaces ocupen el ancho completo de su contenedor */
-    max-width: 500px; /* Limita el ancho para que los enlaces no se separen demasiado */
-    margin: 0 auto; /* Centrar los enlaces dentro del footer-content */
-}
-
-.footer-links a {
     color: var(--secondary-text);
-    text-decoration: none;
-    transition: color 0.3s ease;
-    font-size: 0.9em;
+    margin-top: 20px;
 }
 
-.footer-links a:hover {
+.warning-message a {
     color: var(--primary-blue);
-}
-
-.whatsapp-link {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    background-color: var(--accent-green);
-    color: #ffffff; /* Aseguramos blanco */
-    padding: 10px 18px;
-    border-radius: 20px;
     text-decoration: none;
-    font-weight: 600;
-    margin-top: 15px;
-    font-size: 1em;
-    transition: background-color 0.3s ease, transform 0.2s ease;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
 }
 
-.whatsapp-link:hover {
-    background-color: #218838;
-    transform: translateY(-1px);
+.whatsapp-message-box {
+    background-color: rgba(40, 167, 69, 0.15); /* Fondo verde tenue */
+    border-left: 5px solid var(--accent-green);
+    padding: 15px;
+    margin-bottom: 25px;
+    border-radius: 5px;
+    color: var(--text-color);
+    text-align: left;
 }
 
-.whatsapp-link .fab.fa-whatsapp {
-    font-size: 1.2em;
+.whatsapp-message-box p {
+    margin: 0;
+    text-align: left;
+    font-size: 0.95em;
 }
 
-/* General Form & Card Styles (used across pages) */
+.whatsapp-message-box strong {
+    color: var(--accent-green);
+}
+
+/* ==================================== */
+/* === ESTILOS PARA LA PÁGINA DE PAGO (payment.html) === */
+/* ==================================== */
+
 .form-container, .info-card, .payment-details-card {
     background-color: var(--card-bg);
     border-radius: 12px;
@@ -688,446 +497,174 @@ footer p {
     box-sizing: border-box; /* Incluye padding en el ancho */
 }
 
-.form-container h2, .info-card h2, .payment-details-card h2 {
-    color: var(--primary-blue);
-    text-align: center;
-    margin-bottom: 25px;
-    font-size: 2em;
-}
-
-.form-group label {
-    display: block;
-    margin-bottom: 8px;
-    font-weight: 600;
-    color: var(--text-color);
-    font-size: 1em;
-}
-
-.form-group input[type="text"],
-.form-group input[type="number"],
-.form-group select {
-    width: 100%;
-    padding: 12px 15px;
-    background-color: var(--input-bg); /* Fondo más oscuro para inputs */
-    border: 1px solid var(--border-color);
-    border-radius: 8px;
-    color: var(--text-color);
-    font-size: 1em;
-    outline: none;
-    transition: border-color 0.3s ease, box-shadow 0.3s ease;
-    box-sizing: border-box; /* Incluye padding en el ancho */
-}
-
-.form-group input:focus,
-.form-group select:focus {
-    border-color: var(--primary-blue);
-    box-shadow: 0 0 8px var(--shadow-light);
-}
-
-.form-group input::placeholder {
-    color: var(--secondary-text);
-}
-
-/* Payment Details Page */
-.payment-details-main {
-    padding: 40px 20px;
-    text-align: center;
-}
-
-.payment-details-card {
-    background-color: var(--card-bg);
-    border-radius: 12px;
-    padding: 35px;
-    max-width: 650px;
-    margin: 0 auto;
-    box-shadow: 0 5px 15px var(--shadow-dark);
-    border: 1px solid var(--border-color);
-    box-sizing: border-box; /* Incluye padding en el ancho */
-}
-
 .payment-details-card h2 {
     color: var(--primary-blue);
-    margin-bottom: 25px;
+    text-align: center;
+    margin-bottom: 30px;
     font-size: 2em;
 }
 
-.payment-details-card p {
-    font-size: 1em;
-    margin-bottom: 15px;
-    text-align: left;
+/* 1. Sección de detalles del pedido */
+.order-summary {
+    border: 1px dashed var(--primary-blue);
+    padding: 20px;
+    border-radius: 8px;
+    margin-bottom: 30px;
+    background-color: rgba(0, 123, 255, 0.05);
 }
 
-.payment-details-card strong {
+.order-summary p {
+    text-align: left;
+    margin: 5px 0;
+    font-size: 1.05em;
+    display: flex;
+    justify-content: space-between;
+}
+
+.order-summary strong {
+    color: var(--primary-blue);
+}
+
+.total-row {
+    margin-top: 15px;
+    padding-top: 10px;
+    border-top: 1px solid var(--border-color);
+    font-size: 1.3em !important;
+    font-weight: bold;
+}
+
+.total-amount {
     color: var(--accent-green);
 }
 
+/* 2. Opciones de Método de Pago */
+.payment-methods-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 20px;
+    margin-bottom: 30px;
+}
+
+.payment-method-option {
+    /* Ocultar el radio button nativo */
+    input[type="radio"] {
+        display: none;
+    }
+
+    label {
+        background-color: var(--input-bg);
+        border: 2px solid var(--border-color);
+        border-radius: 10px;
+        padding: 15px 10px;
+        cursor: pointer;
+        text-align: center;
+        transition: all 0.3s ease;
+        display: block;
+    }
+
+    label:hover {
+        border-color: var(--primary-blue);
+        box-shadow: 0 0 10px rgba(0, 123, 255, 0.3);
+    }
+
+    input[type="radio"]:checked + label {
+        border-color: var(--primary-blue);
+        background-color: rgba(0, 123, 255, 0.1);
+        box-shadow: 0 0 15px rgba(0, 123, 255, 0.5);
+    }
+
+    img {
+        max-width: 80px;
+        max-height: 40px;
+        display: block;
+        margin: 0 auto 5px;
+        object-fit: contain;
+    }
+
+    span {
+        display: block;
+        font-size: 0.9em;
+        font-weight: 600;
+        color: var(--text-color);
+    }
+}
+
+/* 3. Instrucciones y Campos de Pago */
 .payment-instructions {
-    background-color: var(--input-bg); /* Fondo más oscuro */
-    border: 1px solid var(--border-color);
-    border-radius: 8px;
+    background-color: var(--input-bg);
     padding: 20px;
-    margin-bottom: 25px;
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+    margin-bottom: 30px;
+}
+
+.payment-instructions h3 {
     text-align: left;
+    color: var(--accent-green);
+    margin-top: 0;
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 10px;
 }
 
-.payment-instructions p {
-    margin-bottom: 10px;
-    font-size: 0.95em;
+.payment-details-group {
+    margin-bottom: 20px;
+    padding: 15px;
+    border-radius: 6px;
+    background-color: var(--card-bg);
 }
 
-.payment-instructions code {
-    background-color: rgba(0, 123, 255, 0.1);
-    border-radius: 4px;
-    padding: 2px 6px;
-    font-family: 'Consolas', 'Courier New', monospace; /* Fuente monoespaciada */
-    color: var(--primary-blue);
+.detail-label {
+    display: block;
     font-weight: 600;
-    display: inline-block;
+    color: var(--secondary-text);
+    margin-bottom: 5px;
+    font-size: 0.9em;
+}
+
+.detail-value {
+    font-size: 1.1em;
+    font-weight: 700;
+    color: var(--text-color);
     word-break: break-all;
 }
 
-/* Specific styles for game recharge pages */
-.game-banner {
-    width: 100%;
-    height: 160px;
-    object-fit: cover;
-    border-radius: 10px;
-    margin-bottom: 25px;
-    border: 1px solid var(--border-color);
-    box-shadow: 0 3px 10px var(--shadow-dark);
-}
-
-.game-info {
-    text-align: center;
-    margin-bottom: 20px;
-}
-
-.game-info p {
-    font-size: 1em;
-    margin-bottom: 5px;
-}
-
-.game-info strong {
-    color: var(--accent-green);
-}
-
-/* Styles for Payment Selection page */
-.transaction-summary {
-    background-color: var(--input-bg); /* Fondo más oscuro */
-    border: 1px solid var(--border-color);
-    border-radius: 8px;
-    padding: 20px;
-    margin-bottom: 30px;
-    text-align: left;
-}
-
-.transaction-summary p {
-    margin-bottom: 10px;
-    font-size: 1.05em;
-}
-
-.transaction-summary strong {
-    color: var(--accent-green);
-}
-
-/* Styles for Info Pages (Privacy, Terms) */
-.info-page-main {
-    padding: 40px 20px;
-}
-
-.info-card {
-    text-align: left;
-}
-
-.info-card h2 {
-    text-align: center;
-    margin-bottom: 30px;
-}
-
-.info-card h3 {
-    color: var(--primary-blue);
-    margin-top: 25px;
-    margin-bottom: 12px;
-    font-size: 1.5em;
-}
-
-.info-card p {
-    margin-bottom: 15px;
-    font-size: 0.95em;
-    color: var(--text-color);
-}
-
-.info-card ul {
-    list-style-type: disc;
-    margin-left: 25px;
-    margin-bottom: 20px;
-    color: var(--text-color);
-}
-
-.info-card li {
-    margin-bottom: 8px;
-    font-size: 0.95em;
-}
-
-.info-card a {
-    color: var(--primary-blue);
-    text-decoration: none;
-}
-
-.info-card a:hover {
-    text-decoration: underline;
-}
-
-/* Añadido para el asterisco de requerido */
-.required-star {
-    color: red;
-    margin-left: 3px;
-    font-size: 0.85em;
-}
-
-/* Responsive Design */
-@media (max-width: 768px) {
-    header {
-        flex-direction: column;
-        gap: 15px;
-        padding: 15px; /* Ajuste para que tenga espacio a los lados */
-    }
-
-    .header-right {
-        flex-direction: column;
-        width: 100%;
-        max-width: 350px; /* Limitar el ancho máximo para centrar mejor en pantallas pequeñas */
-        margin: 0 auto; /* Centrar en pantallas pequeñas */
-        gap: 12px;
-    }
-
-    .search-bar, .custom-currency-selector {
-        width: 100%; /* Asegurar que ocupen todo el ancho de su contenedor (.header-right) */
-        max-width: none; /* Eliminar el max-width anterior si causa problemas aquí */
-    }
-
-    .search-bar input {
-        width: 100%;
-        padding: 10px 15px 10px 40px; /* Asegurar padding izquierdo para el ícono */
-        box-sizing: border-box; /* Para incluir padding en el 100% de ancho */
-    }
-
-    .custom-currency-selector {
-        min-width: unset; /* Permitir que se ajuste al contenido si es necesario */
-    }
-
-    .hero {
-        padding: 40px 15px;
-    }
-
-    .hero h1 {
-        font-size: 2.2em;
-    }
-
-    .hero p {
-        font-size: 1em;
-    }
-
-    .home-main h1 {
-        font-size: 1.8em;
-    }
-
-    .game-grid {
-        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-        gap: 20px;
-    }
-
-    .game-card img {
-        height: 140px;
-    }
-
-    .game-card h2 {
-        font-size: 1.3em;
-        margin: 15px 0 8px;
-    }
-
-    .game-card .game-description {
-        font-size: 0.9em;
-        margin: 0 10px 10px;
-    }
-
-    .form-container, .info-card, .payment-details-card {
-        margin: 30px 15px;
-        padding: 25px;
-    }
-
-    .form-container h2, .info-card h2, .payment-details-card h2 {
-        font-size: 1.8em;
-    }
-
-    .package-list {
-        grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); /* Ajuste para móviles */
-    }
-
-    .package-item, .payment-method-option {
-        padding: 15px;
-        font-size: 1em;
-    }
-
-    .payment-method-option label img { /* Eliminado el ajuste de i, ya que no se aplica a iconos en sí */
-        height: 35px; /* Ajuste de tamaño para logos de pago en tablets */
-        width: auto;
-    }
-
-    .footer-content {
-        padding: 0 20px; /* Ajustar padding para tablets */
-    }
-    .footer-links {
-        gap: 15px; /* Reducir un poco el gap para tablets */
-        max-width: 400px; /* Ajustar el max-width para tablets */
-    }
-}
-
-@media (max-width: 480px) {
-    header {
-        padding: 10px 15px; /* Reducir padding horizontal en móviles muy pequeños */
-    }
-
-    .logo-img {
-        max-height: 60px; /* Logo más pequeño en móviles muy pequeños */
-    }
-
-    .hero h1 {
-        font-size: 1.8em;
-        margin-bottom: 10px;
-    }
-
-    .hero p {
-        font-size: 0.95em;
-    }
-
-    .home-main h1 {
-        font-size: 1.6em;
-        margin-bottom: 20px;
-    }
-
-    .game-grid {
-        grid-template-columns: 1fr; /* Una columna en móviles muy pequeños */
-    }
-
-    footer {
-        padding: 15px; /* Reducir padding general del footer */
-    }
-    .footer-content {
-        padding: 0 15px; /* Asegurar padding en móviles muy pequeños */
-    }
-    .footer-links {
-        flex-direction: column;
-        gap: 8px; /* Reducir gap aún más cuando se apilan */
-        max-width: 250px; /* Un poco más estrecho para móviles muy pequeños */
-    }
-
-    .btn-primary {
-        width: 90%;
-        padding: 10px 18px;
-        font-size: 1em;
-    }
-
-    .form-container, .info-card, .payment-details-card {
-        padding: 20px;
-        margin: 20px 15px; /* Ajustar margen para pantallas muy pequeñas */
-    }
-    
-    .form-container h2, .info-card h2, .payment-details-card h2 {
-        font-size: 1.6em;
-    }
-
-    .package-item, .payment-method-option {
-        font-size: 0.95em;
-        padding: 12px;
-        min-height: unset; /* Permitir que la altura se ajuste al contenido */
-    }
-}
-
-/* ... (todo tu CSS anterior) ... */
-
-/* Estilos específicos para la página de Pago (payment.html) */
-
-/* Contenedor del botón de copiar y texto */
 .copy-container {
     display: flex;
     align-items: center;
-    gap: 10px; /* Espacio entre la etiqueta, el botón y el feedback */
-    flex-wrap: wrap; /* Permite que los elementos se envuelvan en pantallas pequeñas */
-    justify-content: flex-start; /* Alinea los elementos al inicio */
-    margin-bottom: 10px; /* Pequeño margen debajo del contenedor de copiar */
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-top: 5px;
 }
 
-/* La dirección de billetera que permanece oculta */
 .copy-container .wallet-address {
-    display: none; /* Oculta la dirección real */
+    /* Aquí se hace un truco para que el texto sea seleccionable pero no domine */
+    font-size: 0.8em;
+    color: var(--secondary-text);
+    max-width: 200px;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
 }
 
-/* Etiqueta "Dirección de Billetera BEP20:" */
-.address-label {
-    font-weight: 600; /* Hace la etiqueta más negrita */
-    color: var(--text-color); /* Usa tu color de texto principal */
-    font-size: 0.95em; /* Ligeramente más pequeño para no dominar */
-    white-space: nowrap; /* Evita que el texto se rompa */
-}
-
-/* Botón de copiar */
 .copy-button {
-    background: var(--button-gradient); /* Usa el gradiente de tus botones principales */
-    color: var(--white); /* Texto blanco para el botón */
+    background: var(--button-gradient);
+    color: var(--white);
     border: none;
-    padding: 8px 15px; /* Padding similar al de otros botones pequeños */
-    border-radius: 20px; /* Bordes más redondeados para que coincida con el estilo de botón */
+    padding: 8px 15px;
+    border-radius: 20px;
     cursor: pointer;
-    font-size: 0.9em; /* Tamaño de fuente ligeramente más pequeño */
-    font-weight: 600; /* Un poco más de peso para el texto */
-    transition: all 0.3s ease; /* Transición suave para hover */
-    box-shadow: 0 2px 8px var(--shadow-dark); /* Sombra similar a tus botones */
-    display: inline-flex; /* Permite alinear el texto y el posible ícono si se añade */
-    align-items: center;
-    gap: 5px; /* Espacio si hubiera un icono */
+    font-size: 0.9em;
+    font-weight: 600;
+    transition: all 0.3s ease;
 }
 
 .copy-button:hover {
-    background: var(--button-hover-gradient); /* Gradiente de hover de tus botones */
-    transform: translateY(-1px); /* Ligerísimo efecto de elevación */
-    box-shadow: 0 4px 12px var(--shadow-dark); /* Sombra más pronunciada en hover */
+    background: var(--button-hover-gradient);
+    transform: translateY(-1px);
 }
 
-.copy-button:active {
-    transform: translateY(0); /* Vuelve a la posición normal al hacer clic */
-    box-shadow: 0 1px 5px var(--shadow-dark); /* Sombra más pequeña al hacer clic */
-}
-
-
-/* Mensaje de feedback "¡Copiado!" */
-.copy-feedback {
-    display: none; /* Oculto por defecto, se muestra con JS */
-    margin-left: 10px;
-    color: var(--accent-green); /* Usa tu verde de acento para el éxito */
-    font-size: 0.9em;
-    font-weight: bold;
-    white-space: nowrap; /* Evita que se rompa el mensaje */
-}
-
-/* Asegúrate de que los estilos específicos de .payment-details-card
-   no entren en conflicto con .copy-container.
-   Puedes añadir un margen inferior si el copy-container no lo tiene ya.
-*/
-.payment-details-card ul {
-    list-style: none; /* Quita los puntos de lista predeterminados */
-    padding: 0; /* Elimina el padding predeterminado */
-    margin: 0; /* Elimina el margen predeterminado */
-}
-
-.payment-details-card ul li {
-    margin-bottom: 8px; /* Espacio entre los elementos de la lista */
-}
-
-/* Ajustes para que los campos de referencia no afecten el espaciado
-   cuando se muestran o se ocultan dinámicamente */
 .payment-fields-container {
-    margin-top: 20px; /* Espacio por encima de los campos de referencia */
+    margin-top: 25px;
     padding-top: 15px;
     border-top: 1px solid var(--border-color); /* Línea divisoria */
 }
@@ -1137,137 +674,27 @@ footer p {
     margin-bottom: 15px;
 }
 
-/* Responsive adjustments */
-@media (max-width: 480px) {
-    .copy-container {
-        flex-direction: column; /* Apila la etiqueta y el botón en pantallas muy pequeñas */
-        align-items: flex-start; /* Alinea los elementos apilados a la izquierda */
-        gap: 8px; /* Reduce el espacio entre elementos apilados */
-    }
-    .copy-button {
-        width: auto; /* Permite que el botón se ajuste a su contenido */
-        padding: 8px 12px;
-        font-size: 0.85em;
-    }
-    .address-label, .copy-feedback {
-        font-size: 0.85em;
-    }
+.payment-form button {
+    margin-top: 20px;
+    width: 100%;
 }
 
-/* 1. Contenedor de las tarjetas (Grid/Flex) */
-.product-grid {
-    display: grid;
-    /* Esto crea 4 columnas en escritorios. Ajusta si deseas menos/más */
-    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); 
-    gap: 20px; /* Espacio entre las tarjetas */
-    padding: 20px 0;
-}
-
-/* 2. Estilo de la Tarjeta de Juego (El contenedor <a>) */
-.game-card {
-    display: flex; /* Usamos flexbox dentro de la tarjeta */
-    flex-direction: column;
+.success-message {
     text-align: center;
-    background-color: var(--card-bg);
-    border-radius: 8px;
-    overflow: hidden; /* Importante para que la imagen no se salga */
-    text-decoration: none;
-    color: var(--text-color);
-    transition: transform 0.3s ease, box-shadow 0.3s ease;
-    min-height: 340px; /* Ayuda a que todas las tarjetas tengan una altura mínima consistente */
-}
-
-.game-card:hover {
-    transform: translateY(-5px);
-    box-shadow: 0 10px 20px var(--shadow-dark);
-}
-
-/* 3. Corrección de la Imagen (¡El punto más importante!) */
-.game-card img {
-    /* 100% del ancho de la tarjeta */
-    width: 100%; 
-    /* Altura definida o limitada para que no se estire demasiado */
-    height: 180px; 
-    /* **LA SOLUCIÓN A LA DISTORSIÓN:** Asegura que la imagen cubra el área sin estirarse, recortando si es necesario */
-    object-fit: contain; 
-    /* Esquinas redondeadas en la parte superior de la imagen */
-    border-top-left-radius: 8px; 
-    border-top-right-radius: 8px;
-    margin-bottom: 10px; /* Espacio entre la imagen y el texto */
-}
-
-/* 4. Estilo del texto */
-.game-card h2 {
-    font-size: 1.1em;
-    margin: 0 10px 5px;
-}
-
-.game-description {
-    font-size: 0.85em;
-    color: var(--secondary-text);
-    padding: 0 10px 10px;
-    /* Limita el número de líneas para mantener la consistencia */
-    display: -webkit-box;
-    -webkit-line-clamp: 3;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-/* Ajuste Responsive para que las tarjetas no sean demasiado pequeñas */
-@media (max-width: 600px) {
-    .product-grid {
-        /* En móviles, solo 2 columnas */
-        grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); 
-        gap: 15px;
-    }
-    .game-card {
-        min-height: 250px;
-    }
-}
-
-/* ==================================== */
-/* === ESTILOS DEL CARRITO DE COMPRAS === */
-/* ==================================== */
-
-.cart-icon-link {
-    /* Estilos base */
-    position: relative;
-    display: inline-flex; /* Para alinear el ícono y el contador */
-    align-items: center;
-    justify-content: center;
-    padding: 10px;
-    color: var(--text-color);
+    color: var(--accent-green);
     font-size: 1.5em;
-    text-decoration: none;
-    transition: color 0.3s ease;
-}
-
-.cart-icon-link:hover {
-    color: var(--accent-green); /* Verde de acento al pasar el ratón */
-}
-
-.cart-count {
-    /* Contador flotante */
-    position: absolute;
-    top: 0px; /* Ajusta la posición superior */
-    right: 0px; /* Ajusta la posición derecha */
-    background-color: var(--accent-green);
-    color: var(--bg-color); /* Texto oscuro para contraste */
-    border-radius: 50%;
-    padding: 2px 0px;
-    font-size: 0.5em;
     font-weight: bold;
-    min-width: 20px;
-    text-align: center;
-    line-height: 1.2;
+    padding: 40px;
+    border: 2px solid var(--accent-green);
+    border-radius: 12px;
+    display: none; /* Inicialmente oculto */
 }
 
 /* ==================================== */
-/* === ESTILOS DEL PANEL DEL CARRITO === */
+/* === ESTILOS DEL CARRITO DE COMPRAS (SIDEBAR) === */
 /* ==================================== */
 
-/* 1. Overlay (Fondo oscuro transparente) */
+/* 1. Fondo Oscuro */
 .cart-overlay {
     position: fixed;
     top: 0;
@@ -1275,51 +702,52 @@ footer p {
     width: 100%;
     height: 100%;
     background-color: rgba(0, 0, 0, 0.7);
-    z-index: 1000; /* Asegura que esté sobre todo */
-    opacity: 0;
+    z-index: 1050; /* Más alto que el header */
     visibility: hidden;
+    opacity: 0;
     transition: opacity 0.3s ease, visibility 0.3s ease;
 }
 
 .cart-overlay.open {
-    opacity: 1;
     visibility: visible;
+    opacity: 1;
 }
 
-/* 2. Sidebar (El panel lateral) */
+/* 2. Barra Lateral */
 .cart-sidebar {
     position: fixed;
     top: 0;
     right: 0;
-    width: 100%;
-    max-width: 380px; /* Ancho máximo para el panel */
+    width: 350px; /* Ancho cómodo */
+    max-width: 90%; /* Máximo en móviles */
     height: 100%;
     background-color: var(--card-bg);
-    z-index: 1001;
-    box-shadow: -5px 0 15px rgba(0, 0, 0, 0.5);
-    transform: translateX(100%); /* Oculto por defecto fuera de pantalla */
-    transition: transform 0.3s ease-out;
+    box-shadow: -5px 0 15px var(--shadow-dark);
+    z-index: 1100;
+    transform: translateX(100%); /* Inicialmente fuera de la vista */
+    transition: transform 0.3s ease;
     display: flex;
     flex-direction: column;
 }
 
 .cart-sidebar.open {
-    transform: translateX(0); /* Muestra el panel */
+    transform: translateX(0); /* Desliza para mostrar */
 }
 
-/* 3. Estructura interna */
+/* 3. Header del Carrito */
 .cart-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 15px 20px;
+    padding: 20px;
     border-bottom: 1px solid var(--border-color);
 }
 
 .cart-header h2 {
     margin: 0;
     font-size: 1.5em;
-    color: var(--accent-green);
+    color: var(--text-color);
+    text-shadow: none;
 }
 
 .close-btn {
@@ -1328,12 +756,18 @@ footer p {
     color: var(--secondary-text);
     font-size: 2em;
     cursor: pointer;
+    line-height: 1;
     padding: 0;
+    transition: color 0.2s;
 }
 
-/* 4. Contenedor de ítems (Scrollable) */
+.close-btn:hover {
+    color: var(--primary-blue);
+}
+
+/* 4. Contenedor de Ítems (Scrollable) */
 .cart-items {
-    flex-grow: 1; /* Permite que el contenido ocupe el espacio restante */
+    flex-grow: 1;
     padding: 20px;
     overflow-y: auto; /* Permite hacer scroll si hay muchos ítems */
 }
@@ -1343,9 +777,12 @@ footer p {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 10px 0;
+    padding: 15px 0;
     border-bottom: 1px dashed var(--border-color);
-    font-size: 0.95em;
+}
+
+.cart-item:last-child {
+    border-bottom: none;
 }
 
 .cart-item-details {
@@ -1354,21 +791,29 @@ footer p {
 
 .cart-item-details strong {
     display: block;
-    color: var(--text-color);
+    font-size: 1em;
+    margin-bottom: 2px;
 }
 
 .cart-item-details span {
-    color: var(--secondary-text);
+    display: block;
     font-size: 0.85em;
+    color: var(--secondary-text);
+}
+
+.cart-item-price {
+    font-weight: bold;
+    color: var(--text-color);
+    margin-left: 15px;
 }
 
 .remove-item-btn {
-    background-color: transparent;
+    background: none;
     border: none;
     color: #ff4d4d; /* Rojo para eliminar */
-    cursor: pointer;
     font-size: 1.2em;
-    margin-left: 15px;
+    cursor: pointer;
+    margin-left: 10px;
     transition: color 0.2s;
 }
 
@@ -1376,7 +821,7 @@ footer p {
     color: #ff0000;
 }
 
-/* 6. Footer del carrito (Total y Botón) */
+/* 6. Footer del Carrito (Total y Checkout) */
 .cart-footer {
     padding: 20px;
     border-top: 1px solid var(--border-color);
@@ -1419,20 +864,152 @@ footer p {
     /* Usando el gradiente que ya tienes definido */
     background: var(--button-gradient); 
     transition: background 0.3s ease, transform 0.1s;
-    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4);
+    box-shadow: 0 4px 10px var(--shadow-dark);
 }
 
 #proceed-to-checkout-btn:hover:not(:disabled) {
-    background: var(--hover-blue); /* Transición a un color sólido o gradiente más intenso */
-    transform: translateY(-2px);
-    box-shadow: 0 6px 12px var(--shadow-dark);
+    background: var(--button-hover-gradient);
+    transform: translateY(-1px);
 }
 
-/* Estilo para cuando el carrito está vacío */
 #proceed-to-checkout-btn:disabled {
-    background-color: var(--border-color); 
+    background: var(--border-color);
     cursor: not-allowed;
-    opacity: 0.6;
     box-shadow: none;
-    transform: none;
+    opacity: 0.6;
+}
+
+/* ==================================== */
+/* === FOOTER === */
+/* ==================================== */
+
+footer {
+    background-color: var(--card-bg);
+    padding: 20px;
+    border-top: 1px solid var(--border-color);
+    text-align: center;
+    margin-top: auto; /* Empuja el footer hacia abajo */
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.footer-content {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    max-width: 1000px;
+    margin: 0 auto;
+}
+
+.footer-links {
+    display: flex;
+    gap: 25px;
+}
+
+.footer-links a {
+    color: var(--secondary-text);
+    text-decoration: none;
+    font-size: 0.9em;
+    transition: color 0.3s ease;
+}
+
+.footer-links a:hover {
+    color: var(--primary-blue);
+}
+
+.whatsapp-link {
+    color: var(--accent-green);
+    text-decoration: none;
+    font-weight: 600;
+    transition: color 0.3s ease;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.whatsapp-link:hover {
+    color: #218838; /* Un verde más oscuro */
+}
+
+/* ==================================== */
+/* === Responsive Design === */
+/* ==================================== */
+
+@media (max-width: 768px) {
+    header {
+        flex-direction: column;
+        gap: 15px;
+        padding: 15px 20px;
+    }
+
+    .header-right {
+        gap: 10px;
+        flex-basis: 100%;
+        justify-content: space-between;
+    }
+    
+    .search-bar {
+        flex-grow: 1; /* Permite que la barra de búsqueda ocupe más espacio */
+    }
+
+    .search-bar input {
+        width: 100%; /* Ocupa el 100% del espacio disponible */
+    }
+
+    .custom-currency-selector {
+        min-width: 100px; /* Reducir el ancho mínimo en móviles */
+    }
+
+    .footer-content {
+        flex-direction: column;
+        gap: 15px;
+    }
+
+    .footer-links {
+        gap: 15px;
+    }
+    
+    /* Carrusel de pago en móviles */
+    .payment-methods-container {
+         grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+         gap: 10px;
+    }
+    
+    .cart-sidebar {
+        width: 100%; /* Ocupa todo el ancho en móviles */
+    }
+    
+    .payment-details-card, .form-container {
+        margin: 20px 10px;
+        padding: 25px;
+    }
+}
+
+@media (max-width: 600px) {
+    .product-grid {
+        /* En móviles, solo 2 columnas */
+        grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+        gap: 15px;
+    }
+    
+    .game-card {
+        min-height: 250px;
+    }
+    
+    .recharge-form-card {
+        padding: 20px;
+    }
+    
+    .package-options {
+         grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+         gap: 10px;
+    }
+}
+
+@media (max-width: 400px) {
+    .product-grid {
+        /* En móviles muy pequeños, 1 sola columna */
+        grid-template-columns: 1fr;
+    }
 }
