@@ -2,317 +2,166 @@
 
 // 🎯 FUNCIÓN PARA CARGAR Y APLICAR LA CONFIGURACIÓN DE COLORES
 async function applySiteConfig() {
-    try {
-        // Llama a la Netlify Function que lee Supabase
-        const response = await fetch('/.netlify/functions/get-site-config');
-        
-        if (!response.ok) {
-            throw new Error(`Error ${response.status}: No se pudo cargar la configuración del sitio.`);
-        }
+    try {
+        // Llama a la Netlify Function que lee Supabase
+        const response = await fetch('/.netlify/functions/get-site-config');
+        
+        if (!response.ok) {
+            throw new Error(`Error ${response.status}: No se pudo cargar la configuración del sitio.`);
+        }
 
-        const config = await response.json();
-        
-        // Aplicar las variables CSS al :root (document.documentElement es el <html>)
-        for (const [key, value] of Object.entries(config)) {
-            // Solo aplica variables que tienen el prefijo --
-            if (value && key.startsWith('--')) {
-                document.documentElement.style.setProperty(key, value);
-            }
-        }
-        
-    } catch (error) {
-        console.error('[CLIENTE] Error al aplicar configuración de colores:', error.message);
-        // Si falla, el sitio seguirá usando los colores por defecto definidos en style.css
-    }
+        const config = await response.json();
+        
+        // Aplicar las variables CSS al :root (document.documentElement es el <html>)
+        for (const [key, value] of Object.entries(config)) {
+            // Solo aplica variables que tienen el prefijo --
+            if (value && key.startsWith('--')) {
+                document.documentElement.style.setProperty(key, value);
+            }
+        }
+        
+    } catch (error) {
+        console.error('[CLIENTE] Error al aplicar configuración de colores:', error.message);
+        // Si falla, el sitio seguirá usando los colores por defecto definidos en style.css
+    }
 }
 
 
 // ====================================
-// 🎯 LÓGICA CENTRAL DEL CARRITO DE COMPRAS (GLOBAL Y MODIFICADA)
+// 🎯 LÓGICA CENTRAL DEL CARRITO DE COMPRAS (GLOBAL)
 // Estas funciones DEBEN estar fuera de DOMContentLoaded para que otros scripts las usen.
 // ====================================
 
 /** Obtiene el carrito del localStorage o un array vacío si no existe. */
 function getCart() {
-    try {
-        const cart = localStorage.getItem('shoppingCart');
-        return cart ? JSON.parse(cart) : [];
-    } catch (e) {
-        console.error("Error al obtener el carrito:", e);
-        return [];
-    }
-}
-
-/** Elimina un ítem específico del carrito (NUEVO). */
-function removeItemFromCart(itemId) {
-    let cart = getCart();
-    // Filtra el carrito, manteniendo solo los ítems cuyo ID no coincide con el ítem a eliminar
-    const newCart = cart.filter(item => item.id !== itemId);
-    saveCart(newCart);
-}
-
-/** * Actualiza el número de ítems en el ícono del carrito Y renderiza el panel (MODIFICADO).
- * Reemplaza la antigua updateCartCount.
- */
-function updateCartUI() {
-    const cart = getCart();
-    const container = document.getElementById('cart-items-container');
-    const countElement = document.getElementById('cart-count');
-    const totalAmountElement = document.getElementById('cart-total-amount');
-    const totalCurrencyElement = document.getElementById('cart-total-currency');
-    const emptyMessage = document.getElementById('cart-empty-message');
-    const checkoutBtn = document.getElementById('proceed-to-checkout-btn');
-    
-    // 1. Actualizar contador de la cabecera
-    if (countElement) {
-        countElement.textContent = cart.length.toString();
+    try {
+        const cart = localStorage.getItem('shoppingCart');
+        return cart ? JSON.parse(cart) : [];
+    } catch (e) {
+        console.error("Error al obtener el carrito:", e);
+        return [];
     }
-
-    // Salir si no encontramos los elementos del panel (ej. si no estamos en index.html/product.html)
-    if (!container || !totalAmountElement || !checkoutBtn) return;
-    
-    // 2. Limpiar e inyectar ítems
-    container.innerHTML = ''; // Limpiar
-
-    // Determinar la moneda para el cálculo y visualización
-    const selectedCurrency = localStorage.getItem('selectedCurrency') || 'VES';
-    const currencySymbol = selectedCurrency === 'VES' ? 'Bs.' : '$';
-    
-    // Si la página tiene el emptyMessage (es decir, tiene el sidebar)
-    if (emptyMessage) {
-        if (cart.length === 0) {
-            // Mostrar mensaje de vacío
-            emptyMessage.style.display = 'block';
-            container.appendChild(emptyMessage);
-            totalAmountElement.textContent = `${currencySymbol} 0.00`;
-            if (totalCurrencyElement) totalCurrencyElement.textContent = selectedCurrency;
-            checkoutBtn.disabled = true;
-            return;
-        }
-
-        emptyMessage.style.display = 'none'; // Ocultar mensaje de vacío
-    }
-
-    checkoutBtn.disabled = false;
-    
-    let total = 0;
-
-    cart.forEach(item => {
-        // Usamos el precio final que se calculó al añadir al carrito
-        const price = parseFloat(item.finalPrice || 0); 
-        total += price;
-        
-        const itemElement = document.createElement('div');
-        itemElement.classList.add('cart-item');
-        
-        const itemHtml = `
-            <div class="cart-item-details">
-                <strong>${item.game} - ${item.packageName}</strong>
-                <span>ID: ${item.playerId || 'N/A'}</span>
-            </div>
-            <div class="cart-item-price">
-                ${currencySymbol} ${price.toFixed(2)}
-            </div>
-            <button class="remove-item-btn" data-item-id="${item.id}">&times;</button>
-        `;
-        itemElement.innerHTML = itemHtml;
-        container.appendChild(itemElement);
-    });
-    
-    // 3. Actualizar Total y Moneda
-    if (totalCurrencyElement) totalCurrencyElement.textContent = selectedCurrency;
-    totalAmountElement.textContent = `${currencySymbol} ${total.toFixed(2)}`;
-    
-    // 4. Adjuntar eventos para eliminar ítems
-    container.querySelectorAll('.remove-item-btn').forEach(button => {
-        button.addEventListener('click', (e) => {
-            const itemId = parseInt(e.currentTarget.dataset.itemId);
-            removeItemFromCart(itemId); 
-        });
-    });
 }
 
-/** Guarda el carrito en el localStorage y actualiza la UI (MODIFICADO para llamar a la nueva función). */
+/** Guarda el carrito en el localStorage y actualiza el contador. */
 function saveCart(cart) {
-    try {
-        localStorage.setItem('shoppingCart', JSON.stringify(cart));
-        updateCartUI(); // LLAMA A LA NUEVA FUNCIÓN QUE MANEJA EL CONTADOR Y EL SIDEBAR
-    } catch (e) {
-        console.error("Error al guardar el carrito:", e);
-    }
+    try {
+        localStorage.setItem('shoppingCart', JSON.stringify(cart));
+        updateCartCount(); // Actualiza el contador después de guardar
+    } catch (e) {
+        console.error("Error al guardar el carrito:", e);
+    }
 }
-// NOTA: La antigua función updateCartCount fue eliminada porque updateCartUI la reemplaza.
+
+/** Actualiza el número de ítems en el ícono del carrito. */
+function updateCartCount() {
+    const cart = getCart();
+    const cartCountElement = document.getElementById('cart-count');
+    if (cartCountElement) {
+        // Muestra el total de items en el carrito
+        cartCountElement.textContent = cart.length.toString();
+        // Opcional: Ocultar si está vacío
+        // cartCountElement.style.display = cart.length > 0 ? 'block' : 'none';
+    }
+}
 
 
 document.addEventListener('DOMContentLoaded', () => {
-    // Aplicar la configuración de colores al inicio
-    // applySiteConfig(); 
+    // Aplicar la configuración de colores al inicio
+    // applySiteConfig(); 
 
-    // ---- Lógica para el nuevo selector de moneda personalizado (CON DEBUG LOGS) ----
-    const customCurrencySelector = document.getElementById('custom-currency-selector');
-    const selectedCurrencyDisplay = document.getElementById('selected-currency');
-    const currencyOptionsContainer = document.getElementById('currency-options');
-    let selectedCurrency = localStorage.getItem('selectedCurrency') || 'VES'; // Moneda por defecto
+    // ---- Lógica para el nuevo selector de moneda personalizado ----
+    const customCurrencySelector = document.getElementById('custom-currency-selector');
+    const selectedCurrencyDisplay = document.getElementById('selected-currency');
+    const currencyOptionsContainer = document.getElementById('currency-options');
+    let selectedCurrency = localStorage.getItem('selectedCurrency') || 'VES'; // Moneda por defecto
 
-    // LOGS DE DEBUG: Elementos y Estado Inicial
-    console.log('-------------------------------------------');
-    console.log('[MONEDA DEBUG] selectedCurrency al inicio:', selectedCurrency);
-    console.log('[MONEDA DEBUG] customCurrencySelector:', customCurrencySelector ? 'Encontrado' : 'NO ENCONTRADO');
-    console.log('[MONEDA DEBUG] selectedCurrencyDisplay:', selectedCurrencyDisplay ? 'Encontrado' : 'NO ENCONTRADO');
-    console.log('[MONEDA DEBUG] currencyOptionsContainer:', currencyOptionsContainer ? 'Encontrado' : 'NO ENCONTRADO');
-    console.log('-------------------------------------------');
-    
-    // Asegurarse de que todos los elementos existen antes de adjuntar listeners
-    if (!customCurrencySelector || !selectedCurrencyDisplay || !currencyOptionsContainer) {
-        console.error('[MONEDA DEBUG] Faltan elementos clave del selector de moneda. El selector no funcionará.');
-        return; // Salir si los elementos no están en el DOM
+    // Inicializar la visualización de la moneda
+    function updateCurrencyDisplay() {
+        const option = currencyOptionsContainer.querySelector(`[data-value="${selectedCurrency}"]`);
+        if (option) {
+            selectedCurrencyDisplay.innerHTML = option.innerHTML;
+        }
+        localStorage.setItem('selectedCurrency', selectedCurrency);
+        // Disparar evento para que otras partes del código reaccionen
+        // NOTA: Se usa 'currencyChange' para ser consistente con el listener en load-product-details.js
+        window.dispatchEvent(new CustomEvent('currencyChange', { detail: { currency: selectedCurrency } }));
     }
 
+    // Toggle para mostrar/ocultar las opciones
+    if (selectedCurrencyDisplay) {
+        selectedCurrencyDisplay.addEventListener('click', () => {
+            currencyOptionsContainer.classList.toggle('open');
+        });
+    }
 
-    // Inicializar la visualización de la moneda
-    function updateCurrencyDisplay() {
-        console.log(`[MONEDA DEBUG] Ejecutando updateCurrencyDisplay. Moneda: ${selectedCurrency}`);
+    // Manejar la selección de una opción
+    if (currencyOptionsContainer) {
+        currencyOptionsContainer.querySelectorAll('.option').forEach(option => {
+            option.addEventListener('click', () => {
+                selectedCurrency = option.dataset.value;
+                updateCurrencyDisplay();
+                currencyOptionsContainer.classList.remove('open');
+            });
+        });
         
-        const option = currencyOptionsContainer.querySelector(`[data-value="${selectedCurrency}"]`);
-        
-        if (!option) {
-             console.error('[MONEDA DEBUG] Error: No se encontró la opción de moneda en el HTML:', selectedCurrency);
-        }
+        // Cerrar al hacer clic fuera
+        document.addEventListener('click', (e) => {
+            if (customCurrencySelector && !customCurrencySelector.contains(e.target)) {
+                currencyOptionsContainer.classList.remove('open');
+            }
+        });
+    }
 
-        if (option) {
-            selectedCurrencyDisplay.innerHTML = option.innerHTML;
-            console.log(`[MONEDA DEBUG] Display actualizado a: ${selectedCurrency}`);
-        }
-        localStorage.setItem('selectedCurrency', selectedCurrency);
-        
-        // Disparar evento para que otras partes del código reaccionen
-        const eventDetail = { currency: selectedCurrency };
-        window.dispatchEvent(new CustomEvent('currencyChange', { detail: eventDetail }));
-        console.log(`[MONEDA DEBUG] Evento 'currencyChange' disparado con detail:`, eventDetail);
-    }
-
-    // Toggle para mostrar/ocultar las opciones
-    if (selectedCurrencyDisplay) {
-        selectedCurrencyDisplay.addEventListener('click', () => {
-            console.log('[MONEDA DEBUG] Click en selectedCurrencyDisplay. Abriendo/Cerrando opciones.');
-            currencyOptionsContainer.classList.toggle('open');
-        });
-    }
-
-    // Manejar la selección de una opción
-    if (currencyOptionsContainer) {
-        currencyOptionsContainer.querySelectorAll('.option').forEach(option => {
-            option.addEventListener('click', () => {
-                const newValue = option.dataset.value;
-                console.log(`[MONEDA DEBUG] Opción clickeada. Nuevo valor: ${newValue}`);
-
-                selectedCurrency = newValue;
-                updateCurrencyDisplay();
-                currencyOptionsContainer.classList.remove('open');
-            });
-        });
-        
-        // Cerrar al hacer clic fuera
-        document.addEventListener('click', (e) => {
-            if (customCurrencySelector && !customCurrencySelector.contains(e.target)) {
-                if (currencyOptionsContainer.classList.contains('open')) {
-                    console.log('[MONEDA DEBUG] Click fuera del selector. Cerrando opciones.');
-                }
-                currencyOptionsContainer.classList.remove('open');
-            }
-        });
-    }
-
-    // Inicializar la visualización de la moneda al cargar
-    console.log('[MONEDA DEBUG] Llamando a updateCurrencyDisplay al cargar.');
-    updateCurrencyDisplay();
+    // Inicializar la visualización de la moneda al cargar
+    updateCurrencyDisplay();
 
 
-    // ---- Lógica para la barra de búsqueda (Solo filtrado en la misma página) ----
-    const searchInput = document.querySelector('.search-bar input');
-    const productGrid = document.getElementById('product-grid'); 
+    // ---- Lógica para la barra de búsqueda (Solo filtrado en la misma página) ----
+    const searchInput = document.querySelector('.search-bar input');
+    const productGrid = document.getElementById('product-grid'); 
 
-    if (searchInput) { 
-        searchInput.addEventListener('input', () => { 
-            const searchTerm = searchInput.value.toLowerCase();
+    if (searchInput) { 
+        searchInput.addEventListener('input', () => { 
+            const searchTerm = searchInput.value.toLowerCase();
 
-            if (productGrid) {
-                const gameCards = productGrid.querySelectorAll('.game-card'); 
+            if (productGrid) {
+                const gameCards = productGrid.querySelectorAll('.game-card'); 
 
-                gameCards.forEach(card => {
-                    const titleElement = card.querySelector('h2');
-                    if (titleElement) {
-                        const title = titleElement.textContent.toLowerCase();
-                        if (title.includes(searchTerm)) {
-                            card.style.display = ''; 
-                        } else {
-                            card.style.display = 'none'; 
-                        }
-                    }
-                });
-            }
-        });
-    }
+                gameCards.forEach(card => {
+                    const titleElement = card.querySelector('h2');
+                    if (titleElement) {
+                        const title = titleElement.textContent.toLowerCase();
+                        if (title.includes(searchTerm)) {
+                            card.style.display = ''; 
+                        } else {
+                            card.style.display = 'none'; 
+                        }
+                    }
+                });
+            }
+        });
+    }
 
     // ====================================
-    // 🎯 LÓGICA DEL ÍCONO DEL CARRITO (SIDEBAR - NUEVO)
+    // 🎯 LÓGICA DEL ÍCONO DEL CARRITO
     // ====================================
 
-    // 1. Inicializar la UI del carrito al cargar
-    updateCartUI(); 
+    // 1. Inicializar el contador del carrito al cargar
+    updateCartCount();
     
-    // Referencias a los nuevos elementos del panel
+    // 2. Manejar clic en el ícono del carrito
     const cartIconLink = document.getElementById('cart-icon-link');
-    const sidebar = document.getElementById('cart-sidebar');
-    const overlay = document.getElementById('cart-overlay');
-    const closeBtn = document.getElementById('close-cart-btn');
-    const checkoutBtn = document.getElementById('proceed-to-checkout-btn');
-
-    // Función para abrir el carrito
-    function openCart() {
-        if (sidebar && overlay) {
-            sidebar.classList.add('open');
-            overlay.classList.add('open');
-            updateCartUI(); // Asegura que los datos estén frescos al abrir
-        }
-    }
-
-    // Función para cerrar el carrito
-    function closeCart() {
-        if (sidebar && overlay) {
-            sidebar.classList.remove('open');
-            overlay.classList.remove('open');
-        }
-    }
-
-    // 2. Manejar clic en el ícono del carrito para ABRIR
     if (cartIconLink) {
         cartIconLink.addEventListener('click', (e) => {
              e.preventDefault();
-             openCart();
-        });
-    }
-    
-    // 3. Manejar clic en el botón de CERRAR y el OVERLAY
-    if (closeBtn) {
-        closeBtn.addEventListener('click', closeCart);
-    }
-    if (overlay) {
-        overlay.addEventListener('click', closeCart);
-    }
-    
-    // 4. Manejar clic en el botón PROCEDER AL PAGO
-    if (checkoutBtn) {
-        checkoutBtn.addEventListener('click', (e) => {
-            e.preventDefault();
-            const cart = getCart();
-            if (cart.length > 0) {
-                // Redirige a la página de pago con el flag
-                window.location.href = 'payment.html?mode=cart';
-            } else {
-                alert('Tu carrito está vacío.');
-                checkoutBtn.disabled = true;
-            }
+             const cart = getCart(); 
+             if (cart.length === 0) {
+                 alert('Tu carrito está vacío. ¡Agrega una recarga primero!');
+             } else {
+                 // Redirige a payment.html con un flag para indicar que viene del carrito.
+                 window.location.href = 'payment.html?mode=cart';
+             }
         });
     }
 });
