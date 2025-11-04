@@ -4,6 +4,7 @@
 async function applySiteConfig() {
     try {
         // Llama a la Netlify Function que lee Supabase
+        // (Asegúrate de que esta función esté implementada en netlify/functions/get-site-config.js)
         const response = await fetch('/.netlify/functions/get-site-config');
         
         if (!response.ok) {
@@ -27,141 +28,94 @@ async function applySiteConfig() {
 }
 
 
-// ====================================
-// 🎯 LÓGICA CENTRAL DEL CARRITO DE COMPRAS (GLOBAL)
-// Estas funciones DEBEN estar fuera de DOMContentLoaded para que otros scripts las usen.
-// ====================================
-
-/** Obtiene el carrito del localStorage o un array vacío si no existe. */
-function getCart() {
-    try {
-        const cart = localStorage.getItem('shoppingCart');
-        return cart ? JSON.parse(cart) : [];
-    } catch (e) {
-        console.error("Error al obtener el carrito:", e);
-        return [];
-    }
-}
-
-/** Guarda el carrito en el localStorage y actualiza el contador. */
-function saveCart(cart) {
-    try {
-        localStorage.setItem('shoppingCart', JSON.stringify(cart));
-        updateCartCount(); // Actualiza el contador después de guardar
-    } catch (e) {
-        console.error("Error al guardar el carrito:", e);
-    }
-}
-
-/** Actualiza el número de ítems en el ícono del carrito. */
-function updateCartCount() {
-    const cart = getCart();
-    const cartCountElement = document.getElementById('cart-count');
-    if (cartCountElement) {
-        // Muestra el total de items en el carrito
-        cartCountElement.textContent = cart.length.toString();
-        // Opcional: Ocultar si está vacío
-        // cartCountElement.style.display = cart.length > 0 ? 'block' : 'none';
-    }
-}
-
-
 document.addEventListener('DOMContentLoaded', () => {
-    // Aplicar la configuración de colores al inicio
-    // applySiteConfig(); 
+    // ---- Lógica para el nuevo selector de moneda personalizado ----
+    const customCurrencySelector = document.getElementById('custom-currency-selector');
+    const selectedCurrencyDisplay = document.getElementById('selected-currency');
+    const currencyOptionsDiv = document.getElementById('currency-options');
+    // Asegurarse de que currencyOptionsDiv exista antes de intentar usar querySelectorAll
+    const currencyOptions = currencyOptionsDiv ? currencyOptionsDiv.querySelectorAll('.option') : [];
 
-    // ---- Lógica para el nuevo selector de moneda personalizado ----
-    const customCurrencySelector = document.getElementById('custom-currency-selector');
-    const selectedCurrencyDisplay = document.getElementById('selected-currency');
-    const currencyOptionsContainer = document.getElementById('currency-options');
-    let selectedCurrency = localStorage.getItem('selectedCurrency') || 'VES'; // Moneda por defecto
+    // Función para actualizar la UI del selector y guardar la moneda
+    function updateCurrencyDisplay(value, text, imgSrc) {
+        if (selectedCurrencyDisplay) { // Verificar si el elemento existe
+            selectedCurrencyDisplay.innerHTML = `<img src="${imgSrc}" alt="${text.split(' ')[2] ? text.split(' ')[2].replace(/[()]/g, '') : 'Flag'}"> <span>${text}</span> <i class="fas fa-chevron-down"></i>`;
+        }
+        localStorage.setItem('selectedCurrency', value);
+        // Dispatch custom event for other pages to listen
+        window.dispatchEvent(new CustomEvent('currencyChanged', { detail: { currency: value } }));
+    }
 
-    // Inicializar la visualización de la moneda
-    function updateCurrencyDisplay() {
-        const option = currencyOptionsContainer.querySelector(`[data-value="${selectedCurrency}"]`);
-        if (option) {
-            selectedCurrencyDisplay.innerHTML = option.innerHTML;
-        }
-        localStorage.setItem('selectedCurrency', selectedCurrency);
-        // Disparar evento para que otras partes del código reaccionen
-        // NOTA: Se usa 'currencyChange' para ser consistente con el listener en load-product-details.js
-        window.dispatchEvent(new CustomEvent('currencyChange', { detail: { currency: selectedCurrency } }));
-    }
+    // Inicializar el selector con la moneda guardada o por defecto
+    const savedCurrency = localStorage.getItem('selectedCurrency') || 'VES'; // Por defecto VES
+    let initialText = 'Bs. (VES)';
+    let initialImgSrc = 'images/flag_ve.png';
 
-    // Toggle para mostrar/ocultar las opciones
-    if (selectedCurrencyDisplay) {
-        selectedCurrencyDisplay.addEventListener('click', () => {
-            currencyOptionsContainer.classList.toggle('open');
-        });
-    }
+    if (savedCurrency === 'USD') {
+        initialText = '$ (USD)';
+        initialImgSrc = 'images/flag_us.png';
+    }
+    updateCurrencyDisplay(savedCurrency, initialText, initialImgSrc);
 
-    // Manejar la selección de una opción
-    if (currencyOptionsContainer) {
-        currencyOptionsContainer.querySelectorAll('.option').forEach(option => {
-            option.addEventListener('click', () => {
-                selectedCurrency = option.dataset.value;
-                updateCurrencyDisplay();
-                currencyOptionsContainer.classList.remove('open');
-            });
-        });
-        
-        // Cerrar al hacer clic fuera
-        document.addEventListener('click', (e) => {
-            if (customCurrencySelector && !customCurrencySelector.contains(e.target)) {
-                currencyOptionsContainer.classList.remove('open');
-            }
-        });
-    }
+    // Toggle para abrir/cerrar el selector
+    if (selectedCurrencyDisplay) { // Asegurarse de que el elemento existe
+        selectedCurrencyDisplay.addEventListener('click', (event) => {
+            event.stopPropagation(); // Evitar que el clic se propague al document
+            if (customCurrencySelector) { // Asegurarse de que customCurrencySelector existe
+                customCurrencySelector.classList.toggle('show'); 
+            }
+        });
+    }
 
-    // Inicializar la visualización de la moneda al cargar
-    updateCurrencyDisplay();
+    // Manejar la selección de una opción
+    currencyOptions.forEach(option => {
+        option.addEventListener('click', () => {
+            const value = option.dataset.value;
+            const text = option.querySelector('span').textContent;
+            const imgSrc = option.querySelector('img').src;
+            
+            updateCurrencyDisplay(value, text, imgSrc);
+            if (customCurrencySelector) { // Asegurarse de que customCurrencySelector existe
+                customCurrencySelector.classList.remove('show'); 
+            }
+        });
+    });
 
+    // Cerrar el selector si se hace clic fuera de él
+    document.addEventListener('click', (event) => {
+        if (customCurrencySelector && !customCurrencySelector.contains(event.target)) {
+            customCurrencySelector.classList.remove('show'); 
+        }
+    });
 
-    // ---- Lógica para la barra de búsqueda (Solo filtrado en la misma página) ----
-    const searchInput = document.querySelector('.search-bar input');
-    const productGrid = document.getElementById('product-grid'); 
+    // ---- Lógica de la barra de búsqueda (filtrado en la misma página) ----
+    const searchInput = document.querySelector('.search-bar input');
+    // MODIFICACIÓN: Apuntamos al ID 'product-grid' donde se inyectarán las tarjetas dinámicamente
+    const productGrid = document.getElementById('product-grid'); 
 
-    if (searchInput) { 
-        searchInput.addEventListener('input', () => { 
-            const searchTerm = searchInput.value.toLowerCase();
+    // Usar el evento 'input' para filtrar en tiempo real a medida que el usuario escribe
+    if (searchInput) { // Asegurarse de que el elemento existe
+        searchInput.addEventListener('input', () => { 
+            const searchTerm = searchInput.value.toLowerCase();
 
-            if (productGrid) {
-                const gameCards = productGrid.querySelectorAll('.game-card'); 
+            // Solo ejecutar la lógica de filtrado si estamos en la página que tiene el 'product-grid'
+            if (productGrid) {
+                // MODIFICACIÓN: Buscamos las tarjetas cada vez para capturar las que se cargaron dinámicamente
+                const gameCards = productGrid.querySelectorAll('.game-card'); 
 
-                gameCards.forEach(card => {
-                    const titleElement = card.querySelector('h2');
-                    if (titleElement) {
-                        const title = titleElement.textContent.toLowerCase();
-                        if (title.includes(searchTerm)) {
-                            card.style.display = ''; 
-                        } else {
-                            card.style.display = 'none'; 
-                        }
-                    }
-                });
-            }
-        });
-    }
+                gameCards.forEach(card => {
+                    const gameName = card.querySelector('h2').textContent.toLowerCase(); // Obtener el nombre del juego
 
-    // ====================================
-    // 🎯 LÓGICA DEL ÍCONO DEL CARRITO
-    // ====================================
-
-    // 1. Inicializar el contador del carrito al cargar
-    updateCartCount();
+                    if (gameName.includes(searchTerm)) {
+                        card.style.display = 'flex'; // Mostrar la tarjeta si coincide
+                    } else {
+                        card.style.display = 'none'; // Ocultar la tarjeta si no coincide
+                    }
+                });
+            }
+        });
+    }
     
-    // 2. Manejar clic en el ícono del carrito
-    const cartIconLink = document.getElementById('cart-icon-link');
-    if (cartIconLink) {
-        cartIconLink.addEventListener('click', (e) => {
-             e.preventDefault();
-             const cart = getCart(); 
-             if (cart.length === 0) {
-                 alert('Tu carrito está vacío. ¡Agrega una recarga primero!');
-             } else {
-                 // Redirige a payment.html con un flag para indicar que viene del carrito.
-                 window.location.href = 'payment.html?mode=cart';
-             }
-        });
-    }
+    // 🎯 LLAMADA CLAVE: Aplicar la configuración de colores al cargar la página.
+    applySiteConfig();
 });
