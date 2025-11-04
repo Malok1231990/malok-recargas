@@ -29,6 +29,7 @@ async function applySiteConfig() {
 
 // ====================================
 // 🎯 LÓGICA CENTRAL DEL CARRITO DE COMPRAS (GLOBAL Y MODIFICADA)
+// Estas funciones DEBEN estar fuera de DOMContentLoaded para que otros scripts las usen.
 // ====================================
 
 /** Obtiene el carrito del localStorage o un array vacío si no existe. */
@@ -42,7 +43,7 @@ function getCart() {
     }
 }
 
-/** Guarda el carrito en el localStorage y actualiza la UI. */
+/** Guarda el carrito en el localStorage y actualiza la UI (MODIFICADO). */
 function saveCart(cart) {
     try {
         localStorage.setItem('shoppingCart', JSON.stringify(cart));
@@ -52,7 +53,7 @@ function saveCart(cart) {
     }
 }
 
-/** Elimina un ítem específico del carrito. */
+/** Elimina un ítem específico del carrito (NUEVO). */
 function removeItemFromCart(itemId) {
     let cart = getCart();
     // Filtra el carrito, manteniendo solo los ítems cuyo ID no coincide con el ítem a eliminar
@@ -61,7 +62,7 @@ function removeItemFromCart(itemId) {
 }
 
 /**
- * Renderiza el contenido del carrito en el panel lateral y actualiza el contador.
+ * Renderiza el contenido del carrito en el panel lateral y actualiza el contador (NUEVO).
  */
 function updateCartUI() {
     const cart = getCart();
@@ -77,70 +78,67 @@ function updateCartUI() {
         countElement.textContent = cart.length.toString();
     }
 
+    // Salir si no encontramos los elementos del panel (ej. si no estamos en index.html/product.html)
+    if (!container || !totalAmountElement || !checkoutBtn) return;
+    
     // 2. Limpiar e inyectar ítems
-    if (container && totalAmountElement && checkoutBtn) {
-        // Limpiar el contenedor de ítems
-        if (container) {
-            container.innerHTML = ''; 
-        }
-
+    container.innerHTML = ''; // Limpiar
+    
+    // Si la página tiene el emptyMessage (es decir, tiene el sidebar)
+    if (emptyMessage) {
         if (cart.length === 0) {
             // Mostrar mensaje de vacío
-            if (emptyMessage && container) {
-                emptyMessage.style.display = 'block';
-                container.appendChild(emptyMessage);
-            }
+            emptyMessage.style.display = 'block';
+            container.appendChild(emptyMessage);
             totalAmountElement.textContent = 'Bs. 0.00';
             checkoutBtn.disabled = true;
             return;
         }
 
-        if (emptyMessage) {
-             emptyMessage.style.display = 'none'; // Ocultar mensaje de vacío
-        }
-        checkoutBtn.disabled = false;
-        
-        // Determinar la moneda para la visualización del total
-        // Usaremos la moneda del primer ítem como referencia (USD/VES)
-        const selectedCurrency = cart.length > 0 ? cart[0].currency : (localStorage.getItem('selectedCurrency') || 'VES');
-        const currencySymbol = selectedCurrency === 'VES' ? 'Bs.' : '$';
-        
-        let total = 0;
-
-        cart.forEach(item => {
-            // Usamos el precio final que se calculó al añadir al carrito
-            const price = parseFloat(item.finalPrice || 0); 
-            total += price;
-            
-            const itemElement = document.createElement('div');
-            itemElement.classList.add('cart-item');
-            
-            const itemHtml = `
-                <div class="cart-item-details">
-                    <strong>${item.game} - ${item.packageName}</strong>
-                    <span>ID: ${item.playerId || 'N/A'}</span>
-                </div>
-                <div class="cart-item-price">
-                    ${currencySymbol} ${price.toFixed(2)}
-                </div>
-                <button class="remove-item-btn" data-item-id="${item.id}">&times;</button>
-            `;
-            itemElement.innerHTML = itemHtml;
-            container.appendChild(itemElement);
-        });
-        
-        // 3. Actualizar Total y Moneda
-        if (totalCurrencyElement) totalCurrencyElement.textContent = selectedCurrency;
-        totalAmountElement.textContent = `${currencySymbol} ${total.toFixed(2)}`;
-        
-        // 4. Adjuntar eventos para eliminar ítems
-        container.querySelectorAll('.remove-item-btn').forEach(button => {
-            button.addEventListener('click', (e) => {
-                const itemId = parseInt(e.currentTarget.dataset.itemId);
-                removeItemFromCart(itemId); 
-            });
-        });
+        emptyMessage.style.display = 'none'; // Ocultar mensaje de vacío
     }
+
+    checkoutBtn.disabled = false;
+    
+    // Determinar la moneda para la visualización del total
+    const selectedCurrency = localStorage.getItem('selectedCurrency') || 'VES';
+    const currencySymbol = selectedCurrency === 'VES' ? 'Bs.' : '$';
+    
+    let total = 0;
+
+    cart.forEach(item => {
+        // Usamos el precio final que se calculó al añadir al carrito
+        const price = parseFloat(item.finalPrice || 0); 
+        total += price;
+        
+        const itemElement = document.createElement('div');
+        itemElement.classList.add('cart-item');
+        
+        const itemHtml = `
+            <div class="cart-item-details">
+                <strong>${item.game} - ${item.packageName}</strong>
+                <span>ID: ${item.playerId || 'N/A'}</span>
+            </div>
+            <div class="cart-item-price">
+                ${currencySymbol} ${price.toFixed(2)}
+            </div>
+            <button class="remove-item-btn" data-item-id="${item.id}">&times;</button>
+        `;
+        itemElement.innerHTML = itemHtml;
+        container.appendChild(itemElement);
+    });
+    
+    // 3. Actualizar Total y Moneda
+    if (totalCurrencyElement) totalCurrencyElement.textContent = selectedCurrency;
+    totalAmountElement.textContent = `${currencySymbol} ${total.toFixed(2)}`;
+    
+    // 4. Adjuntar eventos para eliminar ítems
+    container.querySelectorAll('.remove-item-btn').forEach(button => {
+        button.addEventListener('click', (e) => {
+            const itemId = parseInt(e.currentTarget.dataset.itemId);
+            removeItemFromCart(itemId); 
+        });
+    });
 }
 
 
@@ -156,20 +154,21 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Inicializar la visualización de la moneda
     function updateCurrencyDisplay() {
+        // CORREGIDO: Aseguramos que 'currencyOptionsContainer' exista antes de buscar la opción
         const option = currencyOptionsContainer ? currencyOptionsContainer.querySelector(`[data-value="${selectedCurrency}"]`) : null;
         if (option) {
             selectedCurrencyDisplay.innerHTML = option.innerHTML;
         }
         localStorage.setItem('selectedCurrency', selectedCurrency);
         // Disparar evento para que otras partes del código reaccionen
+        // NOTA: Se usa 'currencyChange' para ser consistente con el listener en load-product-details.js
         window.dispatchEvent(new CustomEvent('currencyChange', { detail: { currency: selectedCurrency } }));
     }
 
     // Toggle para mostrar/ocultar las opciones
     if (selectedCurrencyDisplay) {
         selectedCurrencyDisplay.addEventListener('click', () => {
-            // FIX: Añadimos la comprobación de que currencyOptionsContainer existe antes de usarlo
-            if (currencyOptionsContainer) { 
+            if (currencyOptionsContainer) { // CORREGIDO: Comprobación de existencia
                 currencyOptionsContainer.classList.toggle('open');
             }
         });
@@ -187,15 +186,14 @@ document.addEventListener('DOMContentLoaded', () => {
         
         // Cerrar al hacer clic fuera
         document.addEventListener('click', (e) => {
-            if (customCurrencySelector && !customCurrencySelector.contains(e.target)) {
+            if (customCurrencySelector && currencyOptionsContainer && !customCurrencySelector.contains(e.target)) {
                 currencyOptionsContainer.classList.remove('open');
             }
         });
     }
 
     // Inicializar la visualización de la moneda al cargar
-    // Solo si el contenedor principal de la moneda existe en la página
-    if (selectedCurrencyDisplay) {
+    if (selectedCurrencyDisplay) { // Solo si el elemento de moneda está presente
         updateCurrencyDisplay();
     }
 
@@ -227,11 +225,11 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ====================================
-    // 🎯 LÓGICA DEL ÍCONO DEL CARRITO (Panel Sidebar)
+    // 🎯 LÓGICA DEL ÍCONO DEL CARRITO (Panel Sidebar - MODIFICADO)
     // ====================================
 
     // 1. Inicializar la UI del carrito al cargar
-    updateCartUI();
+    updateCartUI(); 
     
     // Referencias a los nuevos elementos del panel
     const cartIconLink = document.getElementById('cart-icon-link');
