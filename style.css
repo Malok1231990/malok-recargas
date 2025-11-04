@@ -1401,3 +1401,38 @@ footer p {
     color: var(--secondary-text);
     margin-top: 50px;
 }
+
+/* ==================================== */
+/* === ESTILOS ESPECÍFICOS DEL BOTÓN DE PAGO EN EL CARRITO === */
+/* ==================================== */
+
+#proceed-to-checkout-btn {
+    width: 100%;
+    padding: 12px 20px;
+    font-size: 1.1em;
+    font-weight: bold;
+    color: var(--text-color);
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    text-align: center;
+    /* Usando el gradiente que ya tienes definido */
+    background: var(--button-gradient); 
+    transition: background 0.3s ease, transform 0.1s;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4);
+}
+
+#proceed-to-checkout-btn:hover:not(:disabled) {
+    background: var(--hover-blue); /* Transición a un color sólido o gradiente más intenso */
+    transform: translateY(-2px);
+    box-shadow: 0 6px 12px var(--shadow-dark);
+}
+
+/* Estilo para cuando el carrito está vacío */
+#proceed-to-checkout-btn:disabled {
+    background-color: var(--border-color); 
+    cursor: not-allowed;
+    opacity: 0.6;
+    box-shadow: none;
+    transform: none;
+}
