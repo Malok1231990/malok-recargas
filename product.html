@@ -317,11 +317,26 @@
                 </form>
             </div>
         </div>
-    </main>
+    </main><div class="cart-overlay" id="cart-overlay"></div>
 
-    <footer>
-    </footer>
+<div class="cart-sidebar" id="cart-sidebar">
+    <div class="cart-header">
+        <h2>Tu Carrito</h2>
+        <button id="close-cart-btn" class="close-btn">&times;</button>
+    </div>
 
+    <div class="cart-items" id="cart-items-container">
+        <p class="empty-message" id="cart-empty-message">Tu carrito está vacío.</p>
+    </div>
+
+    <div class="cart-footer">
+        <div class="cart-summary">
+            <p>Total (<span id="cart-total-currency">VES</span>):</p>
+            <p class="cart-total" id="cart-total-amount">Bs. 0.00</p>
+        </div>
+        <button id="proceed-to-checkout-btn" class="recharge-button" disabled>Proceder al Pago</button>
+    </div>
+</div>
     <script src="script.js"></script>
     <script src="load-product-details.js"></script>
 </body>

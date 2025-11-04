@@ -28,7 +28,7 @@ async function applySiteConfig() {
 
 
 // ====================================
-// 🎯 LÓGICA CENTRAL DEL CARRITO DE COMPRAS (GLOBAL)
+// 🎯 LÓGICA CENTRAL DEL CARRITO DE COMPRAS (GLOBAL Y MODIFICADA)
 // Estas funciones DEBEN estar fuera de DOMContentLoaded para que otros scripts las usen.
 // ====================================
 
@@ -43,25 +43,108 @@ function getCart() {
     }
 }
 
-/** Guarda el carrito en el localStorage y actualiza el contador. */
+/** Guarda el carrito en el localStorage y actualiza la UI. */
 function saveCart(cart) {
     try {
         localStorage.setItem('shoppingCart', JSON.stringify(cart));
-        updateCartCount(); // Actualiza el contador después de guardar
+        updateCartUI(); // Llama a la nueva función que actualiza todo
     } catch (e) {
         console.error("Error al guardar el carrito:", e);
     }
 }
 
-/** Actualiza el número de ítems en el ícono del carrito. */
-function updateCartCount() {
+/** Elimina un ítem específico del carrito. */
+function removeItemFromCart(itemId) {
+    let cart = getCart();
+    // Filtra el carrito, manteniendo solo los ítems cuyo ID no coincide con el ítem a eliminar
+    const newCart = cart.filter(item => item.id !== itemId);
+    saveCart(newCart);
+}
+
+/**
+ * Renderiza el contenido del carrito en el panel lateral y actualiza el contador.
+ */
+function updateCartUI() {
     const cart = getCart();
-    const cartCountElement = document.getElementById('cart-count');
-    if (cartCountElement) {
-        // Muestra el total de items en el carrito
-        cartCountElement.textContent = cart.length.toString();
-        // Opcional: Ocultar si está vacío
-        // cartCountElement.style.display = cart.length > 0 ? 'block' : 'none';
+    const container = document.getElementById('cart-items-container');
+    const countElement = document.getElementById('cart-count');
+    const totalAmountElement = document.getElementById('cart-total-amount');
+    const totalCurrencyElement = document.getElementById('cart-total-currency');
+    const emptyMessage = document.getElementById('cart-empty-message');
+    const checkoutBtn = document.getElementById('proceed-to-checkout-btn');
+    
+    // 1. Actualizar contador de la cabecera
+    if (countElement) {
+        countElement.textContent = cart.length.toString();
+    }
+
+    // 2. Limpiar e inyectar ítems
+    if (container && totalAmountElement && checkoutBtn) {
+        // Solo limpiar el contenedor de ítems si está visible
+        // Esto previene errores de DOM si el panel no existe en la página actual.
+        if (container) {
+            container.innerHTML = ''; 
+        }
+
+        if (cart.length === 0) {
+            // Mostrar mensaje de vacío
+            if (emptyMessage && container) {
+                emptyMessage.style.display = 'block';
+                container.appendChild(emptyMessage);
+            }
+            totalAmountElement.textContent = 'Bs. 0.00';
+            checkoutBtn.disabled = true;
+            return;
+        }
+
+        if (emptyMessage) {
+             emptyMessage.style.display = 'none'; // Ocultar mensaje de vacío
+        }
+        checkoutBtn.disabled = false;
+        
+        // Determinar la moneda para la visualización del total
+        // Usaremos la moneda del primer ítem como referencia (USD/VES)
+        const selectedCurrency = cart.length > 0 ? cart[0].currency : (localStorage.getItem('selectedCurrency') || 'VES');
+        const currencySymbol = selectedCurrency === 'VES' ? 'Bs.' : '$';
+        
+        let total = 0;
+
+        cart.forEach(item => {
+            // Asegurarse de usar el precio de la moneda seleccionada
+            // Usamos el precio final que se calculó al añadir al carrito
+            const price = parseFloat(item.finalPrice || 0); 
+            total += price;
+            
+            const itemElement = document.createElement('div');
+            itemElement.classList.add('cart-item');
+            
+            const itemHtml = `
+                <div class="cart-item-details">
+                    <strong>${item.game} - ${item.packageName}</strong>
+                    <span>ID: ${item.playerId || 'N/A'}</span>
+                </div>
+                <div class="cart-item-price">
+                    ${currencySymbol} ${price.toFixed(2)}
+                </div>
+                <button class="remove-item-btn" data-item-id="${item.id}">&times;</button>
+            `;
+            itemElement.innerHTML = itemHtml;
+            container.appendChild(itemElement);
+        });
+        
+        // 3. Actualizar Total y Moneda
+        if (totalCurrencyElement) totalCurrencyElement.textContent = selectedCurrency;
+        totalAmountElement.textContent = `${currencySymbol} ${total.toFixed(2)}`;
+        
+        // 4. Adjuntar eventos para eliminar ítems
+        container.querySelectorAll('.remove-item-btn').forEach(button => {
+            button.addEventListener('click', (e) => {
+                // El ID del ítem que se quiere eliminar está en el data-attribute
+                // Aseguramos que sea un número (parseInt) ya que el ID es un timestamp
+                const itemId = parseInt(e.currentTarget.dataset.itemId);
+                removeItemFromCart(itemId); // Llamar a la función de eliminación
+            });
+        });
     }
 }
 
@@ -84,7 +167,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         localStorage.setItem('selectedCurrency', selectedCurrency);
         // Disparar evento para que otras partes del código reaccionen
-        // NOTA: Se usa 'currencyChange' para ser consistente con el listener en load-product-details.js
         window.dispatchEvent(new CustomEvent('currencyChange', { detail: { currency: selectedCurrency } }));
     }
 
@@ -144,24 +226,64 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ====================================
-    // 🎯 LÓGICA DEL ÍCONO DEL CARRITO
+    // 🎯 LÓGICA DEL ÍCONO DEL CARRITO (Panel Sidebar)
     // ====================================
 
-    // 1. Inicializar el contador del carrito al cargar
-    updateCartCount();
+    // 1. Inicializar la UI del carrito al cargar
+    updateCartUI();
     
-    // 2. Manejar clic en el ícono del carrito
+    // Referencias a los nuevos elementos del panel
     const cartIconLink = document.getElementById('cart-icon-link');
+    const sidebar = document.getElementById('cart-sidebar');
+    const overlay = document.getElementById('cart-overlay');
+    const closeBtn = document.getElementById('close-cart-btn');
+    const checkoutBtn = document.getElementById('proceed-to-checkout-btn');
+
+    // Función para abrir el carrito
+    function openCart() {
+        if (sidebar && overlay) {
+            sidebar.classList.add('open');
+            overlay.classList.add('open');
+            updateCartUI(); // Asegura que los datos estén frescos al abrir
+        }
+    }
+
+    // Función para cerrar el carrito
+    function closeCart() {
+        if (sidebar && overlay) {
+            sidebar.classList.remove('open');
+            overlay.classList.remove('open');
+        }
+    }
+
+    // 2. Manejar clic en el ícono del carrito para ABRIR
     if (cartIconLink) {
         cartIconLink.addEventListener('click', (e) => {
              e.preventDefault();
-             const cart = getCart(); 
-             if (cart.length === 0) {
-                 alert('Tu carrito está vacío. ¡Agrega una recarga primero!');
-             } else {
-                 // Redirige a payment.html con un flag para indicar que viene del carrito.
-                 window.location.href = 'payment.html?mode=cart';
-             }
+             openCart();
+        });
+    }
+    
+    // 3. Manejar clic en el botón de CERRAR y el OVERLAY
+    if (closeBtn) {
+        closeBtn.addEventListener('click', closeCart);
+    }
+    if (overlay) {
+        overlay.addEventListener('click', closeCart);
+    }
+    
+    // 4. Manejar clic en el botón PROCEDER AL PAGO
+    if (checkoutBtn) {
+        checkoutBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            const cart = getCart();
+            if (cart.length > 0) {
+                // Redirige a la página de pago con el flag
+                window.location.href = 'payment.html?mode=cart';
+            } else {
+                alert('Tu carrito está vacío.');
+                checkoutBtn.disabled = true;
+            }
         });
     }
 });
