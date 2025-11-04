@@ -1,4 +1,4 @@
-// load-product-details.js
+// load-product-details.js LIMPIO Y CORREGIDO
 
 document.addEventListener('DOMContentLoaded', () => {
     // Estas variables son accesibles por todas las funciones anidadas (closure)
@@ -165,7 +165,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     bannerImage.alt = data.nombre;
                 }
                 
-                // 🎯 NUEVA LÓGICA: MOSTRAR CAMPO ID O MENSAJE DE WHATSAPP
+                // 🎯 LÓGICA: MOSTRAR CAMPO ID O MENSAJE DE WHATSAPP
                 const playerIdInputGroup = document.getElementById('player-id-input-group');
                 const whatsappMessage = document.getElementById('whatsapp-info-message');
                 const stepOneTitle = document.getElementById('step-one-title');
@@ -186,7 +186,6 @@ document.addEventListener('DOMContentLoaded', () => {
                         if(playerIdInput) playerIdInput.value = '';
                     }
                 }
-                // FIN DE COMPROBACIONES DEFENSIVAS
                 
                 const initialCurrency = localStorage.getItem('selectedCurrency') || 'VES';
                 
@@ -194,7 +193,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 renderProductPackages(data, initialCurrency); 
 
                 // Adjuntar Listener al cambio de moneda (script.js debe disparar este evento)
-                window.addEventListener('currencyChanged', (event) => {
+                window.addEventListener('currencyChange', (event) => { // Corregido: 'currencyChanged' a 'currencyChange'
                     updatePackagesUI(event.detail.currency);
                 });
 
@@ -214,29 +213,27 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
     
-    // 3. Manejo del envío del formulario (ESTO DEBE ESTAR AQUÍ PARA EJECUTARSE SOLO UNA VEZ)
+    // 3. Manejo del envío del formulario (MODIFICADO: AHORA AÑADE AL CARRITO)
     if (rechargeForm) {
         rechargeForm.addEventListener('submit', (e) => {
             e.preventDefault();
 
+            // 1. Validación
             if (!selectedPackage) {
                 alert('Por favor, selecciona un paquete de recarga.');
                 return;
             }
 
             const playerIdInput = document.getElementById('player-id-input');
-            // Si el campo ID no es requerido, playerId será una cadena vacía ('')
             const playerId = playerIdInput ? playerIdInput.value.trim() : ''; 
 
-            // 🎯 LÓGICA DE VALIDACIÓN CONDICIONAL
-            if (currentProductData && currentProductData.require_id === true) {
-                if (!playerId) {
-                    alert('Por favor, ingresa tu ID de Jugador. Este campo es obligatorio para este producto.');
-                    return;
-                }
+            const requiresId = currentProductData && currentProductData.require_id === true;
+            if (requiresId && !playerId) {
+                alert('Por favor, ingresa tu ID de Jugador. Este campo es obligatorio para este producto.');
+                return;
             }
             
-            // Obtener datos del paquete seleccionado
+            // 2. Obtener datos
             const packageName = selectedPackage.dataset.packageName;
             const basePriceUSD = parseFloat(selectedPackage.dataset.priceUsd);
             const basePriceVES = parseFloat(selectedPackage.dataset.priceVes);
@@ -245,23 +242,53 @@ document.addEventListener('DOMContentLoaded', () => {
             // Calcular precio final
             const finalPrice = (selectedCurrency === 'VES') ? basePriceVES : basePriceUSD;
             
-            // Construir objeto de la transacción para 'payment.html'
-            const transactionDetails = {
+            // 3. Construir objeto del ítem del carrito
+            const cartItem = {
+                id: Date.now(), // ID único para el ítem en el carrito
                 game: currentProductData ? currentProductData.nombre : 'Juego Desconocido',
-                // Enviamos el ID, que puede ser vacío si no se requiere, o el valor ingresado
+                slug: currentProductData ? currentProductData.slug : 'unknown',
                 playerId: playerId, 
                 packageName: packageName,
                 priceUSD: basePriceUSD.toFixed(2), 
-                priceVES: basePriceVES.toFixed(2), // Añadido para referencia
+                priceVES: basePriceVES.toFixed(2), 
                 finalPrice: finalPrice.toFixed(2), 
                 currency: selectedCurrency,
-                // Agregamos el flag de asistencia para usarlo en la página de pago
                 requiresAssistance: currentProductData.require_id !== true 
             };
 
-            localStorage.setItem('transactionDetails', JSON.stringify(transactionDetails));
-            window.location.href = 'payment.html';
+            // 4. Agregar al carrito y guardar (Requiere funciones getCart/saveCart de script.js)
+            if (typeof getCart === 'function' && typeof saveCart === 'function') {
+                const cart = getCart(); 
+                cart.push(cartItem);
+                saveCart(cart); 
+
+                // 5. Retroalimentación y limpieza
+                alert(`✅ ¡"${packageName}" agregado al carrito! Tienes ${cart.length} recarga(s) pendiente(s).`);
+                
+                // Limpiar selección de paquete y ID
+                const packageOptions = document.querySelectorAll('.package-option');
+                packageOptions.forEach(opt => opt.classList.remove('selected'));
+                selectedPackage = null;
+                if (playerIdInput && requiresId) {
+                    playerIdInput.value = '';
+                }
+                // Si hay paquetes, volvemos a seleccionar el primero automáticamente después de limpiar
+                if (packageOptions.length > 0) {
+                     packageOptions[0].classList.add('selected');
+                     selectedPackage = packageOptions[0];
+                }
+
+            } else {
+                 console.error("Error: Las funciones getCart/saveCart no están disponibles. Asegúrate de cargar script.js primero.");
+                 alert('Error interno al añadir al carrito. Revisa la consola.');
+            }
         });
+        
+        // Al cargar la página, cambiar el texto del botón a "Añadir al Carrito"
+        const rechargeButton = rechargeForm.querySelector('.recharge-button');
+        if (rechargeButton) {
+            rechargeButton.textContent = "Añadir al Carrito";
+        }
     }
 
     loadProductDetails();

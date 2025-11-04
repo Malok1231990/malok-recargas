@@ -28,7 +28,8 @@ async function applySiteConfig() {
 
 
 // ====================================
-// 🎯 LÓGICA CENTRAL DEL CARRITO DE COMPRAS (NUEVO)
+// 🎯 LÓGICA CENTRAL DEL CARRITO DE COMPRAS (GLOBAL)
+// Estas funciones DEBEN estar fuera de DOMContentLoaded para que otros scripts las usen.
 // ====================================
 
 /** Obtiene el carrito del localStorage o un array vacío si no existe. */
@@ -67,7 +68,7 @@ function updateCartCount() {
 
 document.addEventListener('DOMContentLoaded', () => {
     // Aplicar la configuración de colores al inicio
-    // applySiteConfig(); // Comentado, asumiendo que lo manejas al final del archivo si es necesario
+    // applySiteConfig(); 
 
     // ---- Lógica para el nuevo selector de moneda personalizado ----
     const customCurrencySelector = document.getElementById('custom-currency-selector');
@@ -83,6 +84,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         localStorage.setItem('selectedCurrency', selectedCurrency);
         // Disparar evento para que otras partes del código reaccionen
+        // NOTA: Se usa 'currencyChange' para ser consistente con el listener en load-product-details.js
         window.dispatchEvent(new CustomEvent('currencyChange', { detail: { currency: selectedCurrency } }));
     }
 
@@ -117,29 +119,23 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // ---- Lógica para la barra de búsqueda (Solo filtrado en la misma página) ----
     const searchInput = document.querySelector('.search-bar input');
-    // MODIFICACIÓN: Apuntamos al ID 'product-grid' donde se inyectarán las tarjetas dinámicamente
     const productGrid = document.getElementById('product-grid'); 
 
-    // Usar el evento 'input' para filtrar en tiempo real a medida que el usuario escribe
-    if (searchInput) { // Asegurarse de que el elemento existe
+    if (searchInput) { 
         searchInput.addEventListener('input', () => { 
             const searchTerm = searchInput.value.toLowerCase();
 
-            // Solo ejecutar la lógica de filtrado si estamos en la página que tiene el 'product-grid'
             if (productGrid) {
-                // MODIFICACIÓN: Buscamos las tarjetas cada vez para capturar las que se cargaron dinámicamente
                 const gameCards = productGrid.querySelectorAll('.game-card'); 
 
                 gameCards.forEach(card => {
-                    // Obtener el título del juego
                     const titleElement = card.querySelector('h2');
                     if (titleElement) {
                         const title = titleElement.textContent.toLowerCase();
-                        // Mostrar u ocultar la tarjeta basada en la búsqueda
                         if (title.includes(searchTerm)) {
-                            card.style.display = ''; // Mostrar
+                            card.style.display = ''; 
                         } else {
-                            card.style.display = 'none'; // Ocultar
+                            card.style.display = 'none'; 
                         }
                     }
                 });
@@ -148,7 +144,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ====================================
-    // 🎯 LÓGICA DEL ÍCONO DEL CARRITO (NUEVO)
+    // 🎯 LÓGICA DEL ÍCONO DEL CARRITO
     // ====================================
 
     // 1. Inicializar el contador del carrito al cargar
@@ -159,11 +155,11 @@ document.addEventListener('DOMContentLoaded', () => {
     if (cartIconLink) {
         cartIconLink.addEventListener('click', (e) => {
              e.preventDefault();
-             const cart = getCart(); // Función definida arriba
+             const cart = getCart(); 
              if (cart.length === 0) {
                  alert('Tu carrito está vacío. ¡Agrega una recarga primero!');
              } else {
-                 // Si hay ítems, redirige a la página de pago para revisar y pagar.
+                 // Redirige a payment.html con un flag para indicar que viene del carrito.
                  window.location.href = 'payment.html?mode=cart';
              }
         });
