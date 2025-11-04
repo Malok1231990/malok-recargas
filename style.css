@@ -1225,3 +1225,40 @@ footer p {
         min-height: 250px;
     }
 }
+
+/* ==================================== */
+/* === ESTILOS DEL CARRITO DE COMPRAS === */
+/* ==================================== */
+
+.cart-icon-link {
+    /* Estilos base */
+    position: relative;
+    display: inline-flex; /* Para alinear el ícono y el contador */
+    align-items: center;
+    justify-content: center;
+    padding: 10px;
+    color: var(--text-color);
+    font-size: 1.5em;
+    text-decoration: none;
+    transition: color 0.3s ease;
+}
+
+.cart-icon-link:hover {
+    color: var(--accent-green); /* Verde de acento al pasar el ratón */
+}
+
+.cart-count {
+    /* Contador flotante */
+    position: absolute;
+    top: 0px; /* Ajusta la posición superior */
+    right: 0px; /* Ajusta la posición derecha */
+    background-color: var(--accent-green);
+    color: var(--bg-color); /* Texto oscuro para contraste */
+    border-radius: 50%;
+    padding: 2px 0px;
+    font-size: 0.5em;
+    font-weight: bold;
+    min-width: 20px;
+    text-align: center;
+    line-height: 1.2;
+}
