@@ -29,7 +29,6 @@ async function applySiteConfig() {
 
 // ====================================
 // 🎯 LÓGICA CENTRAL DEL CARRITO DE COMPRAS (GLOBAL Y MODIFICADA)
-// Estas funciones DEBEN estar fuera de DOMContentLoaded para que otros scripts las usen.
 // ====================================
 
 /** Obtiene el carrito del localStorage o un array vacío si no existe. */
@@ -80,8 +79,7 @@ function updateCartUI() {
 
     // 2. Limpiar e inyectar ítems
     if (container && totalAmountElement && checkoutBtn) {
-        // Solo limpiar el contenedor de ítems si está visible
-        // Esto previene errores de DOM si el panel no existe en la página actual.
+        // Limpiar el contenedor de ítems
         if (container) {
             container.innerHTML = ''; 
         }
@@ -110,7 +108,6 @@ function updateCartUI() {
         let total = 0;
 
         cart.forEach(item => {
-            // Asegurarse de usar el precio de la moneda seleccionada
             // Usamos el precio final que se calculó al añadir al carrito
             const price = parseFloat(item.finalPrice || 0); 
             total += price;
@@ -139,10 +136,8 @@ function updateCartUI() {
         // 4. Adjuntar eventos para eliminar ítems
         container.querySelectorAll('.remove-item-btn').forEach(button => {
             button.addEventListener('click', (e) => {
-                // El ID del ítem que se quiere eliminar está en el data-attribute
-                // Aseguramos que sea un número (parseInt) ya que el ID es un timestamp
                 const itemId = parseInt(e.currentTarget.dataset.itemId);
-                removeItemFromCart(itemId); // Llamar a la función de eliminación
+                removeItemFromCart(itemId); 
             });
         });
     }
@@ -161,7 +156,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Inicializar la visualización de la moneda
     function updateCurrencyDisplay() {
-        const option = currencyOptionsContainer.querySelector(`[data-value="${selectedCurrency}"]`);
+        const option = currencyOptionsContainer ? currencyOptionsContainer.querySelector(`[data-value="${selectedCurrency}"]`) : null;
         if (option) {
             selectedCurrencyDisplay.innerHTML = option.innerHTML;
         }
@@ -173,7 +168,10 @@ document.addEventListener('DOMContentLoaded', () => {
     // Toggle para mostrar/ocultar las opciones
     if (selectedCurrencyDisplay) {
         selectedCurrencyDisplay.addEventListener('click', () => {
-            currencyOptionsContainer.classList.toggle('open');
+            // FIX: Añadimos la comprobación de que currencyOptionsContainer existe antes de usarlo
+            if (currencyOptionsContainer) { 
+                currencyOptionsContainer.classList.toggle('open');
+            }
         });
     }
 
@@ -196,7 +194,10 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // Inicializar la visualización de la moneda al cargar
-    updateCurrencyDisplay();
+    // Solo si el contenedor principal de la moneda existe en la página
+    if (selectedCurrencyDisplay) {
+        updateCurrencyDisplay();
+    }
 
 
     // ---- Lógica para la barra de búsqueda (Solo filtrado en la misma página) ----
