@@ -35,264 +35,261 @@
             padding: 15px;
             text-align: center;
             cursor: pointer;
-            transition: all 0.2s ease;
-            display: flex; 
-            flex-direction: column; 
-            justify-content: center;
-            min-height: 80px; 
-            box-sizing: border-box; 
+            transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
         }
 
-        /* Efecto visual al pasar el ratón */
+        /* Efecto al pasar el mouse */
         .package-option:hover {
-            border-color: var(--hover-blue);
-            transform: translateY(-2px);
+            transform: translateY(-3px);
             box-shadow: 0 4px 10px var(--shadow-dark);
         }
 
-        /* 3. Estilo para el Paquete SELECCIONADO */
+        /* Estilo para el paquete seleccionado */
         .package-option.selected {
             border-color: var(--primary-blue);
             background: var(--selected-item-gradient);
+            color: #fff; /* Asegura el texto blanco sobre el gradiente */
             box-shadow: 0 0 15px var(--shadow-light);
-            transform: scale(1.02);
-            color: white !important;
         }
 
-        /* 4. Estilos Internos del Paquete */
-        .package-name {
-            font-size: 1em;
-            font-weight: 500;
-            color: inherit;
+        /* Estilos del texto y precio */
+        .package-option h4 {
+            margin-top: 0;
             margin-bottom: 5px;
+            font-size: 1.1em;
+        }
+        
+        .package-option .price-display {
+            font-size: 0.9em;
+            color: var(--secondary-text);
+            font-weight: bold;
         }
 
-        .package-price {
-            font-size: 1.4em;
-            font-weight: 700;
-            color: white;
+        .package-option.selected .price-display {
+            color: #e0e0e0; /* Un gris más claro para contraste en selección */
+        }
+        
+        .package-option.selected .price-display span {
+            color: #fff; /* Texto blanco para los precios en el seleccionado */
         }
 
-        /* 5. Ajustes Responsivos para móviles pequeños */
-        @media (max-width: 600px) {
-            .package-options {
-                grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); 
-                gap: 10px;
-            }
-            
-            .package-option {
-                padding: 10px;
-                min-height: 70px;
-            }
-
-            .package-name {
-                font-size: 0.9em;
-            }
-
-            .package-price {
-                font-size: 1.2em;
-            }
-        }
-
-        /* Contenedor principal de la página de producto */
-        .product-main {
+        /* 3. Estilos de la sección de recarga */
+        .product-main-content {
             display: flex;
             gap: 30px;
             max-width: 1200px;
-            margin: 40px auto;
+            margin: 30px auto;
             padding: 0 20px;
-            align-items: flex-start;
         }
 
-        /* Columna de Información del Producto (Izquierda) */
-        .product-info {
-            flex: 1 1 55%;
-            min-width: 300px; /* Se mantiene para desktop/tablet */
+        .product-info, .recharge-panel {
+            flex: 1;
+            background-color: var(--card-bg);
+            padding: 25px;
+            border-radius: 10px;
+            box-shadow: 0 4px 12px var(--shadow-dark);
         }
 
-        /* Imagen/Banner del Producto */
-        .product-banner-image {
+        .product-header img {
             width: 100%;
             height: auto;
-            border-radius: 12px;
+            max-height: 250px;
+            object-fit: cover;
+            border-radius: 8px;
             margin-bottom: 20px;
-            box-shadow: 0 8px 15px var(--shadow-dark);
         }
 
-        .product-title {
-            color: var(--text-color);
-            font-size: 2.2em;
-            margin-bottom: 10px;
+        .product-info h1 {
+            font-size: 2em;
+            color: var(--primary-blue);
+            margin-top: 0;
         }
-
-        /* Columna del Formulario de Recarga (Derecha) */
-        .product-form-container {
-            flex: 1 1 40%;
-            background-color: var(--card-bg);
-            padding: 30px;
-            border-radius: 12px;
-            box-shadow: 0 4px 20px var(--shadow-dark);
-            min-width: 300px; /* Se mantiene para desktop/tablet */
+        
+        .product-description {
+            color: var(--secondary-text);
+            line-height: 1.6;
+            margin-bottom: 20px;
         }
-
-        .section-title {
-            color: var(--accent-green);
+        
+        .min-price {
             font-size: 1.2em;
-            margin-top: 25px;
-            margin-bottom: 15px;
-            font-weight: 700;
-        }
-        
-        /* ESTILO PARA EL MENSAJE DE WHATSAPP */
-
-        .whatsapp-message-box p {
-            margin: 0;
-            color: #d1d1d1;
-        }
-        
-        .whatsapp-message-box strong {
+            font-weight: bold;
             color: var(--accent-green);
         }
 
         /* Estilos del Formulario */
-        .form-group label {
-            display: block;
-            margin-bottom: 8px;
-            font-weight: 600;
-            color: var(--secondary-text);
+        .recharge-panel h2 {
+            font-size: 1.6em;
+            margin-top: 0;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 10px;
+        }
+        
+        .section-title {
+            font-size: 1.2em;
+            font-weight: bold;
+            color: var(--text-color);
+            margin: 25px 0 10px;
         }
 
-        #player-id-input {
+        .input-group {
+            margin-bottom: 20px;
+        }
+
+        .input-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+            color: var(--text-color);
+        }
+
+        .input-group input {
             width: 100%;
             padding: 12px;
             border: 1px solid var(--border-color);
-            border-radius: 8px;
+            border-radius: 6px;
             background-color: var(--input-bg);
             color: var(--text-color);
             font-size: 1em;
-            transition: border-color 0.3s;
-            box-sizing: border-box; /* **¡Asegura que el padding no afecte el ancho total!** */
+            box-sizing: border-box;
+            transition: border-color 0.2s;
         }
-        
-        #player-id-input:focus {
+
+        .input-group input:focus {
             border-color: var(--primary-blue);
             outline: none;
         }
 
-        /* GRID DE OPCIONES DE PAQUETES */
-        #package-options-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
-            gap: 15px;
-            margin-bottom: 30px;
-        }
-
-        /* Estilos del botón de compra */
         .recharge-button {
             width: 100%;
             padding: 15px;
+            border: none;
+            border-radius: 6px;
+            /* Usamos el nuevo gradiente para botones */
+            background: var(--button-gradient); 
+            color: #fff;
             font-size: 1.1em;
             font-weight: bold;
-            color: var(--button-text-color);
-            background: var(--button-gradient);
-            border: none;
-            border-radius: 8px;
             cursor: pointer;
-            transition: opacity 0.3s;
-            box-sizing: border-box; /* **¡Asegura que el padding no afecte el ancho total!** */
+            transition: opacity 0.2s, transform 0.2s;
         }
 
-        .recharge-button:hover {
+        .recharge-button:hover:not(:disabled) {
             opacity: 0.9;
+            transform: translateY(-2px);
         }
         
-        /* Mensaje de advertencia bajo el botón */
+        .recharge-button:disabled {
+            background-color: var(--border-color);
+            cursor: not-allowed;
+            opacity: 0.7;
+        }
+
         .warning-message {
-            font-size: 0.85em;
+            font-size: 0.8em;
             color: var(--secondary-text);
             text-align: center;
-            margin-top: 20px;
+            margin-top: 15px;
         }
-        
+
         .warning-message a {
-            color: var(--accent-green);
+            color: var(--primary-blue);
             text-decoration: none;
         }
-
-
-        /* AJUSTES RESPONSIVOS (para móvil) */
-        @media (max-width: 850px) {
-            .product-main {
-                flex-direction: column; 
-                margin-top: 20px;
-                /* REDUCCIÓN DEL PADDING EN MÓVILES para dar más espacio al contenido */
-                padding: 0 10px; 
+        
+        /* Mensaje de Whatsapp para asistencia */
+        .whatsapp-message-box {
+            background-color: rgba(40, 167, 69, 0.1); /* Fondo verde tenue */
+            border: 1px solid var(--accent-green);
+            border-radius: 6px;
+            padding: 15px;
+            margin-top: 15px;
+        }
+        
+        .whatsapp-message-box p {
+            font-size: 0.9em;
+            color: var(--secondary-text);
+            margin: 5px 0;
+        }
+        
+        .whatsapp-message-box strong {
+             color: var(--accent-green);
+        }
+        
+        /* Estilos de responsividad */
+        @media (max-width: 768px) {
+            .product-main-content {
+                flex-direction: column;
             }
-
-            .product-info {
-                order: 1;
-                /* Eliminamos el min-width en móvil para que se ajuste a 100% del espacio disponible */
-                min-width: initial; 
-            }
-
-            .product-form-container {
-                order: 2;
-                padding: 20px 15px; /* Ajuste un poco el padding interno del formulario */
-                 /* Eliminamos el min-width en móvil */
-                min-width: initial; 
-            }
-            
-            #package-options-grid {
-                grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+            .product-info, .recharge-panel {
+                padding: 15px;
             }
         }
     </style>
+
 </head>
 <body>
+
     <header>
-        <div class="header-left">
-            <a href="index.html" class="logo-link">
-                <img src="images/malok_logo.png" alt="Malok Recargas Logo" class="logo-img">
-            </a>
-        </div>
-        <div class="header-right">
-            <div class="search-bar">
-                <input type="text" placeholder="Buscar juego...">
-                <i class="fas fa-search"></i>
+        <div class="header-content">
+            <div class="logo-and-search">
+                <a href="index.html" class="logo">
+                    <img src="images/malok_logo.png" alt="Malok Recargas Logo">
+                </a>
+                <div class="search-bar">
+                    <input type="text" placeholder="Buscar juego...">
+                    <i class="fas fa-search"></i>
+                </div>
             </div>
-            <div class="custom-currency-selector" id="custom-currency-selector">
-                <div class="selected-currency" id="selected-currency">
+
+            <div class="header-right-actions">
+                <button id="cart-button" class="action-icon-button" aria-label="Abrir Carrito de Compras">
+                    <i class="fas fa-shopping-cart"></i>
+                    <span id="cart-count" class="cart-badge">0</span>
+                </button>
+                
+                <div class="login-dropdown">
+                    <button id="login-toggle-button" class="action-icon-button" aria-expanded="false" aria-controls="login-menu">
+                        <i class="fas fa-user-circle"></i>
+                    </button>
+                    <div id="login-menu" class="login-menu" aria-hidden="true">
+                        <a href="login.html" class="login-option">
+                            <i class="fas fa-sign-in-alt"></i> Iniciar Sesión
+                        </a>
                     </div>
-                <div class="currency-options" id="currency-options">
-                    <div class="option" data-value="VES">
+                </div>
+
+                <div class="custom-currency-selector" id="custom-currency-selector">
+                    <div class="selected-currency" id="selected-currency">
                         <img src="images/flag_ve.png" alt="Venezuela Flag"> <span>Bs. (VES)</span>
+                        <i class="fas fa-chevron-down currency-arrow"></i>
                     </div>
-                    <div class="option" data-value="USD">
-                        <img src="images/flag_us.png" alt="USA Flag"> <span>$ (USD)</span>
+                    <div class="currency-options" id="currency-options">
+                        <div class="option" data-value="VES">
+                            <img src="images/flag_ve.png" alt="Venezuela Flag"> <span>Bs. (VES)</span>
+                        </div>
+                        <div class="option" data-value="USD">
+                            <img src="images/flag_us.png" alt="USA Flag"> <span>$ (USD)</span>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
     </header>
-    <main class="main-content">
-        <div class="product-main" id="product-container">
-            
-            <div class="product-info">
-                <img id="product-banner-image" class="product-banner-image" src="images/default_banner.jpg" alt="Banner del juego">
-                <div class="text-content">
-                    <h1 id="product-name" class="product-title">Cargando Título...</h1>
-                    <p id="product-description" class="secondary-text">Cargando descripción...</p>
-                </div>
+    <main>
+        <div class="product-main-content">
+            <div class="product-info" id="product-container">
+                <p class="loading-message"><i class="fas fa-spinner fa-spin"></i> Cargando detalles del producto...</p>
             </div>
-
-            <div class="product-form-container">
+            
+            <div class="recharge-panel">
+                <h2>Recarga Rápida</h2>
                 <form id="recharge-form">
-                    
-                    <div id="step-one-container"> 
-                        <p class="section-title" id="step-one-title">Paso 1: Ingresa tu ID/Correo</p>
-                        
-                        <div id="player-id-input-group" class="form-group">
-                            <label for="player-id-input" class="player-id-label">ID de Usuario (O Correo Segun el Caso)</label>
+                    <div class="user-details-section">
+                        <p class="section-title">Paso 1: Datos de Usuario</p>
+
+                        <div id="player-id-div" class="input-group">
+                            <label for="player-id-input" id="player-id-label">Ingresa tu ID de Usuario (O Correo Segun el Caso)</label>
                             <input type="text" id="player-id-input" name="playerId" placeholder="Ingresa tu ID/Correo de Usuario"> 
                         </div>
                         
@@ -308,7 +305,7 @@
                         <p id="packages-loading">Cargando opciones...</p>
                     </div>
                     
-                    <button type="submit" class="recharge-button">Comprar Ahora</button>
+                    <button type="submit" class="recharge-button">Añadir al Carrito</button> 
                     <p class="warning-message">Al hacer clic en Comprar, aceptas nuestros <a href="terms.html">Términos de Servicio</a> y <a href="privacy.html">Políticas de Privacidad</a>.</p>
                 </form>
             </div>
@@ -316,7 +313,37 @@
     </main>
 
     <footer>
+        <div class="footer-content">
+            <p>&copy; 2025 Malok Recargas. Todos los derechos reservados.</p>
+            <div class="footer-links">
+                <a href="privacy.html">Políticas de Privacidad</a>
+                <a href="terms.html">Términos de Servicio</a>
+            </div>
+            <a href="https://wa.me/584126949631" target="_blank" class="whatsapp-link">
+                <i class="fab fa-whatsapp"></i> Contáctanos por WhatsApp
+            </a>
+        </div>
     </footer>
+
+    <div id="cart-sidebar" class="cart-sidebar" aria-modal="true" role="dialog" aria-label="Carrito de Compras">
+        <div class="cart-header">
+            <h3>🛒 Tu Carrito</h3>
+            <button id="close-cart-button" class="close-btn" aria-label="Cerrar Carrito">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div id="cart-items-list" class="cart-items-list">
+            <p id="empty-cart-message">Tu carrito está vacío.</p>
+        </div>
+        <div class="cart-footer">
+            <div class="cart-total">
+                <span>Total:</span>
+                <span id="cart-total-amount">0.00 Bs.</span>
+            </div>
+            <button id="checkout-button" class="checkout-btn" disabled>Proceder al Pago</button>
+        </div>
+    </div>
+    <div id="cart-overlay" class="cart-overlay"></div>
 
     <script src="script.js"></script>
     <script src="load-product-details.js"></script>

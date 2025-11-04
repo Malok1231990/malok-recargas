@@ -18,27 +18,48 @@
     <link rel="shortcut icon" href="images/favicon.ico" type="image/x-icon">
 </head>
 <body>
+
     <header>
-        <div class="header-left">
-            <a href="index.html" class="logo-link">
-                <img src="images/malok_logo.png" alt="Malok Recargas Logo" class="logo-img">
-            </a>
-        </div>
-        <div class="header-right">
-            <div class="search-bar">
-                <input type="text" placeholder="Buscar juego...">
-                <i class="fas fa-search"></i>
-            </div>
-            <div class="custom-currency-selector" id="custom-currency-selector">
-                <div class="selected-currency" id="selected-currency">
-                    <img src="images/flag_ve.png" alt="Venezuela Flag"> <span>Bs. (VES)</span> <i class="fas fa-chevron-down"></i>
+        <div class="header-content">
+            <div class="logo-and-search">
+                <a href="index.html" class="logo">
+                    <img src="images/malok_logo.png" alt="Malok Recargas Logo">
+                </a>
+                <div class="search-bar">
+                    <input type="text" placeholder="Buscar juego...">
+                    <i class="fas fa-search"></i>
                 </div>
-                <div class="currency-options" id="currency-options">
-                    <div class="option" data-value="VES">
+            </div>
+
+            <div class="header-right-actions">
+                <button id="cart-button" class="action-icon-button" aria-label="Abrir Carrito de Compras">
+                    <i class="fas fa-shopping-cart"></i>
+                    <span id="cart-count" class="cart-badge">0</span>
+                </button>
+                
+                <div class="login-dropdown">
+                    <button id="login-toggle-button" class="action-icon-button" aria-expanded="false" aria-controls="login-menu">
+                        <i class="fas fa-user-circle"></i>
+                    </button>
+                    <div id="login-menu" class="login-menu" aria-hidden="true">
+                        <a href="login.html" class="login-option">
+                            <i class="fas fa-sign-in-alt"></i> Iniciar Sesión
+                        </a>
+                        </div>
+                </div>
+
+                <div class="custom-currency-selector" id="custom-currency-selector">
+                    <div class="selected-currency" id="selected-currency">
                         <img src="images/flag_ve.png" alt="Venezuela Flag"> <span>Bs. (VES)</span>
+                        <i class="fas fa-chevron-down currency-arrow"></i>
                     </div>
-                    <div class="option" data-value="USD">
-                        <img src="images/flag_us.png" alt="USA Flag"> <span>$ (USD)</span>
+                    <div class="currency-options" id="currency-options">
+                        <div class="option" data-value="VES">
+                            <img src="images/flag_ve.png" alt="Venezuela Flag"> <span>Bs. (VES)</span>
+                        </div>
+                        <div class="option" data-value="USD">
+                            <img src="images/flag_us.png" alt="USA Flag"> <span>$ (USD)</span>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -72,7 +93,27 @@
         </div>
     </footer>
 
+    <div id="cart-sidebar" class="cart-sidebar" aria-modal="true" role="dialog" aria-label="Carrito de Compras">
+        <div class="cart-header">
+            <h3>🛒 Tu Carrito</h3>
+            <button id="close-cart-button" class="close-btn" aria-label="Cerrar Carrito">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div id="cart-items-list" class="cart-items-list">
+            <p id="empty-cart-message">Tu carrito está vacío.</p>
+        </div>
+        <div class="cart-footer">
+            <div class="cart-total">
+                <span>Total:</span>
+                <span id="cart-total-amount">0.00 Bs.</span>
+            </div>
+            <button id="checkout-button" class="checkout-btn" disabled>Proceder al Pago</button>
+        </div>
+    </div>
+    <div id="cart-overlay" class="cart-overlay"></div>
+
     <script src="script.js"></script>
-    <script src="load-products.js"></script>
+    <script src="load-games.js"></script>
 </body>
 </html>

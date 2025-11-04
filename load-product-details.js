@@ -1,11 +1,11 @@
-// load-product-details.js
+// load-product-details.js MODIFICADO
 
 document.addEventListener('DOMContentLoaded', () => {
     // Estas variables son accesibles por todas las funciones anidadas (closure)
     let selectedPackage = null;
     let currentProductData = null; // Variable para almacenar los datos del producto actual
     const productContainer = document.getElementById('product-container');
-    const rechargeForm = document.getElementById('recharge-form');
+    const rechargeForm = document.getElementById('recharge-form'); // El formulario completo
 
     // 1. Funciones de ayuda
     function getSlugFromUrl() {
@@ -24,7 +24,12 @@ document.addEventListener('DOMContentLoaded', () => {
         this.classList.add('selected');
         selectedPackage = this; // Actualiza la variable global
         
-        console.log('Paquete seleccionado:', selectedPackage.dataset.packageName);
+        // Habilita el botón de acción si hay un paquete seleccionado
+        const actionButton = document.getElementById('add-to-cart-button');
+        if (actionButton) {
+            actionButton.disabled = false;
+            actionButton.textContent = 'Añadir al Carrito'; // Opcional: actualiza el texto
+        }
     }
     
     // Función para adjuntar eventos de clic a los paquetes y manejar la selección inicial
@@ -33,234 +38,197 @@ document.addEventListener('DOMContentLoaded', () => {
         
         // 1. Manejo de la selección de paquetes
         packageOptions.forEach(option => {
-            // Es buena práctica remover el listener antes de adjuntarlo si la función se llama 
-            // más de una vez por si el DOM no se limpia completamente.
+            // Asegúrate de remover listeners antiguos si fuera necesario
             option.removeEventListener('click', handlePackageClick); 
             option.addEventListener('click', handlePackageClick);
         });
         
-        // 2. Seleccionar el primer paquete por defecto al cargar/renderizar
-        if (packageOptions.length > 0) {
-            let shouldSelectDefault = true;
-            
-            // Revisar si el paquete previamente seleccionado existe todavía en el DOM
-            if (selectedPackage && document.body.contains(selectedPackage)) {
-                // El paquete seleccionado existe, nos aseguramos de que esté resaltado.
-                packageOptions.forEach(opt => opt.classList.remove('selected'));
-                selectedPackage.classList.add('selected');
-                shouldSelectDefault = false;
-            } 
-            
-            // Si no hay paquete seleccionado (o el anterior se perdió/invalidó), seleccionamos el primero
-            if (shouldSelectDefault) {
-                packageOptions[0].classList.add('selected');
-                selectedPackage = packageOptions[0];
-            }
+        // 2. Manejo de la selección inicial (si aplica)
+        // No hacemos selección inicial a menos que ya hubiera un estado guardado.
+        
+        // Deshabilitar el botón de acción al inicio
+        const actionButton = document.getElementById('add-to-cart-button');
+        if (actionButton) {
+             actionButton.disabled = true;
+        }
+    }
+
+    // Función para renderizar el ID / Input de Correo
+    function renderPlayerIdInput(requireId, idPlaceholder) {
+        const playerIdDiv = document.getElementById('player-id-div');
+        const playerIdInput = document.getElementById('player-id-input');
+        const playerIdLabel = document.getElementById('player-id-label');
+        const whatsappMessage = document.getElementById('whatsapp-info-message');
+
+        if (!playerIdDiv || !playerIdInput || !playerIdLabel || !whatsappMessage) return;
+
+        // Si el juego requiere ID (recarga directa)
+        if (requireId === true) {
+            playerIdDiv.style.display = 'block';
+            playerIdLabel.textContent = 'Ingresa tu ID de Usuario (Requerido)';
+            playerIdInput.placeholder = idPlaceholder || 'Ej: 123456789';
+            playerIdInput.required = true;
+            whatsappMessage.style.display = 'none';
+
+        } else if (requireId === false) {
+             // Si el juego NO requiere ID (asistencia o recarga por correo/link)
+            playerIdDiv.style.display = 'block'; // Mostrar el campo de ID/Correo
+            playerIdLabel.textContent = 'Correo/ID de Usuario (Opcional)';
+            playerIdInput.placeholder = idPlaceholder || 'Tu Correo o ID de Referencia';
+            playerIdInput.required = false;
+            whatsappMessage.style.display = 'block'; // Mostrar mensaje de asistencia
+        
+        } else {
+             // Si el juego no requiere ningún input (e.g., solo tarjetas de regalo)
+             playerIdDiv.style.display = 'none';
+             whatsappMessage.style.display = 'none';
         }
     }
 
 
-    // Función para renderizar el HTML de los paquetes
-    function renderProductPackages(data, currency) {
-        const packageOptionsGrid = document.getElementById('package-options-grid');
-        
-        if (!packageOptionsGrid) {
-            console.error("El contenedor de paquetes (#package-options-grid) no fue encontrado en el HTML.");
-            return;
-        }
-        
-        packageOptionsGrid.innerHTML = ''; // Limpiar el contenido de carga
-
-        if (!data.paquetes || data.paquetes.length === 0) {
-            packageOptionsGrid.innerHTML = '<p class="empty-message">Aún no hay paquetes de recarga disponibles para este juego.</p>';
-            return;
-        }
-
-        const currencySymbol = currency === 'VES' ? 'Bs.' : '$';
-
-        data.paquetes.forEach(pkg => {
-            // Asegurarse de que las propiedades existen y son números válidos
-            const usdPrice = parseFloat(pkg.precio_usd || 0).toFixed(2);
-            const vesPrice = parseFloat(pkg.precio_ves || 0).toFixed(2);
-            const displayPrice = currency === 'VES' ? vesPrice : usdPrice;
-
-            const packageHtml = `
-                <div 
-                    class="package-option" 
-                    data-package-name="${pkg.nombre_paquete}"
-                    data-price-usd="${usdPrice}"
-                    data-price-ves="${vesPrice}"
-                >
-                    <div class="package-name">${pkg.nombre_paquete}</div>
-                    <div class="package-price">${currencySymbol} ${displayPrice}</div>
-                </div>
-            `;
-            packageOptionsGrid.insertAdjacentHTML('beforeend', packageHtml);
-        });
-        
-        // ¡¡¡CLAVE!!! Adjuntar eventos después de renderizar
-        attachPackageEventListeners();
-    }
-    
-    // Función para actualizar SÓLO los precios de la UI cuando cambia la moneda
-    function updatePackagesUI(currency) {
-        if (!currentProductData || !currentProductData.paquetes) return;
-
-        const packageOptionsGrid = document.getElementById('package-options-grid');
-        if (!packageOptionsGrid) return; 
-        
-        const currencySymbol = currency === 'VES' ? 'Bs.' : '$';
-
-        // Recorrer los paquetes y actualizar el precio
-        const packageElements = packageOptionsGrid.querySelectorAll('.package-option');
-        packageElements.forEach(element => {
-            // data-price-usd se mapea a element.dataset.priceUsd (camelCase)
-            const priceKeyDataset = currency === 'VES' ? 'priceVes' : 'priceUsd';
-            const price = parseFloat(element.dataset[priceKeyDataset]).toFixed(2);
-            element.querySelector('.package-price').textContent = `${currencySymbol} ${price}`;
-        });
-    }
-
-
-    // Función principal para cargar los detalles del producto
+    // 2. Función Principal: Cargar los detalles del producto
     async function loadProductDetails() {
         const slug = getSlugFromUrl();
-        if (!slug) {
-            if (productContainer) {
-                 productContainer.innerHTML = '<h2 class="error-message">❌ Error: No se especificó el juego.</h2><p style="text-align:center;"><a href="index.html">Volver a la página principal</a></p>';
-            }
-            const pageTitle = document.getElementById('page-title');
-            if (pageTitle) pageTitle.textContent = 'Error - Malok Recargas';
-            return;
+        if (!slug || !productContainer) {
+            // Opcional: Redirigir a la página de inicio o mostrar error
+            // window.location.href = 'index.html'; 
+            return; 
         }
 
+        // Mostrar un mensaje de carga inicial
+        productContainer.innerHTML = `<p class="loading-message"><i class="fas fa-spinner fa-spin"></i> Cargando detalles del producto...</p>`;
+        document.getElementById('page-title').textContent = 'Cargando...';
+
         try {
-            // Llama a tu Netlify Function para obtener el producto
+            // Llamar a una función que obtenga el detalle del producto (simulado aquí)
             const response = await fetch(`/.netlify/functions/get-product-details?slug=${slug}`);
             
             if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(`Error ${response.status}: ${errorData.message}`);
+                throw new Error(`Error ${response.status}: No se pudo cargar el producto.`);
             }
 
-            const data = await response.json();
+            const product = await response.json();
+            currentProductData = product; // Guardar los datos para usarlos en el formulario
             
-            // 2. Cargar datos en la UI (FIX)
-            if (data) {
-                currentProductData = data; // Almacenar los datos
+            // 1. Renderizar la información principal
+            document.getElementById('page-title').textContent = product.nombre;
+            productContainer.innerHTML = `
+                <div class="product-header">
+                    <img src="${product.banner_url || 'images/default_banner.jpg'}" alt="${product.nombre}">
+                    <div class="product-info">
+                        <h1 id="product-name">${product.nombre}</h1>
+                        <p class="product-description">${product.descripcion || 'Recarga fácil y rápido con Malok Recargas.'}</p>
+                        <div class="min-price">Desde: <span id="min-price-display">${product.min_price_ves} Bs.</span></div>
+                    </div>
+                </div>
+                `;
+
+            // 2. Renderizar las opciones de paquetes
+            const packageGrid = document.getElementById('package-options-grid');
+            if (packageGrid) {
+                packageGrid.innerHTML = ''; // Limpiar mensaje de carga
                 
-                // INICIO DE COMPROBACIONES DEFENSIVAS
-                const pageTitle = document.getElementById('page-title');
-                if (pageTitle) pageTitle.textContent = `${data.nombre} - Malok Recargas`;
-
-                const productName = document.getElementById('product-name');
-                if (productName) productName.textContent = data.nombre;
-
-                const productDescription = document.getElementById('product-description');
-                if (productDescription) productDescription.textContent = data.descripcion;
-
-                const bannerImage = document.getElementById('product-banner-image');
-                if (bannerImage) {
-                    bannerImage.src = data.banner_url || 'images/default_banner.jpg';
-                    bannerImage.alt = data.nombre;
-                }
-                
-                // 🎯 NUEVA LÓGICA: MOSTRAR CAMPO ID O MENSAJE DE WHATSAPP
-                const playerIdInputGroup = document.getElementById('player-id-input-group');
-                const whatsappMessage = document.getElementById('whatsapp-info-message');
-                const stepOneTitle = document.getElementById('step-one-title');
-
-                if (playerIdInputGroup && whatsappMessage && stepOneTitle) {
-                    if (data.require_id === true) {
-                        // Requiere ID
-                        playerIdInputGroup.style.display = 'block'; 
-                        whatsappMessage.style.display = 'none';
-                        stepOneTitle.textContent = 'Paso 1: Ingresa tu ID';
-                    } else {
-                        // NO requiere ID, muestra el mensaje de WhatsApp
-                        playerIdInputGroup.style.display = 'none';
-                        whatsappMessage.style.display = 'block';
-                        stepOneTitle.textContent = 'Paso 1: Asistencia Requerida';
-                        // Aseguramos que el campo ID esté vacío para no enviar datos innecesarios
-                        const playerIdInput = document.getElementById('player-id-input');
-                        if(playerIdInput) playerIdInput.value = '';
-                    }
-                }
-                // FIN DE COMPROBACIONES DEFENSIVAS
-                
-                const initialCurrency = localStorage.getItem('selectedCurrency') || 'VES';
-                
-                // Renderizar los paquetes
-                renderProductPackages(data, initialCurrency); 
-
-                // Adjuntar Listener al cambio de moneda (script.js debe disparar este evento)
-                window.addEventListener('currencyChanged', (event) => {
-                    updatePackagesUI(event.detail.currency);
-                });
-
-            } else {
-                if (productContainer) {
-                    productContainer.innerHTML = '<h2 class="error-message">❌ Producto no encontrado.</h2><p style="text-align:center;"><a href="index.html">Volver a la página principal</a></p>';
+                if (product.packages && product.packages.length > 0) {
+                    product.packages.sort((a, b) => a.price_ves - b.price_ves); // Ordenar por precio
+                    product.packages.forEach(pkg => {
+                        packageGrid.insertAdjacentHTML('beforeend', `
+                            <div class="package-option" 
+                                data-package-name="${pkg.name}" 
+                                data-price-usd="${pkg.price_usd}" 
+                                data-price-ves="${pkg.price_ves}">
+                                
+                                <h4>${pkg.name}</h4>
+                                <p class="price-display">
+                                    <span class="price-ves">${pkg.price_ves.toFixed(2)} Bs.</span> / <span class="price-usd">${pkg.price_usd.toFixed(2)} $</span>
+                                </p>
+                            </div>
+                        `);
+                    });
+                } else {
+                     packageGrid.innerHTML = `<p class="empty-message">No hay paquetes disponibles para este juego.</p>`;
                 }
             }
+            
+            // 3. Renderizar el input de ID
+            renderPlayerIdInput(product.require_id, product.id_placeholder);
+
+            // 4. Adjuntar los listeners
+            attachPackageEventListeners();
 
         } catch (error) {
-            console.error('Error al cargar detalles del producto:', error);
-            if (productContainer) {
-                productContainer.innerHTML = '<h2 class="error-message">❌ Error al conectar con el servidor.</h2><p style="text-align:center;">Por favor, recarga la página o vuelve más tarde.</p>';
-            }
-            const pageTitle = document.getElementById('page-title');
-            if (pageTitle) pageTitle.textContent = 'Error de Carga - Malok Recargas';
+            console.error('Error al cargar detalles del producto:', error.message);
+            productContainer.innerHTML = `<p class="error-message">❌ Lo sentimos, no pudimos cargar los detalles del producto.</p>`;
         }
     }
-    
-    // 3. Manejo del envío del formulario (ESTO DEBE ESTAR AQUÍ PARA EJECUTARSE SOLO UNA VEZ)
-    if (rechargeForm) {
-        rechargeForm.addEventListener('submit', (e) => {
-            e.preventDefault();
 
+
+    // 3. Lógica del Formulario: CAMBIO CLAVE AÑADIR AL CARRITO
+    if (rechargeForm) {
+        // Aseguramos que el botón de submit tenga un ID para referenciarlo
+        const submitButton = rechargeForm.querySelector('button[type="submit"]');
+        if (submitButton) {
+            submitButton.id = 'add-to-cart-button'; // Añadimos un ID para fácil referencia
+        }
+
+        rechargeForm.addEventListener('submit', function(e) {
+            e.preventDefault(); // Detener el envío del formulario a payment.html
+
+            // 1. Validar la selección
             if (!selectedPackage) {
                 alert('Por favor, selecciona un paquete de recarga.');
                 return;
             }
 
+            // 2. Validar el ID (si es requerido)
             const playerIdInput = document.getElementById('player-id-input');
-            // Si el campo ID no es requerido, playerId será una cadena vacía ('')
-            const playerId = playerIdInput ? playerIdInput.value.trim() : ''; 
+            const playerId = playerIdInput ? playerIdInput.value.trim() : '';
 
-            // 🎯 LÓGICA DE VALIDACIÓN CONDICIONAL
-            if (currentProductData && currentProductData.require_id === true) {
-                if (!playerId) {
-                    alert('Por favor, ingresa tu ID de Jugador. Este campo es obligatorio para este producto.');
-                    return;
-                }
+            if (currentProductData && currentProductData.require_id === true && !playerId) {
+                alert('El ID de usuario es obligatorio para esta recarga.');
+                playerIdInput.focus();
+                return;
             }
             
-            // Obtener datos del paquete seleccionado
+            // 3. Obtener datos del paquete seleccionado
             const packageName = selectedPackage.dataset.packageName;
             const basePriceUSD = parseFloat(selectedPackage.dataset.priceUsd);
             const basePriceVES = parseFloat(selectedPackage.dataset.priceVes);
             const selectedCurrency = localStorage.getItem('selectedCurrency') || 'VES';
             
-            // Calcular precio final
+            // 4. Calcular precio final
             const finalPrice = (selectedCurrency === 'VES') ? basePriceVES : basePriceUSD;
+            const finalCurrencySymbol = (selectedCurrency === 'VES') ? 'Bs.' : 'USD';
             
-            // Construir objeto de la transacción para 'payment.html'
-            const transactionDetails = {
-                game: currentProductData ? currentProductData.nombre : 'Juego Desconocido',
-                // Enviamos el ID, que puede ser vacío si no se requiere, o el valor ingresado
-                playerId: playerId, 
-                packageName: packageName,
-                priceUSD: basePriceUSD.toFixed(2), 
-                priceVES: basePriceVES.toFixed(2), // Añadido para referencia
-                finalPrice: finalPrice.toFixed(2), 
-                currency: selectedCurrency,
-                // Agregamos el flag de asistencia para usarlo en la página de pago
-                requiresAssistance: currentProductData.require_id !== true 
-            };
+            // 5. LLAMAR A LA FUNCIÓN DEL CARRITO (Definida en script.js)
+            
+            // Verificamos si la función global existe (la definimos en script.js)
+            if (typeof window.addItemToCart === 'function') {
+                window.addItemToCart(
+                    `${packageName} (${finalCurrencySymbol})`, // Nombre del item
+                    currentProductData ? currentProductData.nombre : 'Juego Desconocido', // Nombre del juego
+                    finalPrice, // Precio por unidad
+                    1, // Cantidad (siempre 1 en esta lógica simple)
+                    finalCurrencySymbol // Moneda
+                );
+                
+                // Opcional: Feedback al usuario y abrir carrito
+                alert(`"${packageName}" ha sido añadido a tu carrito.`);
+                
+                // Función para abrir el carrito (definida en script.js)
+                if (typeof window.toggleCart === 'function') {
+                    window.toggleCart(true); 
+                }
 
-            localStorage.setItem('transactionDetails', JSON.stringify(transactionDetails));
-            window.location.href = 'payment.html';
+            } else {
+                console.error("Error: Función 'addItemToCart' no encontrada. Asegúrate que script.js esté cargado.");
+            }
+            
+            // Limpiar la selección (Opcional)
+            selectedPackage.classList.remove('selected');
+            selectedPackage = null;
+            submitButton.disabled = true;
+            if (playerIdInput) playerIdInput.value = '';
+
         });
     }
 
