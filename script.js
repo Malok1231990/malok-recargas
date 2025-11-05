@@ -96,7 +96,9 @@ function checkUserSessionAndRenderUI() {
             if (genericIcon) genericIcon.style.display = 'block';
             
             // 2. Ocultar la imagen de perfil
-            if (authUserPicture) authUserPicture.style.display = 'none';
+            if (authUserPicture) {
+                authUserPicture.style.display = 'none';
+            }
         }
         
         // 3. Restaurar el texto del dropdown a "Iniciar Sesión"

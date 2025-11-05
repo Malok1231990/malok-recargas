@@ -1538,7 +1538,6 @@ footer p {
     object-fit: cover;
     border: 2px solid var(--accent-green); /* Borde verde para indicar sesión activa */
     /* Asegura que la imagen de perfil se muestre */
-    display: block !important; 
 }
 
 .auth-dropdown .auth-display-name {
