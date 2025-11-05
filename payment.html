@@ -197,7 +197,7 @@
     </footer>
 
     <script src="script.js"></script>
-   <script>
+<script>
     // 1. PLANTILLAS Y DATOS ESTATICOS
     const paymentDetailsTemplates = {
         'pago-movil': `
@@ -691,6 +691,8 @@
             whatsappMessageContainer.style.display = 'none';
             successMessageDisplay.style.display = 'block';
             localStorage.removeItem('transactionDetails');
+            // ✅ FIX CLAVE: Limpiar el carrito principal
+            localStorage.removeItem('cartItems'); 
 
             setTimeout(() => {
                 window.location.href = 'index.html';
@@ -733,6 +735,8 @@
                 whatsappMessageContainer.style.display = 'none';
                 successMessageDisplay.style.display = 'block';
                 localStorage.removeItem('transactionDetails');
+                // ✅ FIX CLAVE: Limpiar el carrito principal
+                localStorage.removeItem('cartItems'); 
 
                 setTimeout(() => {
                     window.location.href = 'index.html';
