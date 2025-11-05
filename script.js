@@ -1,4 +1,4 @@
-// script.js COMPLETO Y MODIFICADO (Versión Final con Redirección a login.html)
+// script.js COMPLETO Y MODIFICADO (Versión Final con Corrección de Race Condition)
 
 // 🎯 FUNCIÓN PARA CARGAR Y APLICAR LA CONFIGURACIÓN DE COLORES
 async function applySiteConfig() {
@@ -19,6 +19,9 @@ async function applySiteConfig() {
                 document.documentElement.style.setProperty(key, value);
             }
         }
+        
+        // 🟢 CORRECCIÓN CLAVE: Despachar un evento al finalizar la carga de la configuración
+        document.dispatchEvent(new CustomEvent('siteConfigLoaded')); 
         
     } catch (error) {
         console.error('[CLIENTE] Error al aplicar configuración de colores:', error.message);

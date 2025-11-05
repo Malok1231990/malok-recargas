@@ -1,4 +1,4 @@
-// load-recharge-packages.js
+// load-recharge-packages.js (CORREGIDO: Espera la Carga de Configuración de Tasa de Cambio)
 
 document.addEventListener('DOMContentLoaded', () => {
     const packageGrid = document.getElementById('recharge-package-options-grid');
@@ -15,7 +15,7 @@ document.addEventListener('DOMContentLoaded', () => {
     ];
 
     /**
-     * 🎯 NUEVO: Obtiene la tasa de cambio del Dólar guardada en la configuración CSS.
+     * 🎯 OBTENER TASA: Obtiene la tasa de cambio del Dólar guardada en la configuración CSS.
      * @returns {number} La tasa de VES/USD. Por defecto 38.00.
      */
     function getExchangeRate() {
@@ -36,7 +36,7 @@ document.addEventListener('DOMContentLoaded', () => {
         
         // La función getCurrentCurrency() se asume que existe en script.js
         const currentCurrency = window.getCurrentCurrency ? window.getCurrentCurrency() : 'USD'; 
-        // 🎯 NUEVO: Obtener la tasa de cambio
+        // 🎯 OBTENER: Obtener la tasa de cambio
         const exchangeRate = getExchangeRate(); 
         
         RECHARGE_PACKAGES.forEach((pkg, index) => {
@@ -82,8 +82,8 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         } else {
              // Si no hay selección, el botón debe estar deshabilitado y con el texto por defecto
-            selectButton.disabled = true;
-            selectButton.textContent = 'Continuar al Pago';
+             selectButton.disabled = true;
+             selectButton.textContent = 'Continuar al Pago';
         }
     }
 
@@ -115,11 +115,14 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // 💡 CLAVE: Escuchar el evento global de cambio de moneda (asumiendo que script.js lo emite)
+    // 💡 CLAVE 1: Escuchar el evento global de cambio de moneda (para actualizar si el usuario cambia)
     window.addEventListener('currencyChanged', renderPackages); 
     
-    // Al cargar el DOM, renderizamos los paquetes inmediatamente.
-    renderPackages(); 
+    // 🎯 CLAVE 2 (SOLUCIÓN): Ejecutar renderPackages SOLO cuando la configuración (incluida la tasa) esté cargada
+    // Esto previene el race condition, asumiendo que script.js dispara 'siteConfigLoaded'.
+    document.addEventListener('siteConfigLoaded', renderPackages, { once: true });
+    
+    // 🛑 La llamada directa a renderPackages() ha sido eliminada.
     
     // 🎯 Lógica de Pago Directo al enviar el formulario
     rechargeForm.addEventListener('submit', (e) => {
