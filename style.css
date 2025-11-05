@@ -1460,3 +1460,126 @@ footer p {
         width: 100vw;
     }
 }
+
+/* Estilo para la imagen de perfil del usuario */
+.auth-btn .auth-user-picture {
+    width: 35px; /* Tamaño de la imagen de perfil */
+    height: 35px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid var(--accent-green); /* Borde verde para indicar sesión activa */
+}
+
+/* Ocultar el ícono genérico y mostrar la imagen se maneja en JavaScript,
+   pero este estilo asegura que la imagen se comporte correctamente. */
+
+   /* ==================================== */
+/* === NUEVO: Contenedor de Billetera (Wallet) === */
+/* ==================================== */
+.wallet-container {
+    display: flex;
+    align-items: center;
+    background-color: var(--card-bg);
+    border-radius: 20px;
+    padding: 5px 15px 5px 10px;
+    margin-right: 15px; /* Separación de la barra de búsqueda */
+    box-shadow: 0 2px 5px var(--shadow-dark);
+    transition: all 0.3s ease;
+    cursor: default;
+    height: 40px; /* Alineación con otros elementos */
+    /* El JS/HTML controla si se muestra o no */
+}
+
+.wallet-display {
+    display: flex;
+    align-items: center;
+    color: var(--accent-green); 
+    font-weight: bold;
+    font-size: 0.9em;
+    min-width: 75px; /* Evita saltos de diseño al cargar el saldo */
+}
+
+.wallet-display .fas.fa-wallet {
+    margin-right: 8px;
+    color: var(--primary-blue);
+    font-size: 1.1em;
+}
+
+.recharge-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 25px;
+    height: 25px;
+    margin-left: 10px;
+    background: var(--button-gradient); 
+    border-radius: 50%;
+    color: var(--button-text-color, #fff); 
+    text-decoration: none;
+    font-size: 0.8em;
+    font-weight: bold;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    flex-shrink: 0;
+}
+
+.recharge-btn:hover {
+    transform: scale(1.1);
+    box-shadow: 0 0 8px var(--shadow-light);
+}
+
+/* ==================================== */
+/* === MODIFICADO: Estilos del Auth Dropdown === */
+/* ==================================== */
+
+.auth-btn .auth-user-picture {
+    width: 35px; /* Tamaño de la imagen de perfil */
+    height: 35px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid var(--accent-green); /* Borde verde para indicar sesión activa */
+    /* Asegura que la imagen de perfil se muestre */
+    display: block !important; 
+}
+
+.auth-dropdown .auth-display-name {
+    display: block;
+    padding: 10px 15px;
+    font-weight: bold;
+    color: var(--primary-blue); /* Destacar el nombre del usuario */
+    text-align: center;
+}
+
+.auth-dropdown hr {
+    border: 0;
+    height: 1px;
+    background: var(--border-color);
+    margin: 5px 0;
+}
+
+.auth-dropdown .logout-btn {
+    width: 100%;
+    padding: 10px;
+    background-color: transparent;
+    color: var(--text-color);
+    border: none;
+    text-align: left;
+    cursor: pointer;
+    font-size: 1em;
+    transition: background-color 0.2s;
+    display: flex; /* Asegura alineación del ícono y texto */
+    align-items: center;
+}
+
+.auth-dropdown .logout-btn:hover {
+    background-color: var(--hover-blue);
+    color: var(--white, #fff);
+}
+
+.auth-dropdown .logout-btn .fas {
+    margin-right: 8px;
+    color: var(--secondary-text);
+}
+
+.auth-dropdown .logout-btn:hover .fas {
+    color: var(--white, #fff);
+}

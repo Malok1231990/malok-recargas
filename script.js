@@ -1,4 +1,4 @@
-// script.js COMPLETO Y MODIFICADO (Versión Final con Gestión de Sesión)
+// script.js COMPLETO Y MODIFICADO (Versión Final con Gestión de Sesión, Billetera y UI)
 
 // 🎯 FUNCIÓN PARA CARGAR Y APLICAR LA CONFIGURACIÓN DE COLORES
 async function applySiteConfig() {
@@ -41,41 +41,58 @@ function checkUserSessionAndRenderUI() {
     const sessionToken = localStorage.getItem('userSessionToken');
     const userDataJson = localStorage.getItem('userData');
     
-    // Elementos del DOM (Asegúrate de que estos IDs existan en tu header/dropdown)
+    // Elementos del DOM de la Billetera (NUEVOS)
+    const walletContainer = document.getElementById('wallet-container'); 
+    const virtualBalanceElement = document.getElementById('virtual-balance'); 
+
+    // Elementos del DOM de Auth (Existentes)
     const toggleLoginBtn = document.getElementById('toggle-login-btn');
     const authDisplayName = document.getElementById('auth-display-name'); 
     const authUserPicture = document.getElementById('auth-user-picture');
     const googleLoginBtnContainer = document.getElementById('google-login-btn');
     const logoutBtn = document.getElementById('logout-btn');
 
+    // **CORRECCIÓN CLAVE:** Selector para el ícono genérico
+    const genericIcon = toggleLoginBtn ? toggleLoginBtn.querySelector('.fas.fa-user-circle') : null;
+    
     if (sessionToken && userDataJson) {
         // SESIÓN ACTIVA
         const userData = JSON.parse(userDataJson);
+        const userName = userData.name || userData.email || 'Mi Cuenta'; 
 
         if (toggleLoginBtn) {
-            // 1. Mostrar la imagen de perfil
+            // 1. Mostrar la imagen de perfil de Google
             if (authUserPicture) {
                 authUserPicture.src = userData.picture || 'images/default_user.png';
                 authUserPicture.style.display = 'block';
             }
+            
             // 2. Ocultar el ícono de usuario genérico
-            const genericIcon = toggleLoginBtn.querySelector('.fas.fa-user');
             if (genericIcon) genericIcon.style.display = 'none';
 
             // 3. Actualizar el nombre en el dropdown
             if (authDisplayName) {
-                authDisplayName.textContent = userData.name || userData.email || 'Mi Cuenta';
+                authDisplayName.textContent = userName;
             }
             
             // 4. Mostrar el botón de Cerrar Sesión y ocultar el botón de Google
             if (logoutBtn) logoutBtn.style.display = 'block';
             if (googleLoginBtnContainer) googleLoginBtnContainer.style.display = 'none';
         }
+        
+        // 5. Lógica de la Billetera (NUEVO)
+        if (walletContainer && virtualBalanceElement) {
+            // Usamos un saldo dummy (ej: 50.00) si no viene en userData
+            const balance = userData.balance ? parseFloat(userData.balance).toFixed(2) : '50.00'; 
+            virtualBalanceElement.textContent = `$. ${balance}`;
+            walletContainer.style.display = 'flex'; // Mostrar la billetera
+        }
+
+
     } else {
         // SESIÓN INACTIVA
         if (toggleLoginBtn) {
             // 1. Mostrar el ícono de usuario genérico
-            const genericIcon = toggleLoginBtn.querySelector('.fas.fa-user');
             if (genericIcon) genericIcon.style.display = 'block';
             
             // 2. Ocultar la imagen de perfil
@@ -88,6 +105,11 @@ function checkUserSessionAndRenderUI() {
         // 4. Mostrar el botón de Google y ocultar el botón de Cerrar Sesión
         if (logoutBtn) logoutBtn.style.display = 'none';
         if (googleLoginBtnContainer) googleLoginBtnContainer.style.display = 'block';
+
+        // 5. Ocultar la Billetera (NUEVO)
+        if (walletContainer) {
+            walletContainer.style.display = 'none';
+        }
     }
 }
 
@@ -120,7 +142,14 @@ window.handleCredentialResponse = async (response) => {
             checkUserSessionAndRenderUI(); // Actualizar la UI inmediatamente
             
             alert(`¡Bienvenido(a), ${data.user.name || 'Usuario'}!`);
-            window.location.href = 'index.html'; 
+            // Redireccionar, o recargar si es necesario
+            if (window.location.pathname.includes('index.html') === false) {
+                 window.location.href = 'index.html'; 
+            } else {
+                // Si ya está en index, solo recargar para asegurar que todos los scripts inicien con sesión activa
+                window.location.reload(); 
+            }
+
 
         } else {
             const errorData = await serverResponse.json();
@@ -177,7 +206,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const customCurrencySelector = document.getElementById('custom-currency-selector');
     const selectedCurrencyDisplay = document.getElementById('selected-currency');
     const currencyOptionsDiv = document.getElementById('currency-options');
-    const currencyOptions = currencyOptionsDiv ? currencyOptionsDiv.querySelectorAll('.option') : [];
+    // Aseguramos que los elementos existan antes de hacer querySelectorAll
+    const currencyOptions = currencyOptionsDiv ? currencyOptionsDiv.querySelectorAll('.option') : []; 
 
     // Función para actualizar la UI del selector y guardar la moneda
     function updateCurrencyDisplay(value, text, imgSrc) {
@@ -324,7 +354,8 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         cart.forEach(item => {
-            const price = selectedCurrency === 'VES' ? parseFloat(item.priceVES) : parseFloat(item.priceUSD);
+            // Aseguramos que los precios sean números antes de sumar
+            const price = selectedCurrency === 'VES' ? parseFloat(item.priceVES || 0) : parseFloat(item.priceUSD || 0);
             total += price;
             
             const priceDisplay = `${currencySymbol}${price.toFixed(2)}`;
@@ -383,13 +414,14 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         
         document.addEventListener('click', (event) => {
+            // Si el clic es fuera del dropdown y el dropdown está activo, ciérralo.
             if (authDropdown && !authDropdown.contains(event.target) && authDropdown.classList.contains('active')) {
                 authDropdown.classList.remove('active');
             }
         });
     }
     
-    // 2. Lógica del Botón de Cerrar Sesión (Logout) ⬅️ NUEVA LÓGICA AQUÍ
+    // 2. Lógica del Botón de Cerrar Sesión (Logout)
     if (logoutBtn) {
         logoutBtn.addEventListener('click', () => {
             // 1. Limpiar la sesión en localStorage
@@ -404,9 +436,12 @@ document.addEventListener('DOMContentLoaded', () => {
             
             alert('¡Sesión cerrada con éxito!');
             
-            // 4. Redirigir si es necesario (ej: si está en una página de usuario)
+            // 4. Redirigir a index si no estamos allí
             if (window.location.pathname.includes('index.html') === false) {
                  window.location.href = 'index.html'; 
+            } else {
+                 // Si estamos en index, recargar para resetear el estado de la página
+                 window.location.reload(); 
             }
         });
     }
