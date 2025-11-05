@@ -46,7 +46,7 @@ document.addEventListener('DOMContentLoaded', () => {
         
         // Dispatch custom event solo si la moneda realmente cambió
         if (prevCurrency !== value) {
-             window.dispatchEvent(new CustomEvent('currencyChanged', { detail: { currency: value } }));
+              window.dispatchEvent(new CustomEvent('currencyChanged', { detail: { currency: value } }));
         }
     }
 
