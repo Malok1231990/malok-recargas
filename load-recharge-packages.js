@@ -8,12 +8,23 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Paquetes de saldo (Hardcodeados para el ejemplo, idealmente desde Supabase)
     const RECHARGE_PACKAGES = [
-        { name: 'Saldo $5 USD', usd: '5.00', ves: '380.00' }, 
-        { name: 'Saldo $10 USD', usd: '10.00', ves: '950.00' },
-        { name: 'Saldo $20 USD', usd: '20.00', ves: '1900.00' },
-        { name: 'Saldo $50 USD', usd: '50.00', ves: '3800.00' },
+        { name: 'Saldo $10 USD', usd: '10.00', ves: '380.00' }, 
+        { name: 'Saldo $25 USD', usd: '25.00', ves: '950.00' },
+        { name: 'Saldo $50 USD', usd: '50.00', ves: '1900.00' },
         { name: 'Saldo $100 USD', usd: '100.00', ves: '3800.00' }
     ];
+
+    /**
+     * 🎯 NUEVO: Obtiene la tasa de cambio del Dólar guardada en la configuración CSS.
+     * @returns {number} La tasa de VES/USD. Por defecto 38.00.
+     */
+    function getExchangeRate() {
+        const rootStyle = getComputedStyle(document.documentElement);
+        // Lee la variable CSS, elimina comillas si existen, y convierte a float.
+        let rate = rootStyle.getPropertyValue('--tasa-dolar').trim().replace(/['"]/g, '');
+        // Usamos 38.00 como fallback si no se puede leer la variable
+        return parseFloat(rate) || 38.00; 
+    }
 
     /**
      * Renders the package options based on the current currency.
@@ -24,21 +35,29 @@ document.addEventListener('DOMContentLoaded', () => {
         packageGrid.innerHTML = ''; // Limpiar mensaje de carga
         
         // La función getCurrentCurrency() se asume que existe en script.js
-        // Si no existe, usamos 'USD' por precaución (aunque DEBERÍA existir en script.js).
         const currentCurrency = window.getCurrentCurrency ? window.getCurrentCurrency() : 'USD'; 
+        // 🎯 NUEVO: Obtener la tasa de cambio
+        const exchangeRate = getExchangeRate(); 
         
         RECHARGE_PACKAGES.forEach((pkg, index) => {
-            // Usamos Intl.NumberFormat para un formato de moneda correcto
-            const priceValue = currentCurrency === 'USD' ? pkg.usd : pkg.ves;
+            
+            const usdPrice = parseFloat(pkg.usd);
+            
+            // 🎯 CÁLCULO CLAVE: Precio en VES se calcula a partir del USD y la Tasa.
+            const calculatedVesPrice = (usdPrice * exchangeRate).toFixed(2);
+            
+            // Usamos el precio en USD o el precio CALCULADO en VES
+            const priceValue = currentCurrency === 'USD' ? usdPrice.toFixed(2) : calculatedVesPrice;
             const priceSymbol = currentCurrency === 'USD' ? '$' : 'Bs.';
             const price = `${priceSymbol} ${priceValue}`;
 
             const packageHtml = document.createElement('div');
             packageHtml.className = 'package-option';
-            // Guardar los datos en el HTML para facilitar la selección
+            // Guardar los datos en el HTML
             packageHtml.dataset.packageName = pkg.name;
             packageHtml.dataset.priceUsd = pkg.usd;
-            packageHtml.dataset.priceVes = pkg.ves;
+            // 🎯 IMPORTANTE: El precio VES guardado AHORA es el calculado, no el hardcodeado.
+            packageHtml.dataset.priceVes = calculatedVesPrice; 
 
             packageHtml.innerHTML = `
                 <p class="package-name">${pkg.name.replace('Saldo ', '')}</p>
@@ -82,11 +101,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 // 2. Seleccionar el actual
                 this.classList.add('selected');
                 
-                // 3. Actualizar datos seleccionados
+                // 3. Actualizar datos seleccionados, incluyendo el precio VES calculado
                 selectedPackageData = {
                     name: this.dataset.packageName,
                     usd: this.dataset.priceUsd,
-                    ves: this.dataset.priceVes
+                    ves: this.dataset.priceVes // Ahora toma el valor calculado del DOM
                 };
                 
                 // 4. Habilitar y actualizar el botón
@@ -99,7 +118,6 @@ document.addEventListener('DOMContentLoaded', () => {
     // 💡 CLAVE: Escuchar el evento global de cambio de moneda (asumiendo que script.js lo emite)
     window.addEventListener('currencyChanged', renderPackages); 
     
-    // 🎯 LA LÍNEA CLAVE QUE FALTA EN LA VERSIÓN ORIGINAL, ahora incluida:
     // Al cargar el DOM, renderizamos los paquetes inmediatamente.
     renderPackages(); 
     
