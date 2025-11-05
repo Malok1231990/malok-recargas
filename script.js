@@ -308,6 +308,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const authDropdown = document.getElementById('auth-dropdown');
     const toggleLoginBtn = document.getElementById('toggle-login-btn');
     const logoutBtn = document.getElementById('logout-btn');
+    
+    // ⬇️ NUEVO: El enlace "Iniciar Sesión" / Nombre de Usuario
+    const authDisplayLink = document.getElementById('auth-display-name');
 
 
     // --- UTILITY: Gestión de Datos del Carrito ---
@@ -448,12 +451,33 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
     
-    // 3. Lógica del Botón de Carrito (Abrir/Cerrar)
+    // 3. Lógica del Enlace "Mi Cuenta" / "Iniciar Sesión" (NUEVO)
+    if (authDisplayLink) {
+        authDisplayLink.addEventListener('click', (e) => {
+            e.preventDefault(); 
+            
+            // Verificamos si el usuario está logueado (el texto no es "Iniciar Sesión")
+            const isUserLoggedIn = authDisplayLink.textContent.trim() !== 'Iniciar Sesión';
+
+            if (isUserLoggedIn) {
+                // Si el usuario está logueado (muestra su nombre), lo redirigimos a su cuenta/perfil
+                if (authDropdown) authDropdown.classList.remove('active'); // Cerramos el dropdown
+                // Usamos 'index.html' como página de perfil temporal.
+                window.location.href = 'index.html'; 
+            } else {
+                // Si está deslogueado, el enlace actúa solo como título/indicador.
+                // La acción real de login es el botón de Google justo debajo.
+                // No hacemos nada para no interferir.
+            }
+        });
+    }
+    
+    // 4. Lógica del Botón de Carrito (Abrir/Cerrar)
     if (cartIcon && closeCartBtn) {
         cartIcon.addEventListener('click', () => { window.toggleCart(); });
         closeCartBtn.addEventListener('click', () => { window.toggleCart(false); });
 
-        // 4. Lógica del Botón de Checkout
+        // 5. Lógica del Botón de Checkout
         if (checkoutBtn) {
             checkoutBtn.addEventListener('click', () => {
                 const cart = getCart();
@@ -465,10 +489,10 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
     
-    // 5. Integración con el cambio de moneda
+    // 6. Integración con el cambio de moneda
     window.addEventListener('currencyChanged', renderCart);
     
-    // 6. Tareas de Inicialización al cargar el DOM
+    // 7. Tareas de Inicialización al cargar el DOM
     renderCart();
     applySiteConfig();
     checkUserSessionAndRenderUI(); // ⬅️ CLAVE: Ejecutar la detección de sesión
