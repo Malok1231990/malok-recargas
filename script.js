@@ -1,4 +1,4 @@
-// script.js COMPLETO Y MODIFICADO (Versión Final con Gestión de Sesión, Billetera y UI)
+// script.js COMPLETO Y MODIFICADO (Versión Final con Redirección a login.html)
 
 // 🎯 FUNCIÓN PARA CARGAR Y APLICAR LA CONFIGURACIÓN DE COLORES
 async function applySiteConfig() {
@@ -309,7 +309,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const toggleLoginBtn = document.getElementById('toggle-login-btn');
     const logoutBtn = document.getElementById('logout-btn');
     
-    // ⬇️ NUEVO: El enlace "Iniciar Sesión" / Nombre de Usuario
+    // El enlace "Iniciar Sesión" / Nombre de Usuario
     const authDisplayLink = document.getElementById('auth-display-name');
 
 
@@ -451,12 +451,12 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
     
-    // 3. Lógica del Enlace "Mi Cuenta" / "Iniciar Sesión" (NUEVO)
+    // 3. Lógica del Enlace "Mi Cuenta" / "Iniciar Sesión" (MODIFICACIÓN CLAVE)
     if (authDisplayLink) {
         authDisplayLink.addEventListener('click', (e) => {
             e.preventDefault(); 
             
-            // Verificamos si el usuario está logueado (el texto no es "Iniciar Sesión")
+            // Verificamos si el usuario está logueado (el texto NO es "Iniciar Sesión")
             const isUserLoggedIn = authDisplayLink.textContent.trim() !== 'Iniciar Sesión';
 
             if (isUserLoggedIn) {
@@ -465,9 +465,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 // Usamos 'index.html' como página de perfil temporal.
                 window.location.href = 'index.html'; 
             } else {
-                // Si está deslogueado, el enlace actúa solo como título/indicador.
-                // La acción real de login es el botón de Google justo debajo.
-                // No hacemos nada para no interferir.
+                // Si está deslogueado, lo redirigimos a login.html
+                if (authDropdown) authDropdown.classList.remove('active'); // Cerramos el dropdown
+                window.location.href = 'login.html'; // ⬅️ REDIRECCIÓN A login.html
             }
         });
     }
