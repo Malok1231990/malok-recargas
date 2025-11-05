@@ -198,6 +198,7 @@
 
     <script src="script.js"></script>
     <script>
+        // 1. PLANTILLAS Y DATOS ESTATICOS
         const paymentDetailsTemplates = {
             'pago-movil': `
                 <p><strong>Paso 1:</strong> Realiza el Pago Móvil a los siguientes datos:</p>
@@ -256,42 +257,50 @@
             { id: 'zinli', name: 'Zinli', type: 'usd', icon: 'fas fa-wallet' }
         ];
 
+        // 2. VARIABLES GLOBALES DE LA PAGINA
         let transactionDetails = null;
         const paymentForm = document.getElementById('payment-form');
         const whatsappMessageContainer = document.getElementById('whatsapp-message-container');
         const finalizeBtn = document.getElementById('finalize-recharge-btn');
         const successMessageDisplay = document.getElementById('success-message-display');
         const paymentDetailsFormDiv = document.getElementById('payment-details-form');
+        const paymentMethodsDiv = document.getElementById('payment-methods'); // Asegurar que esta variable se usa
+
+        // 3. FUNCIONES DE LÓGICA
         
-        document.addEventListener('DOMContentLoaded', () => {
-            const transactionSummaryDiv = document.getElementById('transaction-summary');
-            const paymentMethodsDiv = document.getElementById('payment-methods');
+        /**
+         * @modificado Genera y actualiza el enlace de WhatsApp para recargas asistidas.
+         */
+        function updateWhatsAppLink() {
+            if (!transactionDetails || (transactionDetails.game !== "TikTok" && transactionDetails.game !== "Telegram")) return;
+
+            const whatsappLink = document.getElementById('whatsapp-link-btn');
+            const email = document.getElementById('email') ? document.getElementById('email').value.trim() : '';
+            const whatsappNumber = document.getElementById('whatsappNumber') ? document.getElementById('whatsappNumber').value.trim() : '';
+            const isEmailValid = document.getElementById('email') ? document.getElementById('email').checkValidity() : false;
             
-            const storedDetails = localStorage.getItem('transactionDetails');
-            if (storedDetails) {
-                transactionDetails = JSON.parse(storedDetails);
-                updateTransactionSummary();
-                updatePaymentMethods();
-                // Lógica de visualización inicial
-                if (transactionDetails.game === "TikTok" || transactionDetails.game === "Telegram") {
-                    whatsappMessageContainer.style.display = 'block';
-                    finalizeBtn.style.display = 'none';
-                    paymentDetailsFormDiv.style.display = 'none'; // Oculta el paso 2
-                    paymentMethodsDiv.closest('.form-section-step').style.display = 'none'; // Oculta el paso 1
-                } else {
-                    whatsappMessageContainer.style.display = 'none';
-                    finalizeBtn.style.display = 'block';
-                    paymentDetailsFormDiv.style.display = 'block'; // Muestra el paso 2
-                    paymentMethodsDiv.closest('.form-section-step').style.display = 'block'; // Muestra el paso 1
-                }
-            } else {
-                transactionSummaryDiv.innerHTML = '<p>No se encontraron detalles de la transacción. Por favor, regresa a la página de inicio.</p>';
-                finalizeBtn.style.display = 'none';
-                whatsappMessageContainer.style.display = 'none';
-                paymentDetailsFormDiv.style.display = 'none';
-                paymentMethodsDiv.closest('.form-section-step').style.display = 'none';
+            if (whatsappLink && email && isEmailValid && whatsappNumber) {
+                const gameOrService = transactionDetails.game;
+                
+                // Construcción del mensaje con los detalles de la transacción y del cliente
+                const message = `¡Hola! Quiero confirmar mi recarga.\n\n*Juego/Servicio:* ${gameOrService}\n*Paquete:* ${transactionDetails.packageName}\n*Monto:* ${parseFloat(transactionDetails.finalPrice).toFixed(2)} ${transactionDetails.currency}\n*Correo de Contacto:* ${email}\n*WhatsApp de Contacto:* ${whatsappNumber}\n\nPor favor, ayúdame a finalizar mi compra.`;
+                const encodedMessage = encodeURIComponent(message);
+                
+                // Número de WhatsApp de Malok Recargas
+                const malokWhatsappNumber = '584126949631'; 
+                
+                whatsappLink.href = `https://wa.me/${malokWhatsappNumber}?text=${encodedMessage}`;
+                whatsappLink.classList.remove('disabled');
+                whatsappLink.style.pointerEvents = 'auto'; // Habilitar click
+                whatsappLink.style.opacity = '1';
+            } else if (whatsappLink) {
+                // Deshabilitar el enlace si faltan campos
+                whatsappLink.href = '#';
+                whatsappLink.classList.add('disabled');
+                whatsappLink.style.pointerEvents = 'none'; // Deshabilitar click
+                whatsappLink.style.opacity = '0.5';
             }
-        });
+        }
 
         function updateTransactionSummary() {
             if (!transactionDetails) return;
@@ -374,7 +383,7 @@
         }
 
         function updatePaymentMethods() {
-            const paymentMethodsDiv = document.getElementById('payment-methods');
+            if (!paymentMethodsDiv) return;
             paymentMethodsDiv.innerHTML = '';
             const currentCurrency = transactionDetails.currency;
             const methods = currentCurrency === 'VES' ? paymentMethodsVES : paymentMethodsUSD;
@@ -421,9 +430,6 @@
                 paymentDetailsFormDiv.innerHTML = '<p>Selecciona un método de pago para ver los detalles.</p>';
             }
             checkFormValidity();
-
-            document.getElementById('email').addEventListener('input', checkFormValidity);
-            document.getElementById('whatsappNumber').addEventListener('input', checkFormValidity);
         }
 
         async function handleCopyButtonClick(event) {
@@ -434,6 +440,7 @@
 
             if (textToCopyElement && navigator.clipboard) {
                 try {
+                    // Usamos textContent en lugar de innerText, ya que el CSS puede ocultar el elemento
                     await navigator.clipboard.writeText(textToCopyElement.textContent);
                     if (feedbackElement) {
                         feedbackElement.textContent = '¡Copiado!';
@@ -458,6 +465,10 @@
             }
         }
 
+        /**
+         * Verifica la validez del formulario y habilita/deshabilita los botones.
+         * @modificado Llama a updateWhatsAppLink para el flujo asistido.
+         */
         function checkFormValidity() {
             const selectedRadio = document.querySelector('input[name="paymentMethod"]:checked');
             const isMethodSelected = selectedRadio !== null;
@@ -473,36 +484,66 @@
             let areDetailsFilled = true;
 
             if (transactionDetails.game === "TikTok" || transactionDetails.game === "Telegram") {
-                areDetailsFilled = true;
+                areDetailsFilled = true; // No hay comprobante que subir en este flujo
             } else if (isMethodSelected) {
                 const fileInput = document.getElementById('payment-receipt');
+                // Si hay método seleccionado, debe haber un archivo subido
                 if (fileInput && fileInput.files.length === 0) {
                     areDetailsFilled = false;
                 }
             } else {
-                areDetailsFilled = false;
+                areDetailsFilled = false; // Debe seleccionar un método
             }
             
+            // Lógica para el botón de FINALIZAR RECARGA (flujo normal)
             if (transactionDetails.game !== "TikTok" && transactionDetails.game !== "Telegram") {
                 finalizeBtn.disabled = !(isMethodSelected && areDetailsFilled && isEmailFilled && isEmailValid && isWhatsappFilled);
             } else {
-                // El botón de finalizar está oculto, por lo que deshabilitarlo no es necesario.
-                // Sin embargo, podemos usar esta misma lógica para habilitar el enlace de WhatsApp
-                // o mostrar una alerta si los campos no están llenos.
-                const whatsappLink = document.querySelector('.whatsapp-link');
-                if (whatsappLink) {
-                    if (isEmailFilled && isEmailValid && isWhatsappFilled) {
-                        // Aquí podrías agregar una clase para estilos visuales de habilitación
-                        whatsappLink.style.opacity = '1';
-                        whatsappLink.style.pointerEvents = 'auto';
-                    } else {
-                        // Opcionalmente, mostrar un mensaje al usuario
-                        whatsappLink.style.opacity = '0.5';
-                        whatsappLink.style.pointerEvents = 'none';
-                    }
-                }
+                // Lógica para el botón de WHATSAPP (flujo asistido)
+                updateWhatsAppLink();
             }
         }
+
+        // 4. EVENT LISTENERS
+        document.addEventListener('DOMContentLoaded', () => {
+            const transactionSummaryDiv = document.getElementById('transaction-summary');
+            
+            const storedDetails = localStorage.getItem('transactionDetails');
+            if (storedDetails) {
+                transactionDetails = JSON.parse(storedDetails);
+                
+                // Mover los listeners de los campos de contacto aquí para que estén activos siempre
+                const emailInput = document.getElementById('email');
+                const whatsappInput = document.getElementById('whatsappNumber');
+                if (emailInput) emailInput.addEventListener('input', checkFormValidity);
+                if (whatsappInput) whatsappInput.addEventListener('input', checkFormValidity);
+
+                updateTransactionSummary();
+                updatePaymentMethods();
+                
+                // Lógica de visualización inicial para recargas asistidas (TikTok/Telegram)
+                if (transactionDetails.game === "TikTok" || transactionDetails.game === "Telegram") {
+                    whatsappMessageContainer.style.display = 'block';
+                    finalizeBtn.style.display = 'none';
+                    // Oculta el paso 1 y 2
+                    if (paymentMethodsDiv) paymentMethodsDiv.closest('.form-section-step').style.display = 'none'; 
+                    if (paymentDetailsFormDiv) paymentDetailsFormDiv.closest('.form-section-step').style.display = 'none'; 
+                    updateWhatsAppLink(); // Inicia la validación del link de WhatsApp
+                } else {
+                    whatsappMessageContainer.style.display = 'none';
+                    finalizeBtn.style.display = 'block';
+                    // Muestra el paso 1 y 2
+                    if (paymentMethodsDiv) paymentMethodsDiv.closest('.form-section-step').style.display = 'block'; 
+                    if (paymentDetailsFormDiv) paymentDetailsFormDiv.closest('.form-section-step').style.display = 'block'; 
+                }
+            } else {
+                transactionSummaryDiv.innerHTML = '<p>No se encontraron detalles de la transacción. Por favor, regresa a la página de inicio.</p>';
+                finalizeBtn.style.display = 'none';
+                whatsappMessageContainer.style.display = 'none';
+                if (paymentDetailsFormDiv) paymentDetailsFormDiv.style.display = 'none';
+                if (paymentMethodsDiv) paymentMethodsDiv.closest('.form-section-step').style.display = 'none';
+            }
+        });
 
         document.getElementById('payment-form').addEventListener('submit', async (e) => {
             e.preventDefault();
@@ -516,6 +557,7 @@
             const emailInput = document.getElementById('email');
             const whatsappInput = document.getElementById('whatsappNumber');
             
+            // Validaciones de campos de contacto (universales)
             if (!emailInput || emailInput.value.trim() === '' || !emailInput.checkValidity()) {
                 alert('Por favor, ingresa un correo electrónico válido para recibir notificaciones.');
                 emailInput.focus();
@@ -528,16 +570,10 @@
                 return;
             }
             
-            if (transactionDetails.game !== "TikTok" && transactionDetails.game !== "Telegram") {
-                const paymentReceipt = document.getElementById('payment-receipt');
-                if (!paymentReceipt || paymentReceipt.files.length === 0) {
-                    alert('Por favor, sube tu comprobante de pago.');
-                    return;
-                }
-            } else {
-                // No se envía nada si es TikTok o Telegram, solo se valida y se muestra el mensaje de WhatsApp.
-                // El formulario no necesita ser enviado al backend aquí.
-                // Simplemente oculta el formulario y muestra el mensaje de éxito.
+            // Lógica especial para recargas asistidas (no se envían al backend)
+            if (transactionDetails.game === "TikTok" || transactionDetails.game === "Telegram") {
+                // Simplemente oculta el formulario y muestra el mensaje de éxito temporal.
+                // La acción real es la del botón de WhatsApp.
                 paymentForm.style.display = 'none';
                 whatsappMessageContainer.style.display = 'none';
                 successMessageDisplay.style.display = 'block';
@@ -549,11 +585,19 @@
                 return;
             }
             
+            // Lógica para flujo de pago normal (requiere comprobante)
+            const paymentReceipt = document.getElementById('payment-receipt');
+            if (!paymentReceipt || paymentReceipt.files.length === 0) {
+                alert('Por favor, sube tu comprobante de pago.');
+                return;
+            }
+            
             console.log('Datos a enviar (FormData):');
             for (let pair of formData.entries()) {
                 console.log(pair[0]+ ': ' + pair[1]);
             }
             
+            // Enviar al backend
             finalizeBtn.disabled = true;
             finalizeBtn.textContent = 'Enviando...';
             
