@@ -172,6 +172,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function renderCart() {
         const cart = getCart();
+        // **VERIFICACIÓN:** cartItemsContainer puede ser null si no está en la página, aunque debería estar en index.html
+        if (!cartItemsContainer) return; 
+        
         cartItemsContainer.innerHTML = ''; // Limpiar el contenedor actual
         let total = 0;
         const selectedCurrency = localStorage.getItem('selectedCurrency') || 'VES';
@@ -179,9 +182,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (cart.length === 0) {
             cartItemsContainer.innerHTML = '<p class="empty-cart-message">Tu carrito está vacío.</p>';
-            cartTotalElement.textContent = `${currencySymbol}0.00`;
-            cartCountElement.textContent = '0';
-            checkoutBtn.disabled = true;
+            if (cartTotalElement) cartTotalElement.textContent = `${currencySymbol}0.00`;
+            if (cartCountElement) cartCountElement.textContent = '0';
+            if (checkoutBtn) checkoutBtn.disabled = true;
             return;
         }
 
@@ -199,7 +202,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 <div class="cart-item-details">
                     <strong>${item.game}</strong>
                     <span>${item.packageName}</span>
-                    <span>ID: ${item.playerId || 'No Requerido'}</span>
+                    <span>ID: ${item.playerId || 'N/A'}</span>
                 </div>
                 <span class="cart-item-price">${priceDisplay}</span>
                 <button class="remove-item-btn" data-item-id="${item.id}">
@@ -210,14 +213,16 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         // Actualizar Total
-        const totalDisplay = `${currencySymbol}${total.toFixed(2)}`;
-        cartTotalElement.textContent = totalDisplay;
+        if (cartTotalElement) {
+            const totalDisplay = `${currencySymbol}${total.toFixed(2)}`;
+            cartTotalElement.textContent = totalDisplay;
+        }
         
         // Actualizar Contador
-        cartCountElement.textContent = cart.length;
+        if (cartCountElement) cartCountElement.textContent = cart.length;
         
         // Habilitar botón de Pago
-        checkoutBtn.disabled = false;
+        if (checkoutBtn) checkoutBtn.disabled = false;
         
         // Adjuntar Event Listeners para el botón de remover
         cartItemsContainer.querySelectorAll('.remove-item-btn').forEach(button => {
@@ -270,19 +275,19 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         // 3. Lógica del Botón de Checkout
-        checkoutBtn.addEventListener('click', () => {
-            // Guardamos el contenido del carrito en 'transactionDetails' 
-            // y redirigimos a 'payment.html'. payment.html deberá procesar una lista.
-            const cart = getCart();
-            if (cart.length > 0) {
-                // El payment.html deberá ser actualizado para procesar un ARRAY de items.
-                // Guardamos el array completo del carrito.
-                localStorage.setItem('transactionDetails', JSON.stringify(cart));
-                // Opcional: limpiar el carrito después de ir al checkout (depende del flujo deseado)
-                // saveCart([]); 
-                window.location.href = 'payment.html';
-            }
-        });
+        if (checkoutBtn) {
+            checkoutBtn.addEventListener('click', () => {
+                // Guardamos el contenido del carrito en 'transactionDetails' 
+                // y redirigimos a 'payment.html'. payment.html deberá procesar una lista.
+                const cart = getCart();
+                if (cart.length > 0) {
+                    // Guardamos el array completo del carrito.
+                    localStorage.setItem('transactionDetails', JSON.stringify(cart));
+                    // Redirigimos al pago
+                    window.location.href = 'payment.html';
+                }
+            });
+        }
     }
     
     // 4. Integración con el cambio de moneda
