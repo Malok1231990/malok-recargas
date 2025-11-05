@@ -197,150 +197,214 @@
     </footer>
 
     <script src="script.js"></script>
-    <script>
-        // 1. PLANTILLAS Y DATOS ESTATICOS
-        const paymentDetailsTemplates = {
-            'pago-movil': `
-                <p><strong>Paso 1:</strong> Realiza el Pago Móvil a los siguientes datos:</p>
-                <ul>
-                    <li><strong>Banco:</strong> Banco de Mercantil (0105)</li>
-                    <li><strong>Cédula/RIF:</strong> V-30258234</li>
-                    <li><strong>Teléfono:</strong> 0412-6949631</li>
-                </ul>
-                <div class="payment-fields-container">
-                    <p><strong>Paso 2:</strong> Sube tu comprobante de pago.</p>
-                    <label for="payment-receipt">Subir Comprobante de Pago:</label>
-                    <input type="file" id="payment-receipt" name="paymentReceipt" accept="image/*,application/pdf" required>
-                </div>
-            `,
-            'binance': `
-                <p><strong>Paso 1:</strong> Realiza la transferencia a nuestra cuenta Binance (USDT BEP20) O (Binance Pay).</p>
-                <ul>
-                    <p><strong>USDT (BEP20):</strong></p>
-                    <li>
-                        <div class="copy-container">
-                            <span class="address-label">Dirección de Billetera BEP20:</span>
-                            <span class="wallet-address" id="binance-address">0xd8e6d7a73f6d30519793b8e67d76c5945730dc46</span>
-                            <button type="button" class="copy-button" data-copy-target="binance-address">Copiar</button>
-                            <span class="copy-feedback" id="binance-copy-feedback">¡Copiado!</span>
-                        </div>
-                    </li>
-                    <li><strong>Moneda:</strong> USDT (BEP20)</li>
-                    <p><strong>Binance Pay:</strong></p>
-                    <li><strong>ID Binance Pay:</strong> 91149377</li>
-                </ul>
-                <div class="payment-fields-container">
-                    <p><strong>Paso 2:</strong> Sube tu comprobante de pago.</p>
-                    <label for="payment-receipt">Subir Comprobante de Pago:</label>
-                    <input type="file" id="payment-receipt" name="paymentReceipt" accept="image/*,application/pdf" required>
-                </div>
-            `,
-            'zinli': `
-                <p><strong>Paso 1:</strong> Transfiere el monto exacto a nuestra cuenta Zinli.</p>
-                <ul>
-                    <li><strong>Usuario Zinli:</strong> miladelarocaedwar04@gmail.com</li>
-                </ul>
-                <div class="payment-fields-container">
-                    <p><strong>Paso 2:</strong> Sube tu comprobante de pago.</p>
-                    <label for="payment-receipt">Subir Comprobante de Pago:</label>
-                    <input type="file" id="payment-receipt" name="paymentReceipt" accept="image/*,application/pdf" required>
-                </div>
-            `
-        };
+   <script>
+    // 1. PLANTILLAS Y DATOS ESTATICOS
+    const paymentDetailsTemplates = {
+        'pago-movil': `
+            <p><strong>Paso 1:</strong> Realiza el Pago Móvil a los siguientes datos:</p>
+            <ul>
+                <li><strong>Banco:</strong> Banco de Mercantil (0105)</li>
+                <li><strong>Cédula/RIF:</strong> V-30258234</li>
+                <li><strong>Teléfono:</strong> 0412-6949631</li>
+            </ul>
+            <div class="payment-fields-container">
+                <p><strong>Paso 2:</strong> Sube tu comprobante de pago.</p>
+                <label for="payment-receipt">Subir Comprobante de Pago:</label>
+                <input type="file" id="payment-receipt" name="paymentReceipt" accept="image/*,application/pdf" required>
+            </div>
+        `,
+        'binance': `
+            <p><strong>Paso 1:</strong> Realiza la transferencia a nuestra cuenta Binance (USDT BEP20) O (Binance Pay).</p>
+            <ul>
+                <p><strong>USDT (BEP20):</strong></p>
+                <li>
+                    <div class="copy-container">
+                        <span class="address-label">Dirección de Billetera BEP20:</span>
+                        <span class="wallet-address" id="binance-address">0xd8e6d7a73f6d30519793b8e67d76c5945730dc46</span>
+                        <button type="button" class="copy-button" data-copy-target="binance-address">Copiar</button>
+                        <span class="copy-feedback" id="binance-copy-feedback">¡Copiado!</span>
+                    </div>
+                </li>
+                <li><strong>Moneda:</strong> USDT (BEP20)</li>
+                <p><strong>Binance Pay:</strong></p>
+                <li><strong>ID Binance Pay:</strong> 91149377</li>
+            </ul>
+            <div class="payment-fields-container">
+                <p><strong>Paso 2:</strong> Sube tu comprobante de pago.</p>
+                <label for="payment-receipt">Subir Comprobante de Pago:</label>
+                <input type="file" id="payment-receipt" name="paymentReceipt" accept="image/*,application/pdf" required>
+            </div>
+        `,
+        'zinli': `
+            <p><strong>Paso 1:</strong> Transfiere el monto exacto a nuestra cuenta Zinli.</p>
+            <ul>
+                <li><strong>Usuario Zinli:</strong> miladelarocaedwar04@gmail.com</li>
+            </ul>
+            <div class="payment-fields-container">
+                <p><strong>Paso 2:</strong> Sube tu comprobante de pago.</p>
+                <label for="payment-receipt">Subir Comprobante de Pago:</label>
+                <input type="file" id="payment-receipt" name="paymentReceipt" accept="image/*,application/pdf" required>
+            </div>
+        `
+    };
 
-        const paymentMethodsVES = [
-            { id: 'pago-movil', name: 'Pago Móvil', type: 'ves', icon: 'fas fa-mobile-alt' }
-        ];
+    const paymentMethodsVES = [
+        { id: 'pago-movil', name: 'Pago Móvil', type: 'ves', icon: 'fas fa-mobile-alt' }
+    ];
 
-        const paymentMethodsUSD = [
-            { id: 'binance', name: 'Binance', type: 'usd', icon: 'fab fa-bitcoin' },
-            { id: 'zinli', name: 'Zinli', type: 'usd', icon: 'fas fa-wallet' }
-        ];
+    const paymentMethodsUSD = [
+        { id: 'binance', name: 'Binance', type: 'usd', icon: 'fab fa-bitcoin' },
+        { id: 'zinli', name: 'Zinli', type: 'usd', icon: 'fas fa-wallet' }
+    ];
 
-        // 2. VARIABLES GLOBALES DE LA PAGINA
-        let transactionDetails = null;
-        const paymentForm = document.getElementById('payment-form');
-        const whatsappMessageContainer = document.getElementById('whatsapp-message-container');
-        const finalizeBtn = document.getElementById('finalize-recharge-btn');
-        const successMessageDisplay = document.getElementById('success-message-display');
-        const paymentDetailsFormDiv = document.getElementById('payment-details-form');
-        const paymentMethodsDiv = document.getElementById('payment-methods'); // Asegurar que esta variable se usa
+    // 2. VARIABLES GLOBALES DE LA PAGINA
+    let transactionDetails = null;
+    const paymentForm = document.getElementById('payment-form');
+    const whatsappMessageContainer = document.getElementById('whatsapp-message-container');
+    const finalizeBtn = document.getElementById('finalize-recharge-btn');
+    const successMessageDisplay = document.getElementById('success-message-display');
+    const paymentDetailsFormDiv = document.getElementById('payment-details-form');
+    const paymentMethodsDiv = document.getElementById('payment-methods'); // Asegurar que esta variable se usa
 
-        // 3. FUNCIONES DE LÓGICA
+    // 3. FUNCIONES DE LÓGICA
+    
+    /**
+     * @NUEVA_FUNCIÓN: Verifica si algún ítem en la transacción requiere flujo asistido (TikTok/Telegram).
+     * @returns {boolean}
+     */
+    function isAssistedFlow() {
+        // Si no hay detalles, no es asistido
+        if (!transactionDetails) return false;
+
+        // Si es un array (carrito), verificamos si ALGUNO de los items es asistido
+        if (Array.isArray(transactionDetails)) {
+            return transactionDetails.some(item => 
+                item.game === "TikTok" || item.game === "Telegram"
+            );
+        } 
         
-        /**
-         * @modificado Genera y actualiza el enlace de WhatsApp para recargas asistidas.
-         */
-        function updateWhatsAppLink() {
-            if (!transactionDetails || (transactionDetails.game !== "TikTok" && transactionDetails.game !== "Telegram")) return;
+        // Si es un objeto singular (flujo antiguo), verificamos ese objeto
+        return transactionDetails.game === "TikTok" || transactionDetails.game === "Telegram";
+    }
 
-            const whatsappLink = document.getElementById('whatsapp-link-btn');
-            const email = document.getElementById('email') ? document.getElementById('email').value.trim() : '';
-            const whatsappNumber = document.getElementById('whatsappNumber') ? document.getElementById('whatsappNumber').value.trim() : '';
-            const isEmailValid = document.getElementById('email') ? document.getElementById('email').checkValidity() : false;
+    /**
+     * @MODIFICADO: Genera y actualiza el enlace de WhatsApp para recargas asistidas.
+     * Ahora genera un mensaje detallado para el carrito.
+     */
+    function updateWhatsAppLink() {
+        if (!isAssistedFlow()) return;
+
+        const whatsappLink = document.getElementById('whatsapp-link-btn');
+        const email = document.getElementById('email') ? document.getElementById('email').value.trim() : '';
+        const whatsappNumber = document.getElementById('whatsappNumber') ? document.getElementById('whatsappNumber').value.trim() : '';
+        const isEmailValid = document.getElementById('email') ? document.getElementById('email').checkValidity() : false;
+        
+        if (whatsappLink && email && isEmailValid && whatsappNumber && transactionDetails && transactionDetails.finalPrice) {
             
-            if (whatsappLink && email && isEmailValid && whatsappNumber) {
-                const gameOrService = transactionDetails.game;
-                
-                // Construcción del mensaje con los detalles de la transacción y del cliente
-                const message = `¡Hola! Quiero confirmar mi recarga.\n\n*Juego/Servicio:* ${gameOrService}\n*Paquete:* ${transactionDetails.packageName}\n*Monto:* ${parseFloat(transactionDetails.finalPrice).toFixed(2)} ${transactionDetails.currency}\n*Correo de Contacto:* ${email}\n*WhatsApp de Contacto:* ${whatsappNumber}\n\nPor favor, ayúdame a finalizar mi compra.`;
-                const encodedMessage = encodeURIComponent(message);
-                
-                // Número de WhatsApp de Malok Recargas
-                const malokWhatsappNumber = '584126949631'; 
-                
-                whatsappLink.href = `https://wa.me/${malokWhatsappNumber}?text=${encodedMessage}`;
-                whatsappLink.classList.remove('disabled');
-                whatsappLink.style.pointerEvents = 'auto'; // Habilitar click
-                whatsappLink.style.opacity = '1';
-            } else if (whatsappLink) {
-                // Deshabilitar el enlace si faltan campos
-                whatsappLink.href = '#';
-                whatsappLink.classList.add('disabled');
-                whatsappLink.style.pointerEvents = 'none'; // Deshabilitar click
-                whatsappLink.style.opacity = '0.5';
-            }
+            let message = `¡Hola! Quiero confirmar mi pedido de recarga.\n\n*Pedido Asistido:*\n`;
+            
+            // Determinar si es un solo item o un carrito
+            const cartItems = Array.isArray(transactionDetails) ? transactionDetails : (transactionDetails ? [transactionDetails] : []);
+            
+            let totalAmount = transactionDetails.finalPrice || 'N/A';
+            let currency = transactionDetails.currency || 'USD';
+            
+            // Construcción del mensaje con los detalles de la transacción
+            cartItems.forEach((item, index) => {
+                // Solo listamos los ítems que requieran asistencia
+                if (item.game === "TikTok" || item.game === "Telegram") {
+                    message += `\n*Item ${index + 1}:*\n`;
+                    message += `*Juego/Servicio:* ${item.game}\n`;
+                    message += `*Paquete:* ${item.packageName}\n`;
+                    if (item.playerId) {
+                        message += `*ID/Usuario:* ${item.playerId}\n`;
+                    } else if (item.robloxEmail) {
+                        message += `*Correo:* ${item.robloxEmail}\n`;
+                    }
+                }
+            });
+            
+            message += `\n*TOTAL A PAGAR:* ${totalAmount} ${currency}`;
+            message += `\n\n*Correo de Contacto:* ${email}\n*WhatsApp de Contacto:* ${whatsappNumber}\n\nPor favor, ayúdame a finalizar mi compra.`;
+
+            const encodedMessage = encodeURIComponent(message);
+            
+            // Número de WhatsApp de Malok Recargas
+            const malokWhatsappNumber = '584126949631'; 
+            
+            whatsappLink.href = `https://wa.me/${malokWhatsappNumber}?text=${encodedMessage}`;
+            whatsappLink.classList.remove('disabled');
+            whatsappLink.style.pointerEvents = 'auto'; // Habilitar click
+            whatsappLink.style.opacity = '1';
+        } else if (whatsappLink) {
+            // Deshabilitar el enlace si faltan campos o detalles de la transacción
+            whatsappLink.href = '#';
+            whatsappLink.classList.add('disabled');
+            whatsappLink.style.pointerEvents = 'none'; // Deshabilitar click
+            whatsappLink.style.opacity = '0.5';
+        }
+    }
+
+    /**
+     * @REESCRITO: Genera y actualiza el resumen de la transacción en la UI, ahora manejando un array de productos (el carrito).
+     * Calcula el total de todos los productos y muestra los detalles individuales.
+     */
+    function updateTransactionSummary() {
+        const summaryDiv = document.getElementById('transaction-summary');
+        
+        // Aseguramos que transactionDetails sea un array. Si es un objeto singular (flujo antiguo), lo convertimos a un array.
+        const cartItems = Array.isArray(transactionDetails) ? transactionDetails : (transactionDetails ? [transactionDetails] : []);
+        
+        if (!summaryDiv || cartItems.length === 0) {
+            summaryDiv.innerHTML = '<p class="error-message">No se encontraron detalles de la recarga. Por favor, vuelve a la tienda.</p>';
+            setTimeout(() => { window.location.href = 'index.html'; }, 3000);
+            return;
         }
 
-        function updateTransactionSummary() {
-            if (!transactionDetails) return;
+        const selectedCurrency = localStorage.getItem('selectedCurrency') || 'USD';
+        const currencySymbol = selectedCurrency === 'VES' ? 'Bs.S' : '$';
+        let totalUSD = 0;
+        let totalVES = 0;
+        let summaryHTML = '<h3>Resumen de la Transacción</h3>';
+        
+        summaryHTML += '<div class="product-list-summary">';
 
-            const transactionSummaryDiv = document.getElementById('transaction-summary');
-            const displayAmount = parseFloat(transactionDetails.finalPrice);
-            const displayCurrency = transactionDetails.currency;
+        // 1. Iterar sobre cada item del carrito
+        cartItems.forEach((item, index) => {
+            // Aseguramos que los precios sean números, usando 0 como fallback
+            const priceUSD = parseFloat(item.priceUSD || 0);
+            const priceVES = parseFloat(item.priceVES || 0);
+
+            totalUSD += priceUSD;
+            totalVES += priceVES;
             
-            let otherCurrencyDisplay = '';
-            if (transactionDetails.priceUSD && transactionDetails.priceVES) {
-                if (displayCurrency === 'VES') {
-                    otherCurrencyDisplay = ` (~ $${parseFloat(transactionDetails.priceUSD).toFixed(2)} USD)`;
-                } else if (displayCurrency === 'USD') {
-                    otherCurrencyDisplay = ` (~ Bs. ${parseFloat(transactionDetails.priceVES).toFixed(2)} VES)`;
-                }
-            }
-
-            const game = transactionDetails.game;
+            // El precio a mostrar depende de la moneda seleccionada
+            const displayPrice = selectedCurrency === 'VES' ? priceVES.toFixed(2) : priceUSD.toFixed(2);
+            
             let playerInfoHtml = '';
-            let gameOrServiceLabel = (game === 'Netflix') ? 'Servicio' : 'Juego';
             let passwordHtml = '';
             let passwordToReveal = '';
 
-            // Lógica unificada para mostrar datos del jugador
+            // *** Lógica para el detalle del producto (adaptado de tu antigua lógica, pero por item) ***
+            const game = item.game;
+            let gameOrServiceLabel = (game === 'Netflix') ? 'Servicio' : 'Juego';
+            
             if (game === 'Roblox' || game === 'Netflix') {
-                const gameEmailHtml = transactionDetails.robloxEmail ? `<p><strong>Correo de ${game}:</strong> ${transactionDetails.robloxEmail}</p>` : '';
-                if (transactionDetails.robloxPassword) {
-                    passwordToReveal = transactionDetails.robloxPassword;
+                const gameEmailHtml = item.robloxEmail ? `<p><strong>Correo de ${game}:</strong> ${item.robloxEmail}</p>` : '';
+                if (item.robloxPassword) {
+                    passwordToReveal = item.robloxPassword;
                 }
                 playerInfoHtml = `${gameEmailHtml}`;
             } else if (game === 'Call of Duty Mobile') {
-                const gameEmailHtml = transactionDetails.codmEmail ? `<p><strong>Correo de ${game}:</strong> ${transactionDetails.codmEmail}</p>` : '';
-                if (transactionDetails.codmPassword) {
-                    passwordToReveal = transactionDetails.codmPassword;
+                const gameEmailHtml = item.codmEmail ? `<p><strong>Correo de ${game}:</strong> ${item.codmEmail}</p>` : '';
+                if (item.codmPassword) {
+                    passwordToReveal = item.codmPassword;
                 }
-                const gameVinculationHtml = transactionDetails.codmVinculation ? `<p><strong>Vinculación:</strong> ${transactionDetails.codmVinculation}</p>` : '';
+                const gameVinculationHtml = item.codmVinculation ? `<p><strong>Vinculación:</strong> ${item.codmVinculation}</p>` : '';
                 playerInfoHtml = `${gameEmailHtml}${gameVinculationHtml}`;
             } else {
-                // Para otros juegos, mostramos el ID de Jugador
-                const playerIdHtml = transactionDetails.playerId ? `<p><strong>ID de Jugador:</strong> ${transactionDetails.playerId}</p>` : '';
+                // Para otros juegos, mostramos el ID de Jugador (playerId)
+                const playerIdHtml = item.playerId ? `<p><strong>ID/Usuario:</strong> ${item.playerId}</p>` : '';
                 playerInfoHtml = playerIdHtml;
             }
 
@@ -349,231 +413,322 @@
                 const maskedPassword = '•'.repeat(passwordToReveal.length);
                 passwordHtml = `
                     <p><strong>Contraseña:</strong> 
-                        <span id="game-password">${maskedPassword}</span>
-                        <button type="button" class="toggle-password" id="toggle-game-password">
+                        <span id="game-password-${index}">${maskedPassword}</span>
+                        <button type="button" class="toggle-password" data-target-id="game-password-${index}" data-password="${passwordToReveal}">
                             <i class="fas fa-eye"></i>
                         </button>
                     </p>
                 `;
             }
 
-            transactionSummaryDiv.innerHTML = `
-                <h3>Resumen de tu Recarga</h3>
-                <p><strong>${gameOrServiceLabel}:</strong> ${game}</p>
-                ${playerInfoHtml}
-                ${passwordHtml}
-                <p><strong>Paquete:</strong> ${transactionDetails.packageName}</p>
-                <p><strong>Monto a Pagar:</strong> <span class="amount">${displayCurrency === 'VES' ? 'Bs.' : '$'} ${displayAmount.toFixed(2)} ${displayCurrency}</span>${otherCurrencyDisplay}</p>
+            // Creamos el HTML para el item actual
+            summaryHTML += `
+                <div class="product-summary-item" data-index="${index}">
+                    <p class="item-name"><strong>${gameOrServiceLabel} (${game}):</strong> ${item.packageName}</p>
+                    ${playerInfoHtml}
+                    ${passwordHtml}
+                    <p class="item-price">Precio: <span class="price-value">${currencySymbol} ${displayPrice}</span></p>
+                </div>
+                <hr>
             `;
+        });
+        
+        // 2. Mostrar el Total Final
+        const finalDisplayTotal = selectedCurrency === 'VES' ? totalVES.toFixed(2) : totalUSD.toFixed(2);
+        
+        // Añadimos el contenedor final del total
+        summaryHTML += `
+            </div>
+            <div class="transaction-total">
+                <p><strong>TOTAL A PAGAR:</strong> <span id="final-total" data-usd="${totalUSD.toFixed(2)}" data-ves="${totalVES.toFixed(2)}">${currencySymbol} ${finalDisplayTotal}</span></p>
+            </div>
+        `;
 
-            // Añadir el evento al botón de mostrar/ocultar contraseña si el elemento existe
-            const toggleButton = document.getElementById('toggle-game-password');
-            if (toggleButton) {
-                toggleButton.addEventListener('click', () => {
-                    const passwordSpan = document.getElementById('game-password');
-                    if (passwordSpan.textContent === '•'.repeat(passwordToReveal.length)) {
-                        passwordSpan.textContent = passwordToReveal;
-                        toggleButton.innerHTML = '<i class="fas fa-eye-slash"></i>';
-                    } else {
-                        passwordSpan.textContent = '•'.repeat(passwordToReveal.length);
-                        toggleButton.innerHTML = '<i class="fas fa-eye"></i>';
-                    }
-                });
-            }
+        summaryDiv.innerHTML = summaryHTML;
+        
+        // Almacenamos los totales en la variable global (ya sea el array o el objeto singular) para mantener compatibilidad 
+        // con las funciones que usan transactionDetails.finalPrice, transactionDetails.currency, etc.
+        if (Array.isArray(transactionDetails)) {
+            transactionDetails.totalUSD = totalUSD.toFixed(2);
+            transactionDetails.totalVES = totalVES.toFixed(2);
+            transactionDetails.finalPrice = finalDisplayTotal;
+            transactionDetails.currency = selectedCurrency;
+        } else if (transactionDetails) {
+            // Para el caso de un objeto singular (flujo antiguo), actualizamos el objeto
+            transactionDetails.priceUSD = totalUSD.toFixed(2);
+            transactionDetails.priceVES = totalVES.toFixed(2);
+            transactionDetails.finalPrice = finalDisplayTotal;
+            transactionDetails.currency = selectedCurrency;
         }
 
-        function updatePaymentMethods() {
-            if (!paymentMethodsDiv) return;
-            paymentMethodsDiv.innerHTML = '';
-            const currentCurrency = transactionDetails.currency;
-            const methods = currentCurrency === 'VES' ? paymentMethodsVES : paymentMethodsUSD;
 
-            methods.forEach(method => {
-                const methodItem = document.createElement('div');
-                methodItem.classList.add('payment-method-option');
-                methodItem.innerHTML = `
-                    <input type="radio" id="method-${method.id}" name="paymentMethod" value="${method.id}" data-type="${method.type}">
-                    <label for="method-${method.id}">
-                        <i class="${method.icon}"></i>
-                        <span>${method.name}</span>
-                    </label>
-                `;
-                paymentMethodsDiv.appendChild(methodItem);
-            });
+        // 3. Añadir el evento a los botones de mostrar/ocultar contraseña (Ahora son múltiples)
+        document.querySelectorAll('.toggle-password').forEach(button => {
+            button.addEventListener('click', () => {
+                const targetId = button.dataset.targetId;
+                const passwordToReveal = button.dataset.password;
+                const passwordSpan = document.getElementById(targetId);
+                const maskedPassword = '•'.repeat(passwordToReveal.length);
 
-            paymentMethodsDiv.querySelectorAll('input[name="paymentMethod"]').forEach(radio => {
-                radio.addEventListener('change', (event) => {
-                    const selectedMethodId = event.target.value;
-                    loadPaymentDetails(selectedMethodId);
-                    checkFormValidity();
-                });
-            });
-            checkFormValidity();
-        }
-
-        function loadPaymentDetails(methodId) {
-            let methodHtml = paymentDetailsTemplates[methodId];
-
-            if (methodHtml) {
-                paymentDetailsFormDiv.innerHTML = methodHtml;
-                const fileInput = document.getElementById('payment-receipt');
-                if (fileInput) {
-                    fileInput.addEventListener('change', checkFormValidity);
-                    fileInput.required = true;
-                }
-
-                const copyButton = paymentDetailsFormDiv.querySelector('.copy-button');
-                if (copyButton) {
-                    copyButton.addEventListener('click', handleCopyButtonClick);
-                }
-            } else {
-                paymentDetailsFormDiv.innerHTML = '<p>Selecciona un método de pago para ver los detalles.</p>';
-            }
-            checkFormValidity();
-        }
-
-        async function handleCopyButtonClick(event) {
-            const button = event.currentTarget;
-            const targetId = button.dataset.copyTarget;
-            const textToCopyElement = document.getElementById(targetId);
-            const feedbackElement = document.getElementById(`${targetId}-copy-feedback`);
-
-            if (textToCopyElement && navigator.clipboard) {
-                try {
-                    // Usamos textContent en lugar de innerText, ya que el CSS puede ocultar el elemento
-                    await navigator.clipboard.writeText(textToCopyElement.textContent);
-                    if (feedbackElement) {
-                        feedbackElement.textContent = '¡Copiado!';
-                        feedbackElement.style.display = 'inline-block';
-                        setTimeout(() => {
-                            feedbackElement.style.display = 'none';
-                        }, 1500);
-                    }
-                } catch (err) {
-                    console.error('Error al copiar: ', err);
-                    if (feedbackElement) {
-                        feedbackElement.textContent = 'Error al copiar';
-                        feedbackElement.style.display = 'inline-block';
-                        setTimeout(() => {
-                            feedbackElement.style.display = 'none';
-                        }, 1500);
-                    }
-                    alert('No se pudo copiar el texto. Por favor, cópialo manualmente.');
-                }
-            } else {
-                alert('Tu navegador no soporta la copia automática o no se encontró el elemento. Por favor, selecciona y copia la dirección manualmente.');
-            }
-        }
-
-        /**
-         * Verifica la validez del formulario y habilita/deshabilita los botones.
-         * @modificado Llama a updateWhatsAppLink para el flujo asistido.
-         */
-        function checkFormValidity() {
-            const selectedRadio = document.querySelector('input[name="paymentMethod"]:checked');
-            const isMethodSelected = selectedRadio !== null;
-            
-            const emailInput = document.getElementById('email');
-            const whatsappInput = document.getElementById('whatsappNumber');
-
-            const isEmailFilled = emailInput && emailInput.value.trim() !== '';
-            const isEmailValid = emailInput && emailInput.checkValidity();
-
-            const isWhatsappFilled = whatsappInput && whatsappInput.value.trim() !== '';
-
-            let areDetailsFilled = true;
-
-            if (transactionDetails.game === "TikTok" || transactionDetails.game === "Telegram") {
-                areDetailsFilled = true; // No hay comprobante que subir en este flujo
-            } else if (isMethodSelected) {
-                const fileInput = document.getElementById('payment-receipt');
-                // Si hay método seleccionado, debe haber un archivo subido
-                if (fileInput && fileInput.files.length === 0) {
-                    areDetailsFilled = false;
-                }
-            } else {
-                areDetailsFilled = false; // Debe seleccionar un método
-            }
-            
-            // Lógica para el botón de FINALIZAR RECARGA (flujo normal)
-            if (transactionDetails.game !== "TikTok" && transactionDetails.game !== "Telegram") {
-                finalizeBtn.disabled = !(isMethodSelected && areDetailsFilled && isEmailFilled && isEmailValid && isWhatsappFilled);
-            } else {
-                // Lógica para el botón de WHATSAPP (flujo asistido)
-                updateWhatsAppLink();
-            }
-        }
-
-        // 4. EVENT LISTENERS
-        document.addEventListener('DOMContentLoaded', () => {
-            const transactionSummaryDiv = document.getElementById('transaction-summary');
-            
-            const storedDetails = localStorage.getItem('transactionDetails');
-            if (storedDetails) {
-                transactionDetails = JSON.parse(storedDetails);
-                
-                // Mover los listeners de los campos de contacto aquí para que estén activos siempre
-                const emailInput = document.getElementById('email');
-                const whatsappInput = document.getElementById('whatsappNumber');
-                if (emailInput) emailInput.addEventListener('input', checkFormValidity);
-                if (whatsappInput) whatsappInput.addEventListener('input', checkFormValidity);
-
-                updateTransactionSummary();
-                updatePaymentMethods();
-                
-                // Lógica de visualización inicial para recargas asistidas (TikTok/Telegram)
-                if (transactionDetails.game === "TikTok" || transactionDetails.game === "Telegram") {
-                    whatsappMessageContainer.style.display = 'block';
-                    finalizeBtn.style.display = 'none';
-                    // Oculta el paso 1 y 2
-                    if (paymentMethodsDiv) paymentMethodsDiv.closest('.form-section-step').style.display = 'none'; 
-                    if (paymentDetailsFormDiv) paymentDetailsFormDiv.closest('.form-section-step').style.display = 'none'; 
-                    updateWhatsAppLink(); // Inicia la validación del link de WhatsApp
+                if (passwordSpan.textContent === maskedPassword) {
+                    passwordSpan.textContent = passwordToReveal;
+                    button.innerHTML = '<i class="fas fa-eye-slash"></i>';
                 } else {
-                    whatsappMessageContainer.style.display = 'none';
-                    finalizeBtn.style.display = 'block';
-                    // Muestra el paso 1 y 2
-                    if (paymentMethodsDiv) paymentMethodsDiv.closest('.form-section-step').style.display = 'block'; 
-                    if (paymentDetailsFormDiv) paymentDetailsFormDiv.closest('.form-section-step').style.display = 'block'; 
+                    passwordSpan.textContent = maskedPassword;
+                    button.innerHTML = '<i class="fas fa-eye"></i>';
                 }
-            } else {
-                transactionSummaryDiv.innerHTML = '<p>No se encontraron detalles de la transacción. Por favor, regresa a la página de inicio.</p>';
-                finalizeBtn.style.display = 'none';
-                whatsappMessageContainer.style.display = 'none';
-                if (paymentDetailsFormDiv) paymentDetailsFormDiv.style.display = 'none';
-                if (paymentMethodsDiv) paymentMethodsDiv.closest('.form-section-step').style.display = 'none';
-            }
+            });
+        });
+    }
+
+    function updatePaymentMethods() {
+        if (!paymentMethodsDiv) return;
+        paymentMethodsDiv.innerHTML = '';
+        // Usamos transactionDetails.currency que fue establecido por updateTransactionSummary
+        const currentCurrency = transactionDetails.currency; 
+        const methods = currentCurrency === 'VES' ? paymentMethodsVES : paymentMethodsUSD;
+
+        methods.forEach(method => {
+            const methodItem = document.createElement('div');
+            methodItem.classList.add('payment-method-option');
+            methodItem.innerHTML = `
+                <input type="radio" id="method-${method.id}" name="paymentMethod" value="${method.id}" data-type="${method.type}">
+                <label for="method-${method.id}">
+                    <i class="${method.icon}"></i>
+                    <span>${method.name}</span>
+                </label>
+            `;
+            paymentMethodsDiv.appendChild(methodItem);
         });
 
-        document.getElementById('payment-form').addEventListener('submit', async (e) => {
-            e.preventDefault();
+        paymentMethodsDiv.querySelectorAll('input[name="paymentMethod"]').forEach(radio => {
+            radio.addEventListener('change', (event) => {
+                const selectedMethodId = event.target.value;
+                loadPaymentDetails(selectedMethodId);
+                checkFormValidity();
+            });
+        });
+        checkFormValidity();
+    }
 
-            const formData = new FormData(paymentForm);
+    function loadPaymentDetails(methodId) {
+        let methodHtml = paymentDetailsTemplates[methodId];
 
-            for (const key in transactionDetails) {
-                formData.append(key, transactionDetails[key]);
+        if (methodHtml) {
+            paymentDetailsFormDiv.innerHTML = methodHtml;
+            const fileInput = document.getElementById('payment-receipt');
+            if (fileInput) {
+                fileInput.addEventListener('change', checkFormValidity);
+                fileInput.required = true;
             }
 
+            const copyButton = paymentDetailsFormDiv.querySelector('.copy-button');
+            if (copyButton) {
+                copyButton.addEventListener('click', handleCopyButtonClick);
+            }
+        } else {
+            paymentDetailsFormDiv.innerHTML = '<p>Selecciona un método de pago para ver los detalles.</p>';
+        }
+        checkFormValidity();
+    }
+
+    async function handleCopyButtonClick(event) {
+        const button = event.currentTarget;
+        const targetId = button.dataset.copyTarget;
+        const textToCopyElement = document.getElementById(targetId);
+        const feedbackElement = document.getElementById(`${targetId}-copy-feedback`);
+
+        if (textToCopyElement && navigator.clipboard) {
+            try {
+                // Usamos textContent en lugar de innerText, ya que el CSS puede ocultar el elemento
+                await navigator.clipboard.writeText(textToCopyElement.textContent);
+                if (feedbackElement) {
+                    feedbackElement.textContent = '¡Copiado!';
+                    feedbackElement.style.display = 'inline-block';
+                    setTimeout(() => {
+                        feedbackElement.style.display = 'none';
+                    }, 1500);
+                }
+            } catch (err) {
+                console.error('Error al copiar: ', err);
+                if (feedbackElement) {
+                    feedbackElement.textContent = 'Error al copiar';
+                    feedbackElement.style.display = 'inline-block';
+                    setTimeout(() => {
+                        feedbackElement.style.display = 'none';
+                    }, 1500);
+                }
+                alert('No se pudo copiar el texto. Por favor, cópialo manualmente.');
+            }
+        } else {
+            alert('Tu navegador no soporta la copia automática o no se encontró el elemento. Por favor, selecciona y copia la dirección manualmente.');
+        }
+    }
+
+    /**
+     * @MODIFICADO: Verifica la validez del formulario y habilita/deshabilita los botones.
+     * Ahora usa la función isAssistedFlow().
+     */
+    function checkFormValidity() {
+        const selectedRadio = document.querySelector('input[name="paymentMethod"]:checked');
+        const isMethodSelected = selectedRadio !== null;
+        
+        const emailInput = document.getElementById('email');
+        const whatsappInput = document.getElementById('whatsappNumber');
+
+        const isEmailFilled = emailInput && emailInput.value.trim() !== '';
+        const isEmailValid = emailInput && emailInput.checkValidity();
+
+        const isWhatsappFilled = whatsappInput && whatsappInput.value.trim() !== '';
+
+        let areDetailsFilled = true;
+
+        if (isAssistedFlow()) { // USAR isAssistedFlow()
+            areDetailsFilled = true; // No hay comprobante que subir en este flujo
+        } else if (isMethodSelected) {
+            const fileInput = document.getElementById('payment-receipt');
+            // Si hay método seleccionado, debe haber un archivo subido
+            if (fileInput && fileInput.files.length === 0) {
+                areDetailsFilled = false;
+            }
+        } else {
+            areDetailsFilled = false; // Debe seleccionar un método
+        }
+        
+        // Lógica para el botón de FINALIZAR RECARGA (flujo normal)
+        if (!isAssistedFlow()) { // USAR isAssistedFlow()
+            finalizeBtn.disabled = !(isMethodSelected && areDetailsFilled && isEmailFilled && isEmailValid && isWhatsappFilled);
+        } else {
+            // Lógica para el botón de WHATSAPP (flujo asistido)
+            updateWhatsAppLink();
+        }
+    }
+
+    // 4. EVENT LISTENERS
+    document.addEventListener('DOMContentLoaded', () => {
+        const transactionSummaryDiv = document.getElementById('transaction-summary');
+        
+        const storedDetails = localStorage.getItem('transactionDetails');
+        if (storedDetails) {
+            transactionDetails = JSON.parse(storedDetails);
+            
+            // APLICAR ARREGLO CLAVE: Si es un objeto singular (flujo antiguo), lo convertimos a array.
+            if (!Array.isArray(transactionDetails)) {
+                transactionDetails = [transactionDetails];
+            }
+
+            // Mover los listeners de los campos de contacto aquí para que estén activos siempre
             const emailInput = document.getElementById('email');
             const whatsappInput = document.getElementById('whatsappNumber');
+            if (emailInput) emailInput.addEventListener('input', checkFormValidity);
+            if (whatsappInput) whatsappInput.addEventListener('input', checkFormValidity);
+
+            updateTransactionSummary(); // Esto calcula los totales y los adjunta a transactionDetails
             
-            // Validaciones de campos de contacto (universales)
-            if (!emailInput || emailInput.value.trim() === '' || !emailInput.checkValidity()) {
-                alert('Por favor, ingresa un correo electrónico válido para recibir notificaciones.');
-                emailInput.focus();
-                return;
+            // Lógica de visualización inicial para recargas asistidas (TikTok/Telegram)
+            if (isAssistedFlow()) { // USAR isAssistedFlow()
+                whatsappMessageContainer.style.display = 'block';
+                finalizeBtn.style.display = 'none';
+                // Oculta el paso 1 y 2
+                if (paymentMethodsDiv) paymentMethodsDiv.closest('.form-section-step').style.display = 'none'; 
+                if (paymentDetailsFormDiv) paymentDetailsFormDiv.closest('.form-section-step').style.display = 'none'; 
+                updateWhatsAppLink(); // Inicia la validación del link de WhatsApp
+            } else {
+                whatsappMessageContainer.style.display = 'none';
+                finalizeBtn.style.display = 'block';
+                // Muestra el paso 1 y 2
+                if (paymentMethodsDiv) paymentMethodsDiv.closest('.form-section-step').style.display = 'block'; 
+                if (paymentDetailsFormDiv) paymentDetailsFormDiv.closest('.form-section-step').style.display = 'block'; 
+                updatePaymentMethods(); // Renderiza los métodos de pago (Solo si no es asistido)
             }
-            
-            if (!whatsappInput || whatsappInput.value.trim() === '') {
-                alert('Por favor, ingresa tu número de WhatsApp para poder contactarte y completar la recarga.');
-                whatsappInput.focus();
-                return;
+        } else {
+            transactionSummaryDiv.innerHTML = '<p>No se encontraron detalles de la transacción. Por favor, regresa a la página de inicio.</p>';
+            finalizeBtn.style.display = 'none';
+            whatsappMessageContainer.style.display = 'none';
+            if (paymentDetailsFormDiv) paymentDetailsFormDiv.style.display = 'none';
+            if (paymentMethodsDiv) paymentMethodsDiv.closest('.form-section-step').style.display = 'none';
+        }
+    });
+
+    document.getElementById('payment-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        const formData = new FormData(paymentForm);
+
+        // Agregamos todos los datos de transacción (incluyendo el array y los totales calculados)
+        // Convertimos el array a JSON string para enviarlo al backend en un solo campo (e.g., 'cartDetails')
+        formData.append('cartDetails', JSON.stringify(Array.isArray(transactionDetails) ? transactionDetails : [transactionDetails]));
+        
+        // Agregamos los totales y la moneda (para compatibilidad o simplicidad del backend)
+        if (transactionDetails.finalPrice) {
+            formData.append('finalPrice', transactionDetails.finalPrice);
+            formData.append('currency', transactionDetails.currency);
+            formData.append('totalUSD', transactionDetails.totalUSD);
+            formData.append('totalVES', transactionDetails.totalVES);
+        }
+
+        const emailInput = document.getElementById('email');
+        const whatsappInput = document.getElementById('whatsappNumber');
+        
+        // Validaciones de campos de contacto (universales)
+        if (!emailInput || emailInput.value.trim() === '' || !emailInput.checkValidity()) {
+            alert('Por favor, ingresa un correo electrónico válido para recibir notificaciones.');
+            emailInput.focus();
+            return;
+        }
+        
+        if (!whatsappInput || whatsappInput.value.trim() === '') {
+            alert('Por favor, ingresa tu número de WhatsApp para poder contactarte y completar la recarga.');
+            whatsappInput.focus();
+            return;
+        }
+        
+        // Lógica especial para recargas asistidas (no se envían al backend)
+        if (isAssistedFlow()) { // USAR isAssistedFlow()
+            // Simplemente oculta el formulario y muestra el mensaje de éxito temporal.
+            // La acción real es la del botón de WhatsApp.
+            paymentForm.style.display = 'none';
+            whatsappMessageContainer.style.display = 'none';
+            successMessageDisplay.style.display = 'block';
+            localStorage.removeItem('transactionDetails');
+
+            setTimeout(() => {
+                window.location.href = 'index.html';
+            }, 5000);
+            return;
+        }
+        
+        // Lógica para flujo de pago normal (requiere comprobante)
+        const paymentReceipt = document.getElementById('payment-receipt');
+        if (!paymentReceipt || paymentReceipt.files.length === 0) {
+            alert('Por favor, sube tu comprobante de pago.');
+            return;
+        }
+        
+        console.log('Datos a enviar (FormData):');
+        for (let pair of formData.entries()) {
+            // Ocultar el contenido del archivo subido en la consola para no saturar
+            if (pair[0] === 'paymentReceipt') {
+                console.log(pair[0]+ ': [Archivo subido]');
+            } else if (pair[0] === 'cartDetails') {
+                // Mostrar los detalles del carrito para depuración
+                console.log(pair[0]+ ': ' + pair[1]);
+            } else {
+                console.log(pair[0]+ ': ' + pair[1]);
             }
-            
-            // Lógica especial para recargas asistidas (no se envían al backend)
-            if (transactionDetails.game === "TikTok" || transactionDetails.game === "Telegram") {
-                // Simplemente oculta el formulario y muestra el mensaje de éxito temporal.
-                // La acción real es la del botón de WhatsApp.
+        }
+        
+        // Enviar al backend
+        finalizeBtn.disabled = true;
+        finalizeBtn.textContent = 'Enviando...';
+        
+        try {
+            const response = await fetch('/.netlify/functions/process-payment', {
+                method: 'POST',
+                body: formData
+            });
+
+            if (response.ok) {
                 paymentForm.style.display = 'none';
                 whatsappMessageContainer.style.display = 'none';
                 successMessageDisplay.style.display = 'block';
@@ -582,54 +737,20 @@
                 setTimeout(() => {
                     window.location.href = 'index.html';
                 }, 5000);
-                return;
-            }
-            
-            // Lógica para flujo de pago normal (requiere comprobante)
-            const paymentReceipt = document.getElementById('payment-receipt');
-            if (!paymentReceipt || paymentReceipt.files.length === 0) {
-                alert('Por favor, sube tu comprobante de pago.');
-                return;
-            }
-            
-            console.log('Datos a enviar (FormData):');
-            for (let pair of formData.entries()) {
-                console.log(pair[0]+ ': ' + pair[1]);
-            }
-            
-            // Enviar al backend
-            finalizeBtn.disabled = true;
-            finalizeBtn.textContent = 'Enviando...';
-            
-            try {
-                const response = await fetch('/.netlify/functions/process-payment', {
-                    method: 'POST',
-                    body: formData
-                });
-
-                if (response.ok) {
-                    paymentForm.style.display = 'none';
-                    whatsappMessageContainer.style.display = 'none';
-                    successMessageDisplay.style.display = 'block';
-                    localStorage.removeItem('transactionDetails');
-
-                    setTimeout(() => {
-                        window.location.href = 'index.html';
-                    }, 5000);
-                } else {
-                    const errorData = await response.json();
-                    alert(`Ocurrió un error: ${errorData.message || response.statusText}. Por favor, verifica tus datos e inténtalo de nuevo.`);
-                    console.error('Server error:', errorData);
-                    finalizeBtn.disabled = false;
-                    finalizeBtn.textContent = 'Finalizar Recarga';
-                }
-            } catch (error) {
-                alert('Hubo un problema de conexión. Por favor, inténtalo de nuevo más tarde.');
-                console.error('Network or client error:', error);
+            } else {
+                const errorData = await response.json();
+                alert(`Ocurrió un error: ${errorData.message || response.statusText}. Por favor, verifica tus datos e inténtalo de nuevo.`);
+                console.error('Server error:', errorData);
                 finalizeBtn.disabled = false;
                 finalizeBtn.textContent = 'Finalizar Recarga';
             }
-        });
-    </script>
+        } catch (error) {
+            alert('Hubo un problema de conexión. Por favor, inténtalo de nuevo más tarde.');
+            console.error('Network or client error:', error);
+            finalizeBtn.disabled = false;
+            finalizeBtn.textContent = 'Finalizar Recarga';
+        }
+    });
+</script>
 </body>
 </html>
