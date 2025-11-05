@@ -244,7 +244,7 @@ document.addEventListener('DOMContentLoaded', () => {
             
             
             // =============================================================
-            // === MODIFICACIÓN CLAVE: AÑADIR AL CARRITO ===
+            // === MODIFICACIÓN CLAVE: AÑADIR AL CARRITO Y MOSTRAR ALERTA ===
             // =============================================================
             
             // 1. Construir objeto de Ítem de Carrito con ID único
@@ -267,11 +267,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 console.error("Función addToCart no encontrada. ¿Está script.js cargado?");
             }
 
-            // 3. Abrir el panel lateral del carrito para mostrar el producto añadido
-            if (window.toggleCart) {
-                window.toggleCart(true); // Pasar 'true' para forzar la apertura
-            } 
+            // 3. MOSTRAR MENSAJE DE CONFIRMACIÓN (ALERTA DE CONSOLA)
+            alert(`✅ ¡Tu recarga de ${packageName} para ${cartItem.game} se ha agregado al carrito!`);
             
+            // 4. ELIMINADA la llamada a window.toggleCart(true);
+
             // Opcional: limpiar el campo de ID después de añadir
             if(playerIdInput) playerIdInput.value = '';
 
