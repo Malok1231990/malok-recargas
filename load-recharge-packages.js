@@ -23,6 +23,7 @@ document.addEventListener('DOMContentLoaded', () => {
         packageGrid.innerHTML = ''; // Limpiar mensaje de carga
         
         // La función getCurrentCurrency() se asume que existe en script.js
+        // Si no existe, usamos 'USD' por precaución (aunque DEBERÍA existir en script.js).
         const currentCurrency = window.getCurrentCurrency ? window.getCurrentCurrency() : 'USD'; 
         
         RECHARGE_PACKAGES.forEach((pkg, index) => {
@@ -96,7 +97,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // 💡 CLAVE: Escuchar el evento global de cambio de moneda (asumiendo que script.js lo emite)
     window.addEventListener('currencyChanged', renderPackages); 
-
+    
+    // 🎯 LA LÍNEA CLAVE QUE FALTA EN LA VERSIÓN ORIGINAL, ahora incluida:
+    // Al cargar el DOM, renderizamos los paquetes inmediatamente.
+    renderPackages(); 
+    
     // 🎯 Lógica de Pago Directo al enviar el formulario
     rechargeForm.addEventListener('submit', (e) => {
         e.preventDefault();
@@ -118,13 +123,10 @@ document.addEventListener('DOMContentLoaded', () => {
         };
 
         // 2. Guardar la transacción directamente, **saltando el carrito** de compras.
-        //    La página payment.html espera un array en 'transactionDetails'.
+        //    La página payment.html espera un array en 'transactionDetails'.
         localStorage.setItem('transactionDetails', JSON.stringify([transactionItem]));
 
         // 3. Redirigir inmediatamente a payment.html para procesar el pago.
         window.location.href = 'payment.html';
     });
-    
-    // Inicialización al cargar la página
-    renderPackages();
 });
