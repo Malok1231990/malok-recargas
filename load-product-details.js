@@ -165,7 +165,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     bannerImage.alt = data.nombre;
                 }
                 
-                // 🎯 LÓGICA: MOSTRAR CAMPO ID O MENSAJE DE WHATSAPP
+                // 🎯 NUEVA LÓGICA: MOSTRAR CAMPO ID O MENSAJE DE WHATSAPP
                 const playerIdInputGroup = document.getElementById('player-id-input-group');
                 const whatsappMessage = document.getElementById('whatsapp-info-message');
                 const stepOneTitle = document.getElementById('step-one-title');
@@ -238,39 +238,29 @@ document.addEventListener('DOMContentLoaded', () => {
             
             // Obtener datos del paquete seleccionado
             const packageName = selectedPackage.dataset.packageName;
-            // Usamos los strings del dataset (sin parseFloat) para la estructura del carrito
-            const itemPriceUSD = selectedPackage.dataset.priceUsd;
-            const itemPriceVES = selectedPackage.dataset.priceVes;
+            const basePriceUSD = parseFloat(selectedPackage.dataset.priceUsd);
+            const basePriceVES = parseFloat(selectedPackage.dataset.priceVes);
+            const selectedCurrency = localStorage.getItem('selectedCurrency') || 'VES';
             
-            // 🎯 NUEVA LÓGICA: AÑADIR AL CARRITO EN LUGAR DE REDIRIGIR A PAYMENT.HTML
+            // Calcular precio final
+            const finalPrice = (selectedCurrency === 'VES') ? basePriceVES : basePriceUSD;
             
-            // 1. Construir objeto de Ítem de Carrito con ID único
-            const cartItem = {
-                id: Date.now(), // ID único basado en el timestamp
+            // Construir objeto de la transacción para 'payment.html'
+            const transactionDetails = {
                 game: currentProductData ? currentProductData.nombre : 'Juego Desconocido',
-                // Enviamos el ID, que puede ser vacío ('') si no se requiere, o el valor ingresado
+                // Enviamos el ID, que puede ser vacío si no se requiere, o el valor ingresado
                 playerId: playerId, 
                 packageName: packageName,
-                // Enviamos ambos precios como strings (tal como están en el dataset)
-                priceUSD: itemPriceUSD, 
-                priceVES: itemPriceVES, 
+                priceUSD: basePriceUSD.toFixed(2), 
+                priceVES: basePriceVES.toFixed(2), // Añadido para referencia
+                finalPrice: finalPrice.toFixed(2), 
+                currency: selectedCurrency,
+                // Agregamos el flag de asistencia para usarlo en la página de pago
                 requiresAssistance: currentProductData.require_id !== true 
             };
 
-            // 2. Llamar a la función global para añadir al carrito (definida en script.js)
-            if (window.addToCart) {
-                window.addToCart(cartItem);
-            } else {
-                console.error("Función addToCart no encontrada. ¿Está script.js cargado?");
-            }
-
-            // 3. Abrir el panel lateral del carrito para mostrar el producto añadido
-            if (window.toggleCart) {
-                window.toggleCart(true); // Pasar 'true' para forzar la apertura
-            } 
-            
-            // Opcional: limpiar el campo de ID después de añadir
-            if(playerIdInput) playerIdInput.value = '';
+            localStorage.setItem('transactionDetails', JSON.stringify(transactionDetails));
+            window.location.href = 'payment.html';
         });
     }
 
