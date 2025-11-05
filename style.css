@@ -1582,3 +1582,25 @@ footer p {
 .auth-dropdown .logout-btn:hover .fas {
     color: var(--white, #fff);
 }
+
+
+/* ==================================== */
+/* === CORRECCIÓN PARA CENTRAR BOTÓN DE GOOGLE EN LOGIN.HTML === */
+/* ==================================== */
+
+#google-login-btn {
+    /* * Hacemos que el contenedor del botón de Google se comporte como un bloque 
+     * con un ancho fijo (el mismo que le dimos en script.js) 
+     */
+    display: block !important; 
+    
+    /* * Aseguramos que solo ocupe el espacio necesario (300px definidos en script.js), 
+     * para que haya espacio para centrar. 
+     */
+    max-width: 300px; 
+    
+    /* * Centra horizontalmente cualquier elemento de bloque 
+     * que tenga un ancho definido.
+     */
+    margin: 20px auto 0 !important; 
+}

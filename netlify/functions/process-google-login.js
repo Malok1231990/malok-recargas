@@ -56,7 +56,7 @@ exports.handler = async function(event, context) {
         const payload = ticket.getPayload();
         
         // Información básica del usuario de Google
-        const googleId = payload.sub; // ID único de Google
+        const googleId = payload.sub; // ID único de Google (este es el que está en public.usuarios.google_id)
         const email = payload.email;
         const name = payload.name;
         const picture = payload.picture;
@@ -70,9 +70,9 @@ exports.handler = async function(event, context) {
         // 1. Buscar si el usuario ya existe por su ID de Google
         let { data: existingUser, error: selectError } = await supabase
             .from('usuarios')
-            .select('*')
+            .select('id, google_id') // Solo necesitamos el ID interno para el UPDATE
             .eq('google_id', googleId)
-            .single();
+            .maybeSingle();
 
         if (selectError && selectError.code !== 'PGRST116') { // PGRST116 = no rows found
              console.error("Error al buscar usuario en Supabase:", selectError);
@@ -80,7 +80,7 @@ exports.handler = async function(event, context) {
         }
         
         let dbResponse;
-        let sessionToken = `${googleId}-${Date.now()}`; // Token de sesión simple, realzable con JWT si es necesario.
+        let sessionToken = `${googleId}-${Date.now()}`; 
 
         if (existingUser) {
             // 2. Si el usuario existe, actualizar sus datos y su token de sesión
@@ -117,6 +117,18 @@ exports.handler = async function(event, context) {
                 .single();
 
             console.log("Nuevo usuario creado.");
+            
+            // ⭐️ AÑADIDO CLAVE: Insertar saldo inicial (0.00) ⭐️
+            const { error: saldoError } = await supabase
+                .from('saldos')
+                .insert({ user_id: googleId, saldo_usd: 0.00 });
+                
+            if (saldoError) {
+                console.error("Error al insertar saldo inicial para:", googleId, saldoError);
+                // No lanzamos error fatal, ya que el usuario ya está creado en la tabla principal
+            } else {
+                console.log("Saldo inicial (0.00) insertado en saldos para:", googleId);
+            }
         }
 
         if (dbResponse.error) {
@@ -124,7 +136,31 @@ exports.handler = async function(event, context) {
             throw new Error(dbResponse.error.message || "Error al registrar/actualizar usuario.");
         }
         
-        const finalUser = dbResponse.data;
+        // ⭐️ MODIFICACIÓN CLAVE: Obtener los datos del usuario *junto con* el saldo ⭐️
+        // Necesitamos esta consulta para asegurar que el saldo siempre se obtiene correctamente.
+        const { data: finalUserData, error: finalSelectError } = await supabase
+            .from('usuarios')
+            .select(`
+                id, 
+                nombre, 
+                email, 
+                foto_url, 
+                session_token,
+                saldos(saldo_usd)
+            `)
+            .eq('google_id', googleId)
+            .single();
+
+        if (finalSelectError) {
+            console.error("Error al obtener datos finales con saldo:", finalSelectError);
+            throw new Error(finalSelectError.message || "Error al obtener datos de usuario y saldo.");
+        }
+        
+        const finalUser = finalUserData;
+        // Acceder al saldo usando la relación 1:1. El .saldos es el nombre de la tabla
+        const userBalance = (finalUser.saldos && finalUser.saldos.saldo_usd) 
+                            ? parseFloat(finalUser.saldos.saldo_usd).toFixed(2) // Formatear a 2 decimales
+                            : '0.00'; 
 
         // 4. Éxito: Devolver el token de sesión y los datos del usuario
         return {
@@ -137,7 +173,9 @@ exports.handler = async function(event, context) {
                     id: finalUser.id,
                     name: finalUser.nombre,
                     email: finalUser.email,
-                    picture: finalUser.foto_url
+                    picture: finalUser.foto_url,
+                    // ⭐️ CLAVE: Devolver el saldo al frontend ⭐️
+                    balance: userBalance 
                 }
             }),
         };
