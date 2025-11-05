@@ -203,6 +203,16 @@ function initGoogleSignIn() {
 }
 
 
+// 💡 CORRECCIÓN CLAVE: Función global para obtener la moneda guardada.
+// Esta función es vital para que 'load-recharge-packages.js' sepa qué precios (VES o USD)
+// debe cargar al iniciar la página, ya que usa 'window.getCurrentCurrency()'.
+window.getCurrentCurrency = function() {
+    // Retorna la moneda guardada ('USD' o 'VES'), o 'VES' como valor por defecto.
+    return localStorage.getItem('selectedCurrency') || 'VES'; 
+};
+// -----------------------------------------------------------------
+
+
 document.addEventListener('DOMContentLoaded', () => {
     // ---- Lógica para el nuevo selector de moneda personalizado ----
     const customCurrencySelector = document.getElementById('custom-currency-selector');
