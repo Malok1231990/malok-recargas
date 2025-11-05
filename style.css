@@ -1226,3 +1226,237 @@ footer p {
     }
 }
 
+/* ==================================== */
+/* === 1. Iconos de Carrito y Login === */
+/* ==================================== */
+
+/* Ajuste para header-right: Asegura que los nuevos elementos se alineen */
+.header-right {
+    display: flex;
+    /* Ajusta este valor si quieres más espacio entre los elementos */
+    gap: 15px; 
+    align-items: center;
+}
+
+/* Estilos del Icono de Carrito */
+.cart-icon {
+    position: relative;
+    display: inline-flex;
+    cursor: pointer;
+    font-size: 1.8em;
+    color: var(--text-color);
+    transition: color 0.3s;
+}
+
+.cart-icon:hover {
+    color: var(--primary-blue);
+}
+
+.cart-count {
+    position: absolute;
+    top: -5px;
+    right: -10px;
+    background-color: red;
+    color: white;
+    border-radius: 50%;
+    padding: 2px 6px;
+    font-size: 0.6em;
+    font-weight: bold;
+    min-width: 15px;
+    text-align: center;
+    line-height: 1;
+}
+
+/* Estilos de Botón de Perfil/Login */
+.auth-dropdown {
+    position: relative;
+    display: inline-block;
+    z-index: 110; /* Alto para que el menú esté por encima de otros elementos */
+}
+
+.auth-btn {
+    background: none;
+    border: none;
+    color: var(--text-color);
+    font-size: 1.8em;
+    cursor: pointer;
+    padding: 5px;
+    transition: color 0.3s;
+}
+
+.auth-btn:hover {
+    color: var(--primary-blue);
+}
+
+/* Contenido del Dropdown */
+.dropdown-content {
+    display: none;
+    position: absolute;
+    right: 0;
+    top: 100%; /* Justo debajo del botón */
+    background-color: var(--card-bg);
+    min-width: 150px;
+    box-shadow: 0 4px 10px var(--shadow-dark);
+    border-radius: 5px;
+    margin-top: 10px;
+    overflow: hidden;
+}
+
+.auth-dropdown.active .dropdown-content {
+    /* Esta clase 'active' se añade/quita con JavaScript */
+    display: block;
+}
+
+.dropdown-content a {
+    color: var(--text-color);
+    padding: 12px 16px;
+    text-decoration: none;
+    display: block;
+    font-size: 0.9em;
+}
+
+.dropdown-content a:hover {
+    background-color: var(--bg-color);
+    color: var(--primary-blue);
+}
+
+/* ==================================== */
+/* === 2. Panel Lateral del Carrito === */
+/* ==================================== */
+
+.cart-sidebar {
+    position: fixed;
+    top: 0;
+    right: 0;
+    width: 350px; /* Ancho en escritorio */
+    max-width: 90vw; /* Máximo 90% del viewport */
+    height: 100%;
+    background-color: var(--card-bg);
+    box-shadow: -5px 0 15px var(--shadow-dark);
+    z-index: 200; /* Asegura que esté por encima de todo */
+    display: flex;
+    flex-direction: column;
+    padding: 20px;
+    transition: transform 0.4s ease-in-out;
+    transform: translateX(100%); /* Oculto por defecto, fuera de la vista */
+}
+
+.cart-sidebar.open {
+    /* Esta clase 'open' se añade/quita con JavaScript */
+    transform: translateX(0); /* Muestra el panel deslizándolo */
+}
+
+.cart-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 15px;
+    margin-bottom: 20px;
+}
+
+.cart-header h2 {
+    margin: 0;
+    font-size: 1.5em;
+    color: var(--text-color);
+}
+
+#close-cart-btn {
+    background: none;
+    border: none;
+    color: var(--secondary-text);
+    font-size: 1.5em;
+    cursor: pointer;
+    transition: color 0.3s;
+}
+
+#close-cart-btn:hover {
+    color: var(--text-color);
+}
+
+.cart-items-container {
+    flex-grow: 1; /* Permite que la lista de items tome el espacio disponible */
+    overflow-y: auto; /* Scroll si hay muchos productos */
+}
+
+/* Estilo de cada ítem en el carrito */
+.cart-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 0;
+    border-bottom: 1px dashed var(--border-color);
+}
+
+.cart-item-details {
+    flex-grow: 1;
+}
+
+.cart-item-details strong {
+    display: block;
+    color: var(--text-color);
+    font-size: 0.95em;
+}
+
+.cart-item-details span {
+    color: var(--secondary-text);
+    font-size: 0.8em;
+}
+
+.remove-item-btn {
+    background: none;
+    border: none;
+    color: red;
+    font-size: 1.1em;
+    cursor: pointer;
+    margin-left: 10px;
+    transition: opacity 0.3s;
+}
+
+.remove-item-btn:hover {
+    opacity: 0.7;
+}
+
+.empty-cart-message {
+    text-align: center;
+    color: var(--secondary-text);
+    padding: 30px;
+}
+
+/* Resumen y Checkout */
+.cart-summary {
+    padding-top: 20px;
+    border-top: 1px solid var(--border-color);
+    text-align: right;
+}
+
+.total-label {
+    font-weight: bold;
+    font-size: 1.1em;
+    margin-bottom: 5px;
+}
+
+.total-amount {
+    font-size: 1.5em;
+    font-weight: bold;
+    color: var(--accent-green);
+    margin-bottom: 15px;
+}
+
+.checkout-btn {
+    width: 100%;
+    /* Reutiliza el estilo .btn-primary, pero si necesitas un estilo único puedes agregarlo */
+}
+
+.checkout-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    background: var(--border-color) !important;
+}
+
+/* Media Query para móviles: Reducir el ancho del panel */
+@media (max-width: 450px) {
+    .cart-sidebar {
+        width: 100vw;
+    }
+}
