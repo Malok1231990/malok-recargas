@@ -96,7 +96,7 @@ function checkUserSessionAndRenderUI() {
             if (genericIcon) genericIcon.style.display = 'block';
             
             // 2. Ocultar la imagen de perfil
-            if (authUserPicture) authUserPicture.style.display = 'none';
+            if (authUserPicture) authUserPicture.style.display = 'none'; // ✅ ESTA ES LA CLAVE PARA OCULTAR LA FOTO
         }
         
         // 3. Restaurar el texto del dropdown a "Iniciar Sesión"
@@ -144,7 +144,7 @@ window.handleCredentialResponse = async (response) => {
             alert(`¡Bienvenido(a), ${data.user.name || 'Usuario'}!`);
             // Redireccionar, o recargar si es necesario
             if (window.location.pathname.includes('index.html') === false) {
-                 window.location.href = 'index.html'; 
+                    window.location.href = 'index.html'; 
             } else {
                 // Si ya está en index, solo recargar para asegurar que todos los scripts inicien con sesión activa
                 window.location.reload(); 
@@ -157,7 +157,7 @@ window.handleCredentialResponse = async (response) => {
             console.error("Error del servidor en el login:", errorData);
             
             if (window.google && window.google.accounts && window.google.accounts.id) {
-                 initGoogleSignIn(); // Re-inicializar para mostrar el botón de nuevo
+                    initGoogleSignIn(); // Re-inicializar para mostrar el botón de nuevo
             }
         }
 
@@ -219,7 +219,7 @@ document.addEventListener('DOMContentLoaded', () => {
         
         // Dispatch custom event solo si la moneda realmente cambió
         if (prevCurrency !== value) {
-             window.dispatchEvent(new CustomEvent('currencyChanged', { detail: { currency: value } }));
+                window.dispatchEvent(new CustomEvent('currencyChanged', { detail: { currency: value } }));
         }
     }
 
@@ -322,13 +322,17 @@ document.addEventListener('DOMContentLoaded', () => {
     // Función global para agregar un producto al carrito
     window.addToCart = function(item) {
         const cart = getCart();
+        // Generamos un ID único aquí para el ítem del carrito
+        item.id = Date.now() + Math.random(); 
         cart.push(item);
         saveCart(cart);
         renderCart();
+        window.toggleCart(true); // Abrir carrito al añadir
     };
 
     function removeFromCart(itemId) {
         let cart = getCart();
+        // Usamos la comparación estricta (===) ya que item.id es un número (Date.now())
         cart = cart.filter(item => item.id !== itemId); 
         saveCart(cart);
         renderCart(); 
@@ -387,7 +391,8 @@ document.addEventListener('DOMContentLoaded', () => {
         
         cartItemsContainer.querySelectorAll('.remove-item-btn').forEach(button => {
             button.addEventListener('click', (e) => {
-                const itemId = parseInt(e.currentTarget.dataset.itemId); 
+                // El ID del item es un número (Date.now() o Date.now() + Math.random()), por eso se usa parseFloat
+                const itemId = parseFloat(e.currentTarget.dataset.itemId); 
                 removeFromCart(itemId);
             });
         });
@@ -429,19 +434,19 @@ document.addEventListener('DOMContentLoaded', () => {
             localStorage.removeItem('userData');
             
             // 2. Forzar la re-detección y actualización de la UI
-            checkUserSessionAndRenderUI();
+            // ESTO LLAMA A checkUserSessionAndRenderUI() y ejecuta el FIX.
+            checkUserSessionAndRenderUI(); 
             
             // 3. Opcional: Cerrar el dropdown después de logout
             if (authDropdown) authDropdown.classList.remove('active');
             
             alert('¡Sesión cerrada con éxito!');
             
-            // 4. Redirigir a index si no estamos allí
+            // 4. Redirigir a index si no estamos allí o recargar para resetear el estado de la página
             if (window.location.pathname.includes('index.html') === false) {
-                 window.location.href = 'index.html'; 
+                    window.location.href = 'index.html'; 
             } else {
-                 // Si estamos en index, recargar para resetear el estado de la página
-                 window.location.reload(); 
+                    window.location.reload(); 
             }
         });
     }
