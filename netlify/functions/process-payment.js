@@ -49,6 +49,7 @@ exports.handler = async function(event, context) {
                 });
             });
 
+            // Procesar campos, tratando arrays de un solo elemento como strings (comportamiento por defecto)
             data = Object.fromEntries(Object.entries(fields).map(([key, value]) => [key, Array.isArray(value) ? value[0] : value]));
             paymentReceiptFile = files['paymentReceipt'] ? files['paymentReceipt'][0] : null;
 
@@ -83,24 +84,32 @@ exports.handler = async function(event, context) {
         };
     }
 
-    // Extraer datos del formulario (CORREGIDO)
-    const { game, playerId, package: packageName, finalPrice, currency, paymentMethod, email, whatsappNumber } = data;
+    // --- Extracción de Datos del Carrito y Globales ---
+    const { finalPrice, currency, paymentMethod, email, whatsappNumber, cartDetails } = data;
     
-    // 
-    // MODIFICACIÓN: solo extraer si el juego es 'Call of Duty Mobile'
-    let codmEmail = null;
-    let codmPassword = null;
-    let codmVinculation = null;
-
-    if (game === 'Call of Duty Mobile') {
-        codmEmail = data.codmEmail || data.codm_email || null;
-        codmPassword = data.codmPassword || data.codm_password || null;
-        codmVinculation = data.codmVinculation || data.codm_vinculation || null;
+    // Parsear el JSON del carrito
+    let cartItems = [];
+    if (cartDetails) {
+        try {
+            // El frontend envía el carrito como un JSON string en el campo 'cartDetails'
+            cartItems = JSON.parse(cartDetails);
+        } catch (e) {
+            console.error("Error al parsear cartDetails JSON:", e);
+            return {
+                statusCode: 400,
+                body: JSON.stringify({ message: "Formato de detalles del carrito inválido." })
+            };
+        }
     }
-    
-    const robloxEmail = data.robloxEmail || data.roblox_email || null;
-    const robloxPassword = data.robloxPassword || data.roblox_password || null;
 
+    if (cartItems.length === 0) {
+        return {
+            statusCode: 400,
+            body: JSON.stringify({ message: "El carrito de compra está vacío." })
+        };
+    }
+
+    // Obtener detalles específicos del método de pago (solo se hace una vez)
     let methodSpecificDetails = {};
     if (paymentMethod === 'pago-movil') {
         methodSpecificDetails.phone = data.phone;
@@ -118,11 +127,10 @@ exports.handler = async function(event, context) {
     try {
         id_transaccion_generado = `MALOK-${Date.now()}`;
 
+        // El campo `cart_details` en la base de datos se utilizará para almacenar el array de productos.
         const transactionToInsert = {
             id_transaccion: id_transaccion_generado,
-            game: game,
-            playerId: playerId || null,
-            packageName: packageName,
+            cart_details: cartItems, // Guardamos el array completo de productos
             finalPrice: parseFloat(finalPrice),
             currency: currency,
             paymentMethod: paymentMethod,
@@ -134,17 +142,18 @@ exports.handler = async function(event, context) {
             receipt_url: paymentReceiptFile ? paymentReceiptFile.filepath : null 
         };
         
-        if (game === 'Roblox') {
-            transactionToInsert.roblox_email = robloxEmail;
-            transactionToInsert.roblox_password = robloxPassword;
-        }
-        
-        // --- MODIFICACIÓN: Condición para guardar datos de CODM en Supabase ---
-        if (game === 'Call of Duty Mobile') {
-            transactionToInsert.codm_email = codmEmail;
-            transactionToInsert.codm_password = codmPassword;
-            transactionToInsert.codm_vinculation = codmVinculation;
-        }
+        // Mantener campos antiguos si la BD los requiere, pero con null/valores del primer ítem para compatibilidad
+        // Esto es un parche, se recomienda ajustar el esquema de la BD para usar solo `cart_details`
+        const firstItem = cartItems[0] || {};
+        transactionToInsert.game = firstItem.game || 'Carrito Múltiple';
+        transactionToInsert.packageName = firstItem.packageName || 'Múltiples Paquetes';
+        transactionToInsert.playerId = firstItem.playerId || null;
+        transactionToInsert.roblox_email = firstItem.robloxEmail || null;
+        transactionToInsert.roblox_password = firstItem.robloxPassword || null;
+        transactionToInsert.codm_email = firstItem.codmEmail || null;
+        transactionToInsert.codm_password = firstItem.codmPassword || null;
+        transactionToInsert.codm_vinculation = firstItem.codmVinculation || null;
+
 
         const { data: insertedData, error: insertError } = await supabase
             .from('transactions')
@@ -165,26 +174,43 @@ exports.handler = async function(event, context) {
         };
     }
 
-    // --- Enviar Notificación a Telegram ---
-    let messageText = `✨ Nueva Recarga Malok Recargas ✨\n\n`;
+    // --- Generar Notificación para Telegram (Por Producto) ---
+    let messageText = `✨ Nueva Recarga (CARRITO) Malok Recargas ✨\n\n`;
     messageText += `*ID de Transacción:* \`${id_transaccion_generado || 'N/A'}\`\n`;
-    messageText += `*Estado:* \`PENDIENTE\`\n\n`;
-    messageText += `🎮 Juego: *${game}*\n`;
-    
-    // --- MODIFICACIÓN: Condición para mostrar datos de CODM en Telegram ---
-    if (game === 'Roblox') {
-        messageText += `📧 Correo Roblox: ${robloxEmail || 'N/A'}\n`;
-        messageText += `🔑 Contraseña Roblox: ${robloxPassword || 'N/A'}\n`;
-    } else if (game === 'Call of Duty Mobile') {
-        messageText += `📧 Correo CODM: ${codmEmail || 'N/A'}\n`;
-        messageText += `🔑 Contraseña CODM: ${codmPassword || 'N/A'}\n`;
-        messageText += `🔗 Vinculación CODM: ${codmVinculation || 'N/A'}\n`;
-    } else {
-        messageText += `👤 ID de Jugador: *${playerId || 'N/A'}*\n`;
-    }
+    messageText += `*Estado:* \`PENDIENTE\`\n`;
+    messageText += `------------------------------------------------\n`;
 
-    messageText += `📦 Paquete: *${packageName}*\n`;
-    messageText += `💰 Total a Pagar: *${finalPrice} ${currency}*\n`;
+    // Iterar sobre los productos del carrito para el detalle
+    cartItems.forEach((item, index) => {
+        messageText += `*📦 Producto ${index + 1}:*\n`;
+        messageText += `🎮 Juego/Servicio: *${item.game || 'N/A'}*\n`;
+        messageText += `📦 Paquete: *${item.packageName || 'N/A'}*\n`;
+        
+        // Lógica de impresión de credenciales y IDs
+        if (item.game === 'Roblox') {
+            messageText += `📧 Correo Roblox: ${item.robloxEmail || 'N/A'}\n`;
+            messageText += `🔑 Contraseña Roblox: ${item.robloxPassword || 'N/A'}\n`;
+        } else if (item.game === 'Call of Duty Mobile') {
+            messageText += `📧 Correo CODM: ${item.codmEmail || 'N/A'}\n`;
+            messageText += `🔑 Contraseña CODM: ${item.codmPassword || 'N/A'}\n`;
+            messageText += `🔗 Vinculación CODM: ${item.codmVinculation || 'N/A'}\n`;
+        } else if (item.playerId) {
+            messageText += `👤 ID de Jugador: *${item.playerId}*\n`;
+        }
+        
+        // Mostrar precio individual (si está disponible)
+        const itemPrice = item.currency === 'VES' ? item.priceVES : item.priceUSD;
+        const itemCurrency = item.currency || 'USD';
+        if (itemPrice) {
+            messageText += `💲 Precio (Est.): ${parseFloat(itemPrice).toFixed(2)} ${itemCurrency}\n`;
+        }
+        
+        messageText += `------------------------------------------------\n`;
+    });
+
+    // Información de Pago y Contacto (Global)
+    messageText += `\n*RESUMEN DE PAGO*\n`;
+    messageText += `💰 *TOTAL A PAGAR:* *${finalPrice} ${currency}*\n`;
     messageText += `💳 Método de Pago: *${paymentMethod.replace('-', ' ').toUpperCase()}*\n`;
     messageText += `📧 Correo Cliente: ${email}\n`;
     if (whatsappNumber) {
@@ -200,6 +226,7 @@ exports.handler = async function(event, context) {
     } else if (paymentMethod === 'zinli') {
         messageText += `📊 Referencia Zinli: ${methodSpecificDetails.reference || 'N/A'}\n`;
     }
+
 
     // Botones inline para Telegram
     const replyMarkup = {
@@ -223,10 +250,7 @@ exports.handler = async function(event, context) {
         // --- Enviar comprobante de pago a Telegram si existe ---
         if (paymentReceiptFile && paymentReceiptFile.filepath) {
             console.log("DEBUG: Intentando enviar comprobante a Telegram.");
-            console.log("DEBUG: Ruta del archivo:", paymentReceiptFile.filepath);
-            console.log("DEBUG: Nombre original:", paymentReceiptFile.originalFilename);
-            console.log("DEBUG: Tipo MIME:", paymentReceiptFile.mimetype);
-
+            // ... (Lógica de envío de archivo a Telegram se mantiene igual)
             try {
                 const fileBuffer = fs.readFileSync(paymentReceiptFile.filepath);
                 console.log("DEBUG: Tamaño del archivo (bytes):", fileBuffer.length);
@@ -305,39 +329,55 @@ exports.handler = async function(event, context) {
             console.error("Error al crear el transportador de Nodemailer:", createTransportError);
         }
 
-        let playerInfoEmail = '';
-        if (game === 'Roblox') {
-            playerInfoEmail = `
-                <li><strong>Correo de Roblox:</strong> ${robloxEmail}</li>
-                <li><strong>Contraseña de Roblox:</strong> ${robloxPassword}</li>
-            `;
-        } else if (game === 'Call of Duty Mobile') {
-            playerInfoEmail = `
-                <li><strong>Correo de CODM:</strong> ${codmEmail}</li>
-                <li><strong>Contraseña de CODM:</strong> ${codmPassword}</li>
-                <li><strong>Vinculación de CODM:</strong> ${codmVinculation}</li>
-            `;
-        } else {
-            playerInfoEmail = playerId ? `<li><strong>ID de Jugador:</strong> ${playerId}</li>` : '';
-        }
+        // Generar el HTML de los detalles del carrito para el correo
+        let cartDetailsHtml = '';
+        cartItems.forEach((item, index) => {
+            let playerInfoEmail = '';
+            let game = item.game || 'Servicio';
+            let packageName = item.packageName || 'Paquete Desconocido';
+            
+            if (game === 'Roblox') {
+                playerInfoEmail = `
+                    <li><strong>Correo de Roblox:</strong> ${item.robloxEmail || 'N/A'}</li>
+                    <li><strong>Contraseña de Roblox:</strong> ${item.robloxPassword || 'N/A'}</li>
+                `;
+            } else if (game === 'Call of Duty Mobile') {
+                playerInfoEmail = `
+                    <li><strong>Correo de CODM:</strong> ${item.codmEmail || 'N/A'}</li>
+                    <li><strong>Contraseña de CODM:</strong> ${item.codmPassword || 'N/A'}</li>
+                    <li><strong>Vinculación de CODM:</strong> ${item.codmVinculation || 'N/A'}</li>
+                `;
+            } else {
+                playerInfoEmail = item.playerId ? `<li><strong>ID de Jugador:</strong> ${item.playerId}</li>` : '';
+            }
 
+            cartDetailsHtml += `
+                <div style="border: 1px solid #ddd; padding: 10px; margin-bottom: 10px; border-radius: 5px;">
+                    <p style="margin-top: 0;"><strong>Producto ${index + 1}: ${game}</strong></p>
+                    <ul style="list-style: none; padding: 0; margin: 0;">
+                        <li><strong>Paquete:</strong> ${packageName}</li>
+                        ${playerInfoEmail}
+                    </ul>
+                </div>
+            `;
+        });
+        
         const mailOptions = {
             from: SENDER_EMAIL,
             to: email,
-            subject: `🎉 Tu Solicitud de Recarga de ${game} con Malok Recargas ha sido Recibida! 🎉`,
+            subject: `🎉 Tu Solicitud de Recarga (Pedido #${id_transaccion_generado}) con Malok Recargas ha sido Recibida! 🎉`,
             html: `
                 <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
                     <h2 style="color: #007bff;">¡Hola!</h2>
-                    <p>Hemos recibido tu solicitud de recarga para <strong>${game}</strong> con ID: <strong>${id_transaccion_generado}</strong>.</p>
-                    <p>Aquí están los detalles que nos proporcionaste:</p>
-                    <ul style="list-style: none; padding: 0;">
-                        <li><strong>Juego:</strong> ${game}</li>
-                        ${playerInfoEmail}
-                        <li><strong>Paquete:</strong> ${packageName}</li>
-                        <li><strong>Monto a Pagar:</strong> ${finalPrice} ${currency}</li>
-                        <li><strong>Método de Pago Seleccionado:</strong> ${paymentMethod.replace('-', ' ').toUpperCase()}</li>
-                        ${whatsappNumber ? `<li><strong>Número de WhatsApp Proporcionado:</strong> ${whatsappNumber}</li>` : ''}
-                    </ul>
+                    <p>Hemos recibido tu solicitud de recarga (Pedido #${id_transaccion_generado}).</p>
+                    
+                    <h3 style="color: #007bff;">Detalles del Pedido:</h3>
+                    ${cartDetailsHtml}
+                    
+                    <p><strong>Monto Total a Pagar:</strong> <span style="font-size: 1.1em; color: #d9534f; font-weight: bold;">${finalPrice} ${currency}</span></p>
+                    <p><strong>Método de Pago Seleccionado:</strong> ${paymentMethod.replace('-', ' ').toUpperCase()}</p>
+                    ${whatsappNumber ? `<p><strong>Número de WhatsApp Proporcionado:</strong> ${whatsappNumber}</p>` : ''}
+                    
                     <p>Tu solicitud está actualmente en estado: <strong>PENDIENTE</strong>.</p>
                     <p>Estamos procesando tu recarga. Te enviaremos un <strong>correo de confirmación de la recarga completada y tu factura virtual una vez que tu recarga sea procesada</strong> por nuestro equipo.</p>
                     <p style="margin-top: 20px;">¡Gracias por confiar en Malok Recargas!</p>
