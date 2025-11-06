@@ -510,6 +510,48 @@ document.addEventListener('DOMContentLoaded', () => {
     applySiteConfig();
     checkUserSessionAndRenderUI(); // ⬅️ CLAVE: Ejecutar la detección de sesión
 
+    // =========================================================================
+    // === MÓDULO: OCULTAR/MOSTRAR HEADER AL HACER SCROLL (SOLO MÓVIL) 📱 ===
+    // =========================================================================
+    const header = document.querySelector('header');
+    if (header) { // Solo si el header existe
+        let lastScrollTop = 0;
+        // Ancho de pantalla MÁXIMO para activar el comportamiento (768px es el estándar de tablet/móvil)
+        const mobileBreakpoint = 768; 
+        // Mínimo de scroll que debe pasar antes de ocultar/mostrar (ajustable)
+        const scrollThreshold = 50; 
+
+        // 2. Define la función de manejo del scroll
+        window.addEventListener('scroll', () => {
+            const currentScroll = window.pageYOffset || document.documentElement.scrollTop;
+            
+            // 🚨 CLAVE: El comportamiento SÓLO se aplica si el ancho de la ventana es menor o igual al breakpoint.
+            if (window.innerWidth <= mobileBreakpoint) {
+                
+                // Ocultar si hace scroll hacia abajo
+                // Y si ha bajado más allá de la altura del header + el umbral (para evitar parpadeos al inicio)
+                if (currentScroll > lastScrollTop && currentScroll > header.offsetHeight + scrollThreshold) {
+                    header.classList.add('header-hide');
+                } 
+                // Mostrar si hace scroll hacia arriba
+                else if (currentScroll < lastScrollTop) {
+                    header.classList.remove('header-hide');
+                }
+                
+                // Siempre mostrar si está muy cerca de la parte superior de la página
+                if (currentScroll < scrollThreshold) {
+                    header.classList.remove('header-hide');
+                }
+            } else {
+                // 💡 En Desktop: Aseguramos que la clase 'header-hide' NUNCA esté activa.
+                header.classList.remove('header-hide');
+            }
+            
+            // 3. Actualiza la posición de scroll
+            lastScrollTop = currentScroll <= 0 ? 0 : currentScroll; 
+        }, { passive: true }); 
+    }
+
     // Lógica para asegurar que initGoogleSignIn se llame después de que el SDK cargue
     if (document.getElementById('google-login-btn')) {
         const checkGoogleLoad = setInterval(() => {

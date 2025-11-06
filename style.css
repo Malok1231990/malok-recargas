@@ -69,7 +69,6 @@ p {
     text-align: center;
 }
 
-/* Header - CORREGIDO PARA AJUSTE EN MÓVILES */
 header {
     background-color: var(--card-bg);
     padding: 5px 25px;
@@ -79,11 +78,20 @@ header {
     border-bottom: 1px solid var(--border-color);
     box-shadow: 0 2px 8px var(--shadow-dark);
     flex-wrap: wrap;
-    position: sticky;
+    /* Cambio: Usamos 'fixed' para el efecto de ocultar/mostrar con JS */
+    position: fixed; 
     top: 0;
-    z-index: 1000;
-    width: 100%; /* Asegura que el header ocupe todo el ancho */
-    box-sizing: border-box; /* Incluye padding en el 100% del ancho */
+    /* Se mantiene alto, pero el carrito estará por encima (z-index: 9999) */
+    z-index: 1000; 
+    width: 100%; 
+    box-sizing: border-box; 
+    /* Clave: Añadimos transición para el movimiento */
+    transition: transform 0.3s ease-in-out; 
+}
+
+/* Nueva clase que ocultará el header en móvil (añadida por JavaScript) */
+header.header-hide {
+    transform: translateY(-100%); 
 }
 
 .header-left .logo-img {
@@ -1320,25 +1328,22 @@ footer p {
     color: var(--primary-blue);
 }
 
-/* ==================================== */
-/* === 2. Panel Lateral del Carrito === */
-/* ==================================== */
-
 .cart-sidebar {
     position: fixed;
     top: 0;
     right: 0;
-    width: 350px; /* Ancho en escritorio */
-    max-width: 90vw; /* Máximo 90% del viewport */
+    width: 350px; 
+    max-width: 90vw; 
     height: 100%;
     background-color: var(--card-bg);
     box-shadow: -5px 0 15px var(--shadow-dark);
-    z-index: 200; /* Asegura que esté por encima de todo */
+    /* La clave es este z-index para que esté sobre la barra superior */
+    z-index: 1000; 
     display: flex;
     flex-direction: column;
     padding: 20px;
     transition: transform 0.4s ease-in-out;
-    transform: translateX(100%); /* Oculto por defecto, fuera de la vista */
+    transform: translateX(100%);
 }
 
 .cart-sidebar.open {
