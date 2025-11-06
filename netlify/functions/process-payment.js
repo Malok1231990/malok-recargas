@@ -85,13 +85,13 @@ exports.handler = async function(event, context) {
     }
 
     // --- Extracción de Datos del Carrito y Globales ---
+    // NOTA: 'cartDetails' contiene el JSON string del array de productos
     const { finalPrice, currency, paymentMethod, email, whatsappNumber, cartDetails } = data;
     
     // Parsear el JSON del carrito
     let cartItems = [];
     if (cartDetails) {
         try {
-            // El frontend envía el carrito como un JSON string en el campo 'cartDetails'
             cartItems = JSON.parse(cartDetails);
         } catch (e) {
             console.error("Error al parsear cartDetails JSON:", e);
@@ -127,10 +127,12 @@ exports.handler = async function(event, context) {
     try {
         id_transaccion_generado = `MALOK-${Date.now()}`;
 
-        // El campo `cart_details` en la base de datos se utilizará para almacenar el array de productos.
+        // Usamos los detalles del primer ítem para rellenar los campos de una sola transacción
+        // y mantener la compatibilidad con el esquema de Supabase existente.
+        const firstItem = cartItems[0] || {};
+        
         const transactionToInsert = {
             id_transaccion: id_transaccion_generado,
-            cart_details: cartItems, // Guardamos el array completo de productos
             finalPrice: parseFloat(finalPrice),
             currency: currency,
             paymentMethod: paymentMethod,
@@ -139,21 +141,18 @@ exports.handler = async function(event, context) {
             methodDetails: methodSpecificDetails,
             status: 'pendiente',
             telegram_chat_id: TELEGRAM_CHAT_ID,
-            receipt_url: paymentReceiptFile ? paymentReceiptFile.filepath : null 
+            receipt_url: paymentReceiptFile ? paymentReceiptFile.filepath : null,
+            
+            // Campos de compatibilidad usando el primer producto del carrito
+            game: firstItem.game || 'Carrito Múltiple',
+            packageName: firstItem.packageName || 'Múltiples Paquetes',
+            playerId: firstItem.playerId || null,
+            roblox_email: firstItem.robloxEmail || null,
+            roblox_password: firstItem.robloxPassword || null,
+            codm_email: firstItem.codmEmail || null,
+            codm_password: firstItem.codmPassword || null,
+            codm_vinculation: firstItem.codmVinculation || null
         };
-        
-        // Mantener campos antiguos si la BD los requiere, pero con null/valores del primer ítem para compatibilidad
-        // Esto es un parche, se recomienda ajustar el esquema de la BD para usar solo `cart_details`
-        const firstItem = cartItems[0] || {};
-        transactionToInsert.game = firstItem.game || 'Carrito Múltiple';
-        transactionToInsert.packageName = firstItem.packageName || 'Múltiples Paquetes';
-        transactionToInsert.playerId = firstItem.playerId || null;
-        transactionToInsert.roblox_email = firstItem.robloxEmail || null;
-        transactionToInsert.roblox_password = firstItem.robloxPassword || null;
-        transactionToInsert.codm_email = firstItem.codmEmail || null;
-        transactionToInsert.codm_password = firstItem.codmPassword || null;
-        transactionToInsert.codm_vinculation = firstItem.codmVinculation || null;
-
 
         const { data: insertedData, error: insertError } = await supabase
             .from('transactions')
@@ -161,7 +160,8 @@ exports.handler = async function(event, context) {
             .select();
 
         if (insertError) {
-            throw insertError;
+            // Este error ya NO DEBERÍA ocurrir si el esquema de la BD está bien
+            throw insertError; 
         }
         newTransactionData = insertedData[0];
         console.log("Transacción guardada en Supabase con ID interno:", newTransactionData.id);
@@ -175,6 +175,7 @@ exports.handler = async function(event, context) {
     }
 
     // --- Generar Notificación para Telegram (Por Producto) ---
+    // Esta sección funciona correctamente y cumple el requisito del carrito
     let messageText = `✨ Nueva Recarga (CARRITO) Malok Recargas ✨\n\n`;
     messageText += `*ID de Transacción:* \`${id_transaccion_generado || 'N/A'}\`\n`;
     messageText += `*Estado:* \`PENDIENTE\`\n`;
