@@ -1,18 +1,12 @@
 // netlify/functions/create-coinbase-charge.js
 
-// Importar solo el módulo completo. Ya no desestructuramos.
+// 1. Importar el módulo completo y el objeto Client (para el init)
 const coinbase = require('coinbase-commerce-node');
-
-// Accedemos a Client y Charge a través de las propiedades del módulo importado.
 const Client = coinbase.Client;
-const Charge = coinbase.resources.Charge; // 👈 OTRA VÍA (Depende de la versión)
 
-// ❗ Opción más simple y compatible (Volvemos a tu intento original, ¡pero sin desestructurar!)
-// const Client = coinbase.Client;
-// let Charge; // Se asignará después de la inicialización si funciona.
-
-// Dejaremos el código limpio usando la propiedad Charge del objeto Client, 
-// lo cual es el comportamiento esperado de esta librería.
+// 2. Definimos la clase Charge accediendo a la estructura interna del módulo
+// Esta es la solución más robusta para versiones problemáticas:
+const Charge = coinbase.resources.Charge; // 👈 CORRECCIÓN CRÍTICA
 
 exports.handler = async (event, context) => {
     console.log("--- INICIO DE EJECUCIÓN DE FUNCIÓN ---");
@@ -37,29 +31,25 @@ exports.handler = async (event, context) => {
         };
     }
 
-    let ChargeResource;
     try {
+        // 🔑 Verificación y Configuración Inicial
         console.log("DEBUG: Intentando inicializar Coinbase Client con Client.init...");
         
-        // 1. Inicializamos el Client
+        // 1. Verificar si la clase Charge existe antes de llamar a create.
+        if (typeof Charge !== 'function' || !Charge.create) {
+             console.error(`ERROR: La clase Charge no se encontró o no tiene el método 'create'. Tipo: ${typeof Charge}`);
+             throw new Error("Coinbase Commerce no pudo cargar la clase de pago. Verifique la versión (1.0.4) y la estructura del módulo.");
+        }
+
+        // 2. Inicializamos el Client (configura la API key para la clase Charge importada)
         Client.init(apiKey); 
         console.log("DEBUG: Client.init() ejecutado exitosamente.");
-
-        // 2. Accedemos al recurso Charge a través de la propiedad del Client
-        ChargeResource = Client.Charge; 
-        
-        console.log(`DIAG: Tipo de ChargeResource (después de init): ${typeof ChargeResource}`);
-
-        if (typeof ChargeResource !== 'function' || !ChargeResource.create) {
-             console.error("ERROR: Client.Charge no es un constructor de función válido después de init.");
-             throw new Error("El recurso Charge no se cargó correctamente. Verifique la versión de la librería.");
-        }
         
     } catch (initError) {
         console.error("ERROR: Fallo en la inicialización de Coinbase:", initError.message);
         return { 
             statusCode: 500, 
-            body: JSON.stringify({ message: "Error interno del servicio de pago (Verifique API Key)." }) 
+            body: JSON.stringify({ message: "Error interno del servicio de pago (Init)." }) 
         };
     }
 
@@ -96,8 +86,8 @@ exports.handler = async (event, context) => {
         
         // 3. Crear la factura (Charge)
         console.log("DEBUG: Intentando crear el Charge en Coinbase...");
-        // 🎯 Usamos ChargeResource, que fue asignado desde Client.Charge
-        const charge = await ChargeResource.create({ 
+        // 🎯 Usamos la clase Charge importada directamente de coinbase.resources
+        const charge = await Charge.create({ 
             name: "Recarga de Servicios Malok",
             description: "Pago por carrito de recargas - Malok Recargas",
             local_price: {
