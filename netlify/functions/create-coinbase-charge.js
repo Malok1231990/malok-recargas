@@ -1,13 +1,18 @@
 // netlify/functions/create-coinbase-charge.js
 
-// Importar el módulo completo y luego desestructurar
+// Importar solo el módulo completo. Ya no desestructuramos.
 const coinbase = require('coinbase-commerce-node');
-const { Client, Charge } = coinbase; 
 
-// 🎯 NUEVO LOG DE DIAGNÓSTICO 1: Verificar las importaciones antes de la ejecución
-console.log(`DIAG: Tipo de coinbase: ${typeof coinbase}`);
-console.log(`DIAG: Tipo de Client (antes de init): ${typeof Client}`);
-console.log(`DIAG: Tipo de Charge (antes de init): ${typeof Charge}`); // <--- CLAVE
+// Accedemos a Client y Charge a través de las propiedades del módulo importado.
+const Client = coinbase.Client;
+const Charge = coinbase.resources.Charge; // 👈 OTRA VÍA (Depende de la versión)
+
+// ❗ Opción más simple y compatible (Volvemos a tu intento original, ¡pero sin desestructurar!)
+// const Client = coinbase.Client;
+// let Charge; // Se asignará después de la inicialización si funciona.
+
+// Dejaremos el código limpio usando la propiedad Charge del objeto Client, 
+// lo cual es el comportamiento esperado de esta librería.
 
 exports.handler = async (event, context) => {
     console.log("--- INICIO DE EJECUCIÓN DE FUNCIÓN ---");
@@ -32,12 +37,23 @@ exports.handler = async (event, context) => {
         };
     }
 
+    let ChargeResource;
     try {
         console.log("DEBUG: Intentando inicializar Coinbase Client con Client.init...");
         
-        // Inicializamos el Client, lo que configura la API Key globalmente.
+        // 1. Inicializamos el Client
         Client.init(apiKey); 
         console.log("DEBUG: Client.init() ejecutado exitosamente.");
+
+        // 2. Accedemos al recurso Charge a través de la propiedad del Client
+        ChargeResource = Client.Charge; 
+        
+        console.log(`DIAG: Tipo de ChargeResource (después de init): ${typeof ChargeResource}`);
+
+        if (typeof ChargeResource !== 'function' || !ChargeResource.create) {
+             console.error("ERROR: Client.Charge no es un constructor de función válido después de init.");
+             throw new Error("El recurso Charge no se cargó correctamente. Verifique la versión de la librería.");
+        }
         
     } catch (initError) {
         console.error("ERROR: Fallo en la inicialización de Coinbase:", initError.message);
@@ -46,10 +62,6 @@ exports.handler = async (event, context) => {
             body: JSON.stringify({ message: "Error interno del servicio de pago (Verifique API Key)." }) 
         };
     }
-    
-    // 🎯 NUEVO LOG DE DIAGNÓSTICO 2: Verificar Charge y su método después de la inicialización
-    console.log(`DIAG: Tipo de Charge (después de init): ${typeof Charge}`);
-    console.log(`DIAG: Tipo de Charge.create: ${typeof Charge?.create}`); // <--- CLAVE
 
     let data;
     try {
@@ -84,8 +96,8 @@ exports.handler = async (event, context) => {
         
         // 3. Crear la factura (Charge)
         console.log("DEBUG: Intentando crear el Charge en Coinbase...");
-        // 🎯 Usamos la clase Charge importada correctamente
-        const charge = await Charge.create({ 
+        // 🎯 Usamos ChargeResource, que fue asignado desde Client.Charge
+        const charge = await ChargeResource.create({ 
             name: "Recarga de Servicios Malok",
             description: "Pago por carrito de recargas - Malok Recargas",
             local_price: {
