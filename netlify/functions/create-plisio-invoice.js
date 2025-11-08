@@ -38,9 +38,9 @@ exports.handler = async (event, context) => {
         return { statusCode: 400, body: JSON.stringify({ message: 'Formato de cuerpo de solicitud inválido.' }) };
     }
     
-    // 💡 CORRECCIÓN CRÍTICA: Mover la definición de esta variable fuera del bloque try/catch
-    // para que sea accesible en el bloque catch de manejo de errores.
-    const acceptedCurrencies = 'USDT_TRX,USDT_BSC'; // USDT TRC20 y USDT BEP20 (Asegúrate de que estas estén activas en Plisio)
+    // 💡 SOLUCIÓN MÁS PROBABLE AL ERROR 500: Cambiar separador de monedas de coma a ESPACIO.
+    // Esto es común para listas en payloads application/x-www-form-urlencoded
+    const acceptedCurrencies = 'USDT_TRX USDT_BSC'; // Separado por ESPACIO
     
     try {
         const { amount, email, whatsapp, cartDetails } = data; 
@@ -64,7 +64,7 @@ exports.handler = async (event, context) => {
             order_number: `MALOK-${Date.now()}`, 
             currency: 'USD', 
             amount: finalAmountUSD,
-            currency_in: acceptedCurrencies, // 👈 Usa la constante definida arriba
+            currency_in: acceptedCurrencies, // 👈 USANDO ESPACIO COMO SEPARADOR
             callback_url: callbackUrl, 
             success_url: successUrl, 
             custom: JSON.stringify({
@@ -109,8 +109,7 @@ exports.handler = async (event, context) => {
         // Intenta capturar el cuerpo de la respuesta incluso en 500 para diagnosticar el mensaje de Plisio
         let errorDetails = error.message;
         if (error.response && error.response.status === 500) {
-            // Un 500 que devuelve HTML (como viste) a menudo significa que un parámetro de entrada es inválido.
-            // Esto ahora funciona porque acceptedCurrencies está definida fuera del bloque try.
+            // Este bloque ahora te dirá qué formato intentaste usar (USDT_TRX USDT_BSC)
             errorDetails = `Plisio Status 500. Posibles causas: Monedas no activadas (${acceptedCurrencies}) o API Key inválida.`;
         }
         
