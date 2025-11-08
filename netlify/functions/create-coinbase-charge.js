@@ -1,7 +1,8 @@
-// netlify/functions/create-coinbase-addadcharge.js
+// netlify/functions/create-coinbase-charge.js
 const { Client } = require('coinbase-commerce-node');
 
 exports.handler = async (event, context) => {
+    // 🛑 0. Validar método HTTP
     if (event.httpMethod !== 'POST') {
         return { statusCode: 405, body: 'Method Not Allowed' };
     }
@@ -20,13 +21,13 @@ exports.handler = async (event, context) => {
 
     let Charge;
     try {
-        // 🛑 Inicialización obligatoria y obtención de Charge dentro del handler 
-        // para garantizar que se realice en el contexto correcto.
-        Client.init(apiKey); 
-        Charge = Client.Charge; 
+        // ✅ CORRECCIÓN CLAVE: Usar Client.setup para crear una instancia 
+        // segura para entornos serverless, y obtener el modelo Charge de esa instancia.
+        const client = Client.setup({ 'apiKey': apiKey });
+        Charge = client.Charge; 
         
-        if (typeof Charge !== 'function') {
-            // Este error solo debe ocurrir si la API Key es totalmente inválida.
+        if (typeof Charge !== 'function' || !Charge.create) {
+            // Este error solo debe ocurrir si la API Key es inválida o hay un problema de librería.
             throw new Error("Coinbase Commerce no pudo cargar el modelo de pago. Verifique la API Key.");
         }
         
@@ -48,15 +49,15 @@ exports.handler = async (event, context) => {
     try {
         const { amount, email, whatsapp, cartDetails } = data; 
 
-        // 2. Validaciones básicas
-        if (!amount || parseFloat(amount) <= 0 || !email) {
+        // 2. Validaciones básicas de la solicitud
+        if (!amount || isNaN(parseFloat(amount)) || parseFloat(amount) <= 0 || !email) {
             return { statusCode: 400, body: JSON.stringify({ message: 'Datos de transacción incompletos o inválidos.' }) };
         }
         
-        // Aplicar comisión del 3%
+        // Aplicar comisión del 3% y formatear a 2 decimales para Coinbase
         const feePercentage = 0.03; 
         const amountWithFee = parseFloat(amount) * (1 + feePercentage); 
-        const finalAmountUSD = amountWithFee.toFixed(2);
+        const finalAmountUSD = amountWithFee.toFixed(2); // Asegura dos decimales
         
         // 3. Crear la factura (Charge)
         const charge = await Charge.create({
@@ -68,11 +69,12 @@ exports.handler = async (event, context) => {
             },
             pricing_type: 'fixed_price',
             redirect_url: siteUrl, 
-            cancel_url: `${siteUrl}/payment.html`, 
+            cancel_url: `${siteUrl}/payment.html`, // Idealmente, este debería ser un path más específico si existe
             metadata: {
                 customer_email: email,
                 customer_whatsapp: whatsapp,
-                cart_details: cartDetails, 
+                // Nota: cart_details debe ser una cadena (stringified JSON) si es un objeto complejo
+                cart_details: typeof cartDetails === 'object' ? JSON.stringify(cartDetails) : cartDetails, 
                 original_amount: parseFloat(amount).toFixed(2),
             },
         });
@@ -89,12 +91,16 @@ exports.handler = async (event, context) => {
 
     } catch (error) {
         console.error(`ERROR: Fallo al crear Coinbase Charge: ${error.message}`);
+        // Loguear el error para debug
+        console.error(error); 
+        
         return {
             statusCode: 500,
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ 
                 message: `Error al crear la factura de pago.`,
-                details: error.message
+                // Devolver el detalle del error de Coinbase para facilitar el debug
+                details: error.message || 'Error desconocido al interactuar con Coinbase Commerce.'
             }),
         };
     }
