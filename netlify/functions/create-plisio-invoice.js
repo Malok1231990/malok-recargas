@@ -41,7 +41,7 @@ exports.handler = async (event, context) => {
     // 🎯 CONFIGURACIÓN: Usar solo Tether TRC20.
     // **NOTA IMPORTANTE: Confirma que el identificador en tu panel de Plisio es 'USDT_TRX'**
     // Si no funciona, prueba con 'USDT_TRC20'.
-    const acceptedCurrencies = 'USDT_TRC20'; // Solo USDT en la red TRON (TRC20)
+    const acceptedCurrencies = 'BTC'; // Solo USDT en la red TRON (TRC20)
     
     try {
         const { amount, email, whatsapp, cartDetails } = data; 
