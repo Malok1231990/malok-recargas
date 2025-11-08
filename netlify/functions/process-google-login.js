@@ -162,7 +162,7 @@ exports.handler = async function(event, context) {
                             ? parseFloat(finalUser.saldos.saldo_usd).toFixed(2) // Formatear a 2 decimales
                             : '0.00'; 
 
-        // 4. Éxito: Devolver el token de sesión y los datos del usuario
+        // 4. Éxitoa: Devolver el token de sesión y los datos del usuario
         return {
             statusCode: 200,
             headers: { "Content-Type": "application/json" },
