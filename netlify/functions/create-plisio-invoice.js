@@ -4,7 +4,7 @@ const axios = require('axios');
 const { URLSearchParams } = require('url'); 
 
 exports.handler = async (event, context) => {
-    console.log("--- INICIO DE EJECUCIÓN DE FUNCIÓN PLISIO (USDT_TRX) ---");
+    console.log("--- INICIO DE EJECUCIÓN DE FUNCIÓN PLISIO (PRUEBA SIN CUSTOM) ---");
 
     if (event.httpMethod !== 'POST') {
         return { statusCode: 405, body: 'Method Not Allowed' };
@@ -38,10 +38,9 @@ exports.handler = async (event, context) => {
         return { statusCode: 400, body: JSON.stringify({ message: 'Formato de cuerpo de solicitud inválido.' }) };
     }
     
-    // 🎯 CONFIGURACIÓN: Usar solo Tether TRC20.
-    // **NOTA IMPORTANTE: Confirma que el identificador en tu panel de Plisio es 'USDT_TRX'**
-    // Si no afunciona, prueba con 'USDT_TRC20'.
-    const acceptedCurrencies = 'BTC'; // Solo USDT en la red TRON (TRC20)
+    // 🎯 CONFIGURACIÓN: Usando BTC para la prueba de descarte.
+    // Si esta prueba funciona, el problema es USDT_TRX o el campo 'custom'.
+    const acceptedCurrencies = 'BTC'; 
     
     try {
         const { amount, email, whatsapp, cartDetails } = data; 
@@ -57,22 +56,19 @@ exports.handler = async (event, context) => {
         
         console.log(`DEBUG: Monto final con comisión: ${finalAmountUSD} USD`);
         
+        // --- MODIFICACIÓN CLAVE: ELIMINACIÓN DEL CAMPO CUSTOM ---
         const payload = new URLSearchParams({
             api_key: apiKey,
             order_name: "Recarga de Servicios Malok",
             order_number: `MALOK-${Date.now()}`, 
             currency: 'USD', 
             amount: finalAmountUSD,
-            currency_in: acceptedCurrencies, // 👈 SOLO USDT_TRX
+            currency_in: acceptedCurrencies, 
             callback_url: callbackUrl, 
             success_url: successUrl, 
-            custom: JSON.stringify({
-                customer_email: email,
-                customer_whatsapp: whatsapp,
-                cart_details: typeof cartDetails === 'object' ? JSON.stringify(cartDetails) : cartDetails, 
-                original_amount: amountValue.toFixed(2),
-            }),
+            // 🔥 El campo 'custom' ha sido removido. 🔥
         }).toString();
+        // --------------------------------------------------------
 
         console.log("DEBUG: Intentando crear la factura en Plisio...");
         const response = await axios.post('https://plisio.net/api/v1/invoices/new', payload, {
@@ -105,10 +101,10 @@ exports.handler = async (event, context) => {
         // En caso de error de conexión (como el 500/404 que viste)
         console.error(`ERROR: Fallo al crear la Factura de Plisio: ${error.message}`);
         
-        // El error 500 ahora solo apuntará a USDT_TRX
         let errorDetails = error.message;
         if (error.response && error.response.status === 500) {
-            errorDetails = `Plisio Status 500. Posibles causas: Moneda no activada (${acceptedCurrencies}) o API Key inválida.`;
+            // Aquí el error 500 indica un fallo con los parámetros obligatorios
+            errorDetails = `Plisio Status 500. Posibles causas: Parámetros obligatorios (como API Key, amount, currency, currency_in) inválidos o no activados.`;
         }
         
         console.error(`DETALLE DE ERROR: ${errorDetails}`); 
