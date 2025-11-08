@@ -1,7 +1,7 @@
 // netlify/functions/create-plisio-invoice.js
 
 const axios = require('axios');
-const { URLSearchParams } = require('url');
+const { URLSearchParams } = require('url'); 
 
 exports.handler = async (event, context) => {
     console.log("--- INICIO DE EJECUCIÓN DE FUNCIÓN PLISIO ---");
@@ -14,16 +14,14 @@ exports.handler = async (event, context) => {
     const apiKey = process.env.PLISIO_API_KEY; 
     const siteUrl = process.env.NETLIFY_SITE_URL;
     
-    // 🚨 CORRECCIÓN CRÍTICA: Eliminar la barra diagonal final de la URL si existe.
+    // CORRECCIÓN CRÍTICA: Eliminar la barra diagonal final de la URL si existe.
     const siteUrlClean = siteUrl.endsWith('/') ? siteUrl.slice(0, -1) : siteUrl;
 
     const callbackUrl = `${siteUrlClean}/.netlify/functions/plisio-webhook`;
-    // Asumimos que la URL de éxito es la página principal limpia.
     const successUrl = siteUrlClean; 
     
     console.log(`DEBUG: API Key cargada: ${!!apiKey}`);
     console.log(`DEBUG: Site URL limpia: ${siteUrlClean}`);
-    console.log(`DEBUG: Callback URL: ${callbackUrl}`);
 
 
     if (!apiKey || !siteUrl) {
@@ -47,7 +45,6 @@ exports.handler = async (event, context) => {
             return { statusCode: 400, body: JSON.stringify({ message: 'Datos de transacción incompletos o inválidos.' }) };
         }
         
-        // Aplicar comisión del 3% (Lógica mantenida)
         const feePercentage = 0.03; 
         const amountValue = parseFloat(amount);
         const amountWithFee = amountValue * (1 + feePercentage); 
@@ -55,15 +52,17 @@ exports.handler = async (event, context) => {
         
         console.log(`DEBUG: Monto final con comisión: ${finalAmountUSD} USD`);
         
-        // 🚨 2. CREAR EL PAYLOAD PARA LA API DE PLISIO
+        // 🚨 AJUSTE CRÍTICO: Usando los identificadores de Plisio para USDT TRC20 y BEP20
+        // Si activaste otras monedas como BTC/LTC, debes incluirlas aquí.
+        const acceptedCurrencies = 'USDT_TRX,USDT_BSC'; // USDT TRC20 y USDT BEP20
+
         const payload = new URLSearchParams({
             api_key: apiKey,
             order_name: "Recarga de Servicios Malok",
             order_number: `MALOK-${Date.now()}`, 
             currency: 'USD', 
             amount: finalAmountUSD,
-            currency_in: 'BTC,ETH,USDT_TRX,LTC', 
-            // 🚨 USAMOS LA URL LIMPIA AQUÍ
+            currency_in: acceptedCurrencies, // 👈 LISTA AJUSTADA
             callback_url: callbackUrl, 
             success_url: successUrl, 
             custom: JSON.stringify({
@@ -74,17 +73,16 @@ exports.handler = async (event, context) => {
             }),
         }).toString();
 
-        // 🚨 3. LLAMADA POST AL ENDPOINT DE FACTURACIÓN DE PLISIO
         console.log("DEBUG: Intentando crear la factura en Plisio...");
         const response = await axios.post('https://plisio.net/api/v1/invoices/new', payload, {
             headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
         });
         
         const plisioData = response.data;
+        console.log(`DEBUG: Respuesta de Plisio recibida. Status: ${plisioData.status}`);
 
         if (plisioData.status === 'ok' && plisioData.data && plisioData.data.invoice_url) {
             
-            console.log(`DEBUG: Factura creada exitosamente. ID: ${plisioData.data.txn_id}`);
             console.log("--- FINALIZACIÓN EXITOSA DE FUNCIÓN ---");
             
             return {
@@ -96,7 +94,8 @@ exports.handler = async (event, context) => {
                 }),
             };
         } else {
-            const errorMessage = plisioData.data && plisioData.data.message ? plisioData.data.message : 'Error desconocido de la API de Plisio';
+            // Manejo de error de la API de Plisio que regresa un JSON de error
+            const errorMessage = plisioData.data && plisioData.data.message ? `Plisio API Error: ${plisioData.data.message}` : 'Error desconocido de la API de Plisio';
             console.error(`ERROR: Fallo al crear factura de Plisio: ${errorMessage}`);
             throw new Error(errorMessage);
         }
@@ -105,16 +104,21 @@ exports.handler = async (event, context) => {
         // En caso de error de conexión (como el 500/404 que viste)
         console.error(`ERROR: Fallo al crear la Factura de Plisio: ${error.message}`);
         
-        // Incluye la respuesta del servidor (si está disponible) para mejor diagnóstico.
-        const responseData = error.response ? JSON.stringify(error.response.data).substring(0, 200) + '...' : 'N/A';
-        console.error(`ERROR DETALLADO (Data): ${responseData}`); 
+        // Intenta capturar el cuerpo de la respuesta incluso en 500 para diagnosticar el mensaje de Plisio
+        let errorDetails = error.message;
+        if (error.response && error.response.status === 500) {
+            // Un 500 que devuelve HTML (como viste) a menudo significa que un parámetro de entrada es inválido.
+            errorDetails = `Plisio Status 500. Posibles causas: Monedas no activadas (${acceptedCurrencies}) o API Key inválida.`;
+        }
+        
+        console.error(`DETALLE DE ERROR: ${errorDetails}`); 
 
         return {
             statusCode: 500,
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ 
                 message: `Error al crear la factura de pago.`,
-                details: error.message || 'Error desconocido al interactuar con Plisio.'
+                details: errorDetails
             }),
         };
     }
