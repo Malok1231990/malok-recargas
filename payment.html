@@ -213,26 +213,12 @@
                 <input type="file" id="payment-receipt" name="paymentReceipt" accept="image/*,application/pdf" required>
             </div>
         `,
+        // 🛑 MODIFICACIÓN CLAVE: Plantilla para Coinbase Commerce (Método Binance)
         'binance': `
-            <p><strong>Paso 1:</strong> Realiza la transferencia a nuestra cuenta Binance (USDT BEP20) O (Binance Pay).</p>
-            <ul>
-                <p><strong>USDT (BEP20):</strong></p>
-                <li>
-                    <div class="copy-container">
-                        <span class="address-label">Dirección de Billetera BEP20:</span>
-                        <span class="wallet-address" id="binance-address">0xd8e6d7a73f6d30519793b8e67d76c5945730dc46</span>
-                        <button type="button" class="copy-button" data-copy-target="binance-address">Copiar</button>
-                        <span class="copy-feedback" id="binance-copy-feedback">¡Copiado!</span>
-                    </div>
-                </li>
-                <li><strong>Moneda:</strong> USDT (BEP20)</li>
-                <p><strong>Binance Pay:</strong></p>
-                <li><strong>ID Binance Pay:</strong> 91149377</li>
-            </ul>
             <div class="payment-fields-container">
-                <p><strong>Paso 2:</strong> Sube tu comprobante de pago.</p>
-                <label for="payment-receipt">Subir Comprobante de Pago:</label>
-                <input type="file" id="payment-receipt" name="paymentReceipt" accept="image/*,application/pdf" required>
+                <p><strong>Paso 1:</strong> Serás redirigido a la pasarela segura de **Coinbase Commerce** para completar tu pago con criptomonedas (incluyendo Binance Pay si está disponible).</p>
+                <p><strong>Paso 2:</strong> Al finalizar el pago en la pasarela, serás automáticamente redirigido de vuelta. La confirmación del pago es automática.</p>
+                <input type="hidden" id="payment-receipt" name="paymentReceipt" value="Coinbase_Commerce_Managed_Payment" required> 
             </div>
         `,
         'zinli': `
@@ -294,7 +280,7 @@
     function updateWhatsAppLink() {
         if (!isAssistedFlow()) return;
 
-        const whatsappLink = document.getElementById('whatsapp-link-btn');
+        const whatsappLink = document.querySelector('.whatsapp-link');
         const email = document.getElementById('email') ? document.getElementById('email').value.trim() : '';
         const whatsappNumber = document.getElementById('whatsappNumber') ? document.getElementById('whatsappNumber').value.trim() : '';
         const isEmailValid = document.getElementById('email') ? document.getElementById('email').checkValidity() : false;
@@ -332,16 +318,23 @@
             // Número de WhatsApp de Malok Recargas
             const malokWhatsappNumber = '584126949631'; 
             
-            whatsappLink.href = `https://wa.me/${malokWhatsappNumber}?text=${encodedMessage}`;
-            whatsappLink.classList.remove('disabled');
-            whatsappLink.style.pointerEvents = 'auto'; // Habilitar click
-            whatsappLink.style.opacity = '1';
+            // Ajustar el selector al que está en el HTML
+            const whatsappLinkInContainer = whatsappMessageContainer.querySelector('.whatsapp-link');
+            if (whatsappLinkInContainer) {
+                whatsappLinkInContainer.href = `https://wa.me/${malokWhatsappNumber}?text=${encodedMessage}`;
+                whatsappLinkInContainer.classList.remove('disabled');
+                whatsappLinkInContainer.style.pointerEvents = 'auto'; // Habilitar click
+                whatsappLinkInContainer.style.opacity = '1';
+            }
         } else if (whatsappLink) {
             // Deshabilitar el enlace si faltan campos o detalles de la transacción
-            whatsappLink.href = '#';
-            whatsappLink.classList.add('disabled');
-            whatsappLink.style.pointerEvents = 'none'; // Deshabilitar click
-            whatsappLink.style.opacity = '0.5';
+            const whatsappLinkInContainer = whatsappMessageContainer.querySelector('.whatsapp-link');
+            if (whatsappLinkInContainer) {
+                whatsappLinkInContainer.href = '#';
+                whatsappLinkInContainer.classList.add('disabled');
+                whatsappLinkInContainer.style.pointerEvents = 'none'; // Deshabilitar click
+                whatsappLinkInContainer.style.opacity = '0.5';
+            }
         }
     }
 
@@ -517,9 +510,13 @@
         if (methodHtml) {
             paymentDetailsFormDiv.innerHTML = methodHtml;
             const fileInput = document.getElementById('payment-receipt');
+            
+            // 🛑 MODIFICACIÓN: Solo agregar listener 'change' si es un input de tipo 'file'
             if (fileInput) {
-                fileInput.addEventListener('change', checkFormValidity);
-                fileInput.required = true;
+                fileInput.required = true; // Sigue siendo requerido para validación
+                if (fileInput.type === 'file') {
+                    fileInput.addEventListener('change', checkFormValidity);
+                }
             }
 
             const copyButton = paymentDetailsFormDiv.querySelector('.copy-button');
@@ -567,11 +564,12 @@
 
     /**
      * @MODIFICADO: Verifica la validez del formulario y habilita/deshabilita los botones.
-     * Ahora usa la función isAssistedFlow().
+     * Ahora incluye la excepción para 'binance'.
      */
     function checkFormValidity() {
         const selectedRadio = document.querySelector('input[name="paymentMethod"]:checked');
         const isMethodSelected = selectedRadio !== null;
+        const selectedMethodId = selectedRadio ? selectedRadio.value : null; // Obtener el ID seleccionado
         
         const emailInput = document.getElementById('email');
         const whatsappInput = document.getElementById('whatsappNumber');
@@ -583,11 +581,13 @@
 
         let areDetailsFilled = true;
 
-        if (isAssistedFlow()) { // USAR isAssistedFlow()
-            areDetailsFilled = true; // No hay comprobante que subir en este flujo
+        if (isAssistedFlow()) { // Flujo asistido
+            areDetailsFilled = true; 
+        } else if (selectedMethodId === 'binance') { // 🛑 MODIFICACIÓN: Si es Binance (Coinbase), no se necesita archivo
+            areDetailsFilled = true;
         } else if (isMethodSelected) {
             const fileInput = document.getElementById('payment-receipt');
-            // Si hay método seleccionado, debe haber un archivo subido
+            // Si es otro método (Pago Movil/Zinli), debe haber un archivo subido
             if (fileInput && fileInput.files.length === 0) {
                 areDetailsFilled = false;
             }
@@ -596,7 +596,7 @@
         }
         
         // Lógica para el botón de FINALIZAR RECARGA (flujo normal)
-        if (!isAssistedFlow()) { // USAR isAssistedFlow()
+        if (!isAssistedFlow()) { 
             finalizeBtn.disabled = !(isMethodSelected && areDetailsFilled && isEmailFilled && isEmailValid && isWhatsappFilled);
         } else {
             // Lógica para el botón de WHATSAPP (flujo asistido)
@@ -655,18 +655,7 @@
 
         const formData = new FormData(paymentForm);
 
-        // Agregamos todos los datos de transacción (incluyendo el array y los totales calculados)
-        // Convertimos el array a JSON string para enviarlo al backend en un solo campo (e.g., 'cartDetails')
-        formData.append('cartDetails', JSON.stringify(Array.isArray(transactionDetails) ? transactionDetails : [transactionDetails]));
-        
-        // Agregamos los totales y la moneda (para compatibilidad o simplicidad del backend)
-        if (transactionDetails.finalPrice) {
-            formData.append('finalPrice', transactionDetails.finalPrice);
-            formData.append('currency', transactionDetails.currency);
-            formData.append('totalUSD', transactionDetails.totalUSD);
-            formData.append('totalVES', transactionDetails.totalVES);
-        }
-
+        const selectedPaymentMethod = document.querySelector('input[name="paymentMethod"]:checked')?.value;
         const emailInput = document.getElementById('email');
         const whatsappInput = document.getElementById('whatsappNumber');
         
@@ -684,14 +673,12 @@
         }
         
         // Lógica especial para recargas asistidas (no se envían al backend)
-        if (isAssistedFlow()) { // USAR isAssistedFlow()
+        if (isAssistedFlow()) { 
             // Simplemente oculta el formulario y muestra el mensaje de éxito temporal.
-            // La acción real es la del botón de WhatsApp.
             paymentForm.style.display = 'none';
             whatsappMessageContainer.style.display = 'none';
             successMessageDisplay.style.display = 'block';
             localStorage.removeItem('transactionDetails');
-            // ✅ FIX CLAVE: Limpiar el carrito principal
             localStorage.removeItem('cartItems'); 
 
             setTimeout(() => {
@@ -699,14 +686,81 @@
             }, 5000);
             return;
         }
+
+        // 🛑 MODIFICACIÓN CLAVE: Lógica para el flujo de pago con Coinbase Commerce (Método Binance)
+        if (selectedPaymentMethod === 'binance') {
+            // Usar totalUSD. Si es un array, se usa 'totalUSD', si es singular se usa 'priceUSD'.
+            const finalPriceUSD = transactionDetails.totalUSD || transactionDetails.priceUSD; 
+
+            if (!finalPriceUSD || parseFloat(finalPriceUSD) <= 0) {
+                alert('Error: El monto de la transacción es inválido. Por favor, revisa tu carrito.');
+                return;
+            }
+
+            finalizeBtn.disabled = true;
+            finalizeBtn.textContent = 'Creando Factura en Coinbase...';
+            
+            try {
+                // Llamada a la función de Netlify para crear la factura de Coinbase Commerce
+                const response = await fetch('/.netlify/functions/create-coinbase-charge', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        // Datos necesarios para crear la factura en Coinbase
+                        amount: finalPriceUSD, // El monto debe ser en USD
+                        email: emailInput.value.trim(),
+                        whatsapp: whatsappInput.value.trim(),
+                        // Metadatos para rastrear la orden. Incluye todos los detalles de los productos.
+                        cartDetails: JSON.stringify(Array.isArray(transactionDetails) ? transactionDetails : [transactionDetails]), 
+                    })
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    
+                    if (data.chargeUrl) {
+                        console.log('Redirigiendo a Coinbase Commerce:', data.chargeUrl);
+                        // No limpiar el localStorage aquí. La limpieza se hace en el webhook.
+                        window.location.href = data.chargeUrl;
+                    } else {
+                        alert('Error: No se pudo obtener la URL de pago de Coinbase.');
+                    }
+                } else {
+                    const errorData = await response.json();
+                    alert(`Error al crear la factura de pago: ${errorData.message || response.statusText}.`);
+                    console.error('Server error creating Coinbase charge:', errorData);
+                }
+            } catch (error) {
+                alert('Hubo un problema de conexión al intentar crear la factura.');
+                console.error('Network or client error:', error);
+            } finally {
+                finalizeBtn.disabled = false;
+                finalizeBtn.textContent = 'Finalizar Recarga';
+            }
+            return; // Salir de la función submit para no ejecutar el flujo de pago normal
+        }
         
-        // Lógica para flujo de pago normal (requiere comprobante)
+        // Lógica para flujo de pago normal (requiere comprobante - Pago Móvil/Zinli)
         const paymentReceipt = document.getElementById('payment-receipt');
         if (!paymentReceipt || paymentReceipt.files.length === 0) {
             alert('Por favor, sube tu comprobante de pago.');
             return;
         }
         
+        // Agregamos todos los datos de transacción (incluyendo el array y los totales calculados)
+        // Convertimos el array a JSON string para enviarlo al backend en un solo campo (e.g., 'cartDetails')
+        formData.append('cartDetails', JSON.stringify(Array.isArray(transactionDetails) ? transactionDetails : [transactionDetails]));
+        
+        // Agregamos los totales y la moneda (para compatibilidad o simplicidad del backend)
+        if (transactionDetails.finalPrice) {
+            formData.append('finalPrice', transactionDetails.finalPrice);
+            formData.append('currency', transactionDetails.currency);
+            formData.append('totalUSD', transactionDetails.totalUSD);
+            formData.append('totalVES', transactionDetails.totalVES);
+        }
+
         console.log('Datos a enviar (FormData):');
         for (let pair of formData.entries()) {
             // Ocultar el contenido del archivo subido en la consola para no saturar
@@ -735,7 +789,6 @@
                 whatsappMessageContainer.style.display = 'none';
                 successMessageDisplay.style.display = 'block';
                 localStorage.removeItem('transactionDetails');
-                // ✅ FIX CLAVE: Limpiar el carrito principal
                 localStorage.removeItem('cartItems'); 
 
                 setTimeout(() => {
