@@ -702,7 +702,7 @@
             
             try {
                 // Llamada a la función de Netlify para crear la factura de Coinbase Commerce
-                const response = await fetch('/.netlify/functions/create-coinbase-charge', {
+                const response = await fetch('/.netlify/functions/create-plisio-invoice', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
