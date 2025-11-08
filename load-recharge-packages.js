@@ -32,14 +32,16 @@ exports.handler = async (event, context) => {
     }
 
     let data;
-    // 🚨 CORRECCIÓN DE SCOPE: Declaramos 'acceptedCurrencies' aquí para que sea accesible en el 'catch'.
-    let acceptedCurrencies = ''; 
-
     try {
         data = JSON.parse(event.body);
     } catch (parseError) {
         return { statusCode: 400, body: JSON.stringify({ message: 'Formato de cuerpo de solicitud inválido.' }) };
     }
+    
+    // 🚨 AJUSTE CRÍTICO: Mover la definición de esta variable fuera del try/catch principal 
+    // para que esté disponible en el bloque 'catch' de manejo de errores.
+    // Usando los identificadores de Plisio para USDT TRC20 y BEP20 (USDT_TRX, USDT_BSC)
+    const acceptedCurrencies = 'USDT_TRX,USDT_BSC'; 
     
     try {
         const { amount, email, whatsapp, cartDetails } = data; 
@@ -55,17 +57,13 @@ exports.handler = async (event, context) => {
         
         console.log(`DEBUG: Monto final con comisión: ${finalAmountUSD} USD`);
         
-        // 2. Definición de monedas (Ahora se reasigna la variable declarada arriba)
-        // USDT TRC20 = USDT_TRX, USDT BEP20 = USDT_BSC
-        acceptedCurrencies = 'USDT_TRX,USDT_BSC'; 
-
         const payload = new URLSearchParams({
             api_key: apiKey,
             order_name: "Recarga de Servicios Malok",
             order_number: `MALOK-${Date.now()}`, 
             currency: 'USD', 
             amount: finalAmountUSD,
-            currency_in: acceptedCurrencies, // 👈 Se usa la variable
+            currency_in: acceptedCurrencies, // 👈 USANDO LA CONSTANTE DEFINIDA ARRIBA
             callback_url: callbackUrl, 
             success_url: successUrl, 
             custom: JSON.stringify({
@@ -104,15 +102,14 @@ exports.handler = async (event, context) => {
         }
 
     } catch (error) {
-        // En caso de error de conexión (como el 500/404 que viste, que ahora es un problema de parámetros)
+        // En caso de error de conexión (como el 500/404 que viste)
         console.error(`ERROR: Fallo al crear la Factura de Plisio: ${error.message}`);
         
+        // Intenta capturar el cuerpo de la respuesta incluso en 500 para diagnosticar el mensaje de Plisio
         let errorDetails = error.message;
-        
-        // El error 500/404 (Request failed with status code 500) es lo que Plisio devuelve cuando
-        // la API Key es incorrecta o las monedas en 'currency_in' no están activadas.
         if (error.response && error.response.status === 500) {
-            // 🚨 Aquí usamos la variable 'acceptedCurrencies' de forma segura.
+            // Un 500 que devuelve HTML (como viste) a menudo significa que un parámetro de entrada es inválido.
+            // Esto ahora funciona porque acceptedCurrencies está definida fuera del bloque try.
             errorDetails = `Plisio Status 500. Posibles causas: Monedas no activadas (${acceptedCurrencies}) o API Key inválida.`;
         }
         
