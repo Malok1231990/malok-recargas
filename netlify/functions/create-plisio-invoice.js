@@ -81,6 +81,9 @@ exports.handler = async (event, context) => {
             success_url: successUrl, 
         };
         // ----------------------------------------------------
+        
+        // 🚀 CORRECCIÓN DE URL: Se agrega ?cmd=create_invoice
+        const PLISIO_INVOICE_URL = 'https://plisio.net/api/v1/invoices/new?cmd=create_invoice';
 
         console.log("TRAZA 13: Payload FINAL a enviar a Plisio (sin la API Key):");
         // Logueamos el payload excepto la clave
@@ -90,7 +93,7 @@ exports.handler = async (event, context) => {
         console.log("TRAZA 14: Iniciando solicitud POST a Plisio...");
         
         // 💡 USAMOS transformRequest para garantizar el formato x-www-form-urlencoded
-        const response = await axios.post('https://plisio.net/api/v1/invoices/new', payloadData, {
+        const response = await axios.post(PLISIO_INVOICE_URL, payloadData, { // <-- USO DE LA URL CORREGIDA
             headers: { 
                 'Content-Type': 'application/x-www-form-urlencoded' 
             },
