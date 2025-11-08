@@ -4,7 +4,8 @@ const axios = require('axios');
 const { URLSearchParams } = require('url'); 
 
 exports.handler = async (event, context) => {
-    console.log("--- INICIO DE EJECUCIÓN DE FUNCIÓN PLISIO (CORRECCIÓN DE SCOPE) ---");
+    // Hemos corregido la URL de la API de Plisio, que era el error 404.
+    console.log("--- INICIO DE EJECUCIÓN DE FUNCIÓN PLISIO (CORRECCIÓN FINAL DE URL) ---");
 
     if (event.httpMethod !== 'POST') {
         console.log("TRAZA 1: Método HTTP no permitido.");
@@ -71,7 +72,9 @@ exports.handler = async (event, context) => {
         
         // --- PAYLOAD COMO OBJETO (FÁCIL DE LEER) ---
         const payloadData = {
-            api_key: apiKey, // Nota: La clave se envía aquí
+            // ✅ Comando que define la acción, debe ir en el cuerpo (Body) para Plisio.
+            cmd: 'create_invoice', 
+            api_key: apiKey,
             order_name: "Recarga de Servicios Malok",
             order_number: `MALOK-${Date.now()}`, 
             currency: 'USD', 
@@ -82,8 +85,8 @@ exports.handler = async (event, context) => {
         };
         // ----------------------------------------------------
         
-        // 🚀 CORRECCIÓN DE URL: Se agrega ?cmd=create_invoice
-        const PLISIO_INVOICE_URL = 'https://plisio.net/api/v1/invoices/new?cmd=create_invoice';
+        // 🚀 CORRECCIÓN CLAVE: Usaremos la URL sin "/new" para una mejor compatibilidad con el enrutador de Plisio.
+        const PLISIO_INVOICE_URL = 'https://plisio.net/api/v1/invoices/'; 
 
         console.log("TRAZA 13: Payload FINAL a enviar a Plisio (sin la API Key):");
         // Logueamos el payload excepto la clave
@@ -93,7 +96,7 @@ exports.handler = async (event, context) => {
         console.log("TRAZA 14: Iniciando solicitud POST a Plisio...");
         
         // 💡 USAMOS transformRequest para garantizar el formato x-www-form-urlencoded
-        const response = await axios.post(PLISIO_INVOICE_URL, payloadData, { // <-- USO DE LA URL CORREGIDA
+        const response = await axios.post(PLISIO_INVOICE_URL, payloadData, { 
             headers: { 
                 'Content-Type': 'application/x-www-form-urlencoded' 
             },
@@ -147,7 +150,7 @@ exports.handler = async (event, context) => {
             console.error(error.response.data); 
             
             if (error.response.status === 500) {
-                 errorDetails = `Plisio Status 500. El error casi siempre es: **API Key incorrecta/revocada** o **error de formato en el payload**. Revise TRAZA 21 para el cuerpo de la respuesta de error.`;
+                 errorDetails = `Plisio Status 500. Error probable: **API Key incorrecta/revocada** o **URL de API inválida**. Revise TRAZA 21.`;
             } else if (error.response.status === 401 || error.response.status === 403) {
                  errorDetails = `Plisio Status ${error.response.status}. Error de **Autenticación/Permisos**. Confirme que la API Key es correcta.`;
             }
