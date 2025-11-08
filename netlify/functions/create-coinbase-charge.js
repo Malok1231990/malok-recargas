@@ -1,9 +1,13 @@
 // netlify/functions/create-coinbase-charge.js
 
-// ✅ CORRECCIÓN FINAL: Importar el módulo completo y luego desestructurar 
-// para asegurar que Client y Charge se carguen correctamente en entornos Node/Netlify.
+// Importar el módulo completo y luego desestructurar
 const coinbase = require('coinbase-commerce-node');
 const { Client, Charge } = coinbase; 
+
+// 🎯 NUEVO LOG DE DIAGNÓSTICO 1: Verificar las importaciones antes de la ejecución
+console.log(`DIAG: Tipo de coinbase: ${typeof coinbase}`);
+console.log(`DIAG: Tipo de Client (antes de init): ${typeof Client}`);
+console.log(`DIAG: Tipo de Charge (antes de init): ${typeof Charge}`); // <--- CLAVE
 
 exports.handler = async (event, context) => {
     console.log("--- INICIO DE EJECUCIÓN DE FUNCIÓN ---");
@@ -42,6 +46,10 @@ exports.handler = async (event, context) => {
             body: JSON.stringify({ message: "Error interno del servicio de pago (Verifique API Key)." }) 
         };
     }
+    
+    // 🎯 NUEVO LOG DE DIAGNÓSTICO 2: Verificar Charge y su método después de la inicialización
+    console.log(`DIAG: Tipo de Charge (después de init): ${typeof Charge}`);
+    console.log(`DIAG: Tipo de Charge.create: ${typeof Charge?.create}`); // <--- CLAVE
 
     let data;
     try {
