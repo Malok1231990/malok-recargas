@@ -1,9 +1,7 @@
 // netlify/functions/create-coinbase-charge.js
-
 const { Client } = require('coinbase-commerce-node');
 
 exports.handler = async (event, context) => {
-    // 1. Verificar el método
     if (event.httpMethod !== 'POST') {
         return { statusCode: 405, body: 'Method Not Allowed' };
     }
@@ -11,9 +9,9 @@ exports.handler = async (event, context) => {
     const apiKey = process.env.COINBASE_COMMERCE_API_KEY;
     const siteUrl = process.env.NETLIFY_SITE_URL;
 
-    // 2. Verificar variables de entorno
+    // 1. Validar variables de entorno críticas
     if (!apiKey || !siteUrl) {
-        console.error("ERROR: Faltan variables de entorno críticas. Revisar COINBASE_COMMERCE_API_KEY o NETLIFY_SITE_URL.");
+        console.error("ERROR: COINBASE_COMMERCE_API_KEY o NETLIFY_SITE_URL están faltando.");
         return { 
             statusCode: 500, 
             body: JSON.stringify({ message: "Error de configuración del servidor. Faltan credenciales." }) 
@@ -22,15 +20,18 @@ exports.handler = async (event, context) => {
 
     let Charge;
     try {
-        // 🛑 CORRECCIÓN CLAVE: Inicializar y obtener Charge DENTRO del handler
+        // 🛑 Inicialización obligatoria y obtención de Charge dentro del handler 
+        // para garantizar que se realice en el contexto correcto.
         Client.init(apiKey); 
         Charge = Client.Charge; 
-
+        
         if (typeof Charge !== 'function') {
-            throw new Error("El objeto Charge no se cargó correctamente después de la inicialización.");
+            // Este error solo debe ocurrir si la API Key es totalmente inválida.
+            throw new Error("Coinbase Commerce no pudo cargar el modelo de pago. Verifique la API Key.");
         }
+        
     } catch (initError) {
-        console.error("ERROR: Fallo en la inicialización o carga de Charge:", initError.message);
+        console.error("ERROR: Fallo en la inicialización de Coinbase:", initError.message);
         return { 
             statusCode: 500, 
             body: JSON.stringify({ message: "Error interno del servicio de pago (Init)." }) 
@@ -45,19 +46,19 @@ exports.handler = async (event, context) => {
     }
 
     try {
-        const { amount, email } = data; 
+        const { amount, email, whatsapp, cartDetails } = data; 
 
-        // 3. Validaciones básicas
+        // 2. Validaciones básicas
         if (!amount || parseFloat(amount) <= 0 || !email) {
             return { statusCode: 400, body: JSON.stringify({ message: 'Datos de transacción incompletos o inválidos.' }) };
         }
         
-        // Aplicar comisión
+        // Aplicar comisión del 3%
         const feePercentage = 0.03; 
         const amountWithFee = parseFloat(amount) * (1 + feePercentage); 
         const finalAmountUSD = amountWithFee.toFixed(2);
         
-        // 4. Crear la factura (Charge)
+        // 3. Crear la factura (Charge)
         const charge = await Charge.create({
             name: "Recarga de Servicios Malok",
             description: "Pago por carrito de recargas - Malok Recargas",
@@ -70,13 +71,13 @@ exports.handler = async (event, context) => {
             cancel_url: `${siteUrl}/payment.html`, 
             metadata: {
                 customer_email: email,
-                customer_whatsapp: data.whatsapp,
-                cart_details: data.cartDetails, 
+                customer_whatsapp: whatsapp,
+                cart_details: cartDetails, 
                 original_amount: parseFloat(amount).toFixed(2),
             },
         });
 
-        // 5. Respuesta exitosa
+        // 4. Respuesta exitosa
         return {
             statusCode: 200,
             headers: { 'Content-Type': 'application/json' },
@@ -92,7 +93,8 @@ exports.handler = async (event, context) => {
             statusCode: 500,
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ 
-                message: `Error al crear la factura de pago: ${error.message}.`,
+                message: `Error al crear la factura de pago.`,
+                details: error.message
             }),
         };
     }
