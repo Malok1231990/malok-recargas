@@ -38,6 +38,10 @@ exports.handler = async (event, context) => {
         return { statusCode: 400, body: JSON.stringify({ message: 'Formato de cuerpo de solicitud inválido.' }) };
     }
     
+    // 💡 CORRECCIÓN CRÍTICA: Mover la definición de esta variable fuera del bloque try/catch
+    // para que sea accesible en el bloque catch de manejo de errores.
+    const acceptedCurrencies = 'USDT_TRX,USDT_BSC'; // USDT TRC20 y USDT BEP20 (Asegúrate de que estas estén activas en Plisio)
+    
     try {
         const { amount, email, whatsapp, cartDetails } = data; 
 
@@ -52,9 +56,7 @@ exports.handler = async (event, context) => {
         
         console.log(`DEBUG: Monto final con comisión: ${finalAmountUSD} USD`);
         
-        // 🚨 AJUSTE CRÍTICO: Usando los identificadores de Plisio para USDT TRC20 y BEP20
-        // Si activaste otras monedas como BTC/LTC, debes incluirlas aquí.
-        const acceptedCurrencies = 'USDT_TRX,USDT_BSC'; // USDT TRC20 y USDT BEP20
+        // La variable acceptedCurrencies ya está definida arriba.
 
         const payload = new URLSearchParams({
             api_key: apiKey,
@@ -62,7 +64,7 @@ exports.handler = async (event, context) => {
             order_number: `MALOK-${Date.now()}`, 
             currency: 'USD', 
             amount: finalAmountUSD,
-            currency_in: acceptedCurrencies, // 👈 LISTA AJUSTADA
+            currency_in: acceptedCurrencies, // 👈 Usa la constante definida arriba
             callback_url: callbackUrl, 
             success_url: successUrl, 
             custom: JSON.stringify({
@@ -108,6 +110,7 @@ exports.handler = async (event, context) => {
         let errorDetails = error.message;
         if (error.response && error.response.status === 500) {
             // Un 500 que devuelve HTML (como viste) a menudo significa que un parámetro de entrada es inválido.
+            // Esto ahora funciona porque acceptedCurrencies está definida fuera del bloque try.
             errorDetails = `Plisio Status 500. Posibles causas: Monedas no activadas (${acceptedCurrencies}) o API Key inválida.`;
         }
         
