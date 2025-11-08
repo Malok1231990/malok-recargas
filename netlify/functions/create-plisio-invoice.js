@@ -4,7 +4,8 @@ const axios = require('axios');
 const { URLSearchParams } = require('url'); 
 
 exports.handler = async (event, context) => {
-    console.log("--- INICIO DE EJECUCIÓN DE FUNCIÓN PLISIO (PRUEBA SIN CUSTOM) ---");
+    // 💡 CAMBIO DE LOG: para reflejar la última prueba
+    console.log("--- INICIO DE EJECUCIÓN DE FUNCIÓN PLISIO (PRUEBA FINAL AXIOS PAYLOAD) ---");
 
     if (event.httpMethod !== 'POST') {
         return { statusCode: 405, body: 'Method Not Allowed' };
@@ -39,7 +40,6 @@ exports.handler = async (event, context) => {
     }
     
     // 🎯 CONFIGURACIÓN: Usando BTC para la prueba de descarte.
-    // Si esta prueba funciona, el problema es USDT_TRX o el campo 'custom'.
     const acceptedCurrencies = 'BTC'; 
     
     try {
@@ -56,8 +56,8 @@ exports.handler = async (event, context) => {
         
         console.log(`DEBUG: Monto final con comisión: ${finalAmountUSD} USD`);
         
-        // --- MODIFICACIÓN CLAVE: ELIMINACIÓN DEL CAMPO CUSTOM ---
-        const payload = new URLSearchParams({
+        // --- NUEVO PAYLOAD COMO OBJETO (FÁCIL DE LEER) ---
+        const payloadData = {
             api_key: apiKey,
             order_name: "Recarga de Servicios Malok",
             order_number: `MALOK-${Date.now()}`, 
@@ -66,13 +66,21 @@ exports.handler = async (event, context) => {
             currency_in: acceptedCurrencies, 
             callback_url: callbackUrl, 
             success_url: successUrl, 
-            // 🔥 El campo 'custom' ha sido removido. 🔥
-        }).toString();
-        // --------------------------------------------------------
+            // El campo 'custom' permanece removido para la prueba
+        };
+        // ----------------------------------------------------
 
         console.log("DEBUG: Intentando crear la factura en Plisio...");
-        const response = await axios.post('https://plisio.net/api/v1/invoices/new', payload, {
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
+        
+        // 💡 CAMBIO CLAVE: Usamos 'transformRequest' para garantizar el formato x-www-form-urlencoded
+        const response = await axios.post('https://plisio.net/api/v1/invoices/new', payloadData, {
+            headers: { 
+                'Content-Type': 'application/x-www-form-urlencoded' 
+            },
+            transformRequest: [(data, headers) => {
+                // Forzamos la codificación usando URLSearchParams para asegurar el formato correcto.
+                return new URLSearchParams(data).toString();
+            }],
         });
         
         const plisioData = response.data;
@@ -103,8 +111,8 @@ exports.handler = async (event, context) => {
         
         let errorDetails = error.message;
         if (error.response && error.response.status === 500) {
-            // Aquí el error 500 indica un fallo con los parámetros obligatorios
-            errorDetails = `Plisio Status 500. Posibles causas: Parámetros obligatorios (como API Key, amount, currency, currency_in) inválidos o no activados.`;
+            // Este es el último punto de falla que indica un problema de API Key o monto mínimo.
+            errorDetails = `Plisio Status 500. La única causa restante es: **API Key incorrecta o revocada** en Plisio, o el monto ($${finalAmountUSD}) es menor al mínimo requerido para BTC.`;
         }
         
         console.error(`DETALLE DE ERROR: ${errorDetails}`); 
