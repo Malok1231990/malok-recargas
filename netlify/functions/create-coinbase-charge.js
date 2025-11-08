@@ -1,5 +1,7 @@
 // netlify/functions/create-coinbase-charge.js
-const { Client } = require('coinbase-commerce-node');
+
+// ✅ CORRECCIÓN CLAVE: Importar Client y Charge (el modelo de recurso) directamente.
+const { Client, Charge } = require('coinbase-commerce-node');
 
 exports.handler = async (event, context) => {
     console.log("--- INICIO DE EJECUCIÓN DE FUNCIÓN ---");
@@ -24,28 +26,23 @@ exports.handler = async (event, context) => {
         };
     }
 
-    let Charge;
     try {
         console.log("DEBUG: Intentando inicializar Coinbase Client con Client.init...");
         
-        // ✅ CORRECCIÓN: Volvemos a Client.init() ya que Client.setup() no es una función
+        // 🔑 Inicializamos el Client, lo que configura la API Key globalmente 
+        // para la clase Charge que hemos importado arriba.
         Client.init(apiKey); 
         console.log("DEBUG: Client.init() ejecutado exitosamente.");
         
-        Charge = Client.Charge; 
-        console.log(`DEBUG: Se obtuvo Client.Charge. Tipo: ${typeof Charge}`);
-        
-        if (typeof Charge !== 'function' || !Charge.create) {
-            console.error("ERROR: Client.Charge no es un constructor de función válido.");
-            throw new Error("Coinbase Commerce no pudo cargar el modelo de pago. Verifique la API Key o la versión de la librería.");
-        }
+        // 🎉 Eliminadas las líneas que intentaban obtener Charge desde Client.Charge,
+        // ya que la clase Charge está disponible directamente por el require.
         
     } catch (initError) {
-        // Este catch capturará si Client.init falla por problemas de key o versión.
         console.error("ERROR: Fallo en la inicialización de Coinbase:", initError.message);
+        // Dejo un mensaje más claro, aunque es poco probable que falle si la API Key es correcta.
         return { 
             statusCode: 500, 
-            body: JSON.stringify({ message: "Error interno del servicio de pago (Init)." }) 
+            body: JSON.stringify({ message: "Error interno del servicio de pago (Verifique API Key)." }) 
         };
     }
 
@@ -82,7 +79,8 @@ exports.handler = async (event, context) => {
         
         // 3. Crear la factura (Charge)
         console.log("DEBUG: Intentando crear el Charge en Coinbase...");
-        const charge = await Charge.create({
+        // 🎯 Usamos la clase Charge importada directamente
+        const charge = await Charge.create({ 
             name: "Recarga de Servicios Malok",
             description: "Pago por carrito de recargas - Malok Recargas",
             local_price: {
@@ -95,6 +93,7 @@ exports.handler = async (event, context) => {
             metadata: {
                 customer_email: email,
                 customer_whatsapp: whatsapp,
+                // Asegurar que cartDetails sea una cadena si es un objeto
                 cart_details: typeof cartDetails === 'object' ? JSON.stringify(cartDetails) : cartDetails, 
                 original_amount: amountValue.toFixed(2),
             },
