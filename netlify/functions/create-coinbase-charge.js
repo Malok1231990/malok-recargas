@@ -1,4 +1,4 @@
-// netlify/functions/create-coinbase-charge.js
+// netlify/functions/create-coinbase-addadcharge.js
 const { Client } = require('coinbase-commerce-node');
 
 exports.handler = async (event, context) => {
