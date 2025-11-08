@@ -4,8 +4,7 @@ const axios = require('axios');
 const { URLSearchParams } = require('url'); 
 
 exports.handler = async (event, context) => {
-    // Hemos corregido la URL de la API de Plisio, que era el error 404.
-    console.log("--- INICIO DE EJECUCIÓN DE FUNCIÓN PLISIO (CORRECCIÓN FINAL DE URL) ---");
+    console.log("--- INICIO DE EJECUCIÓN DE FUNCIÓN PLISIO (CORRECCIÓN FINAL DE RUTA) ---");
 
     if (event.httpMethod !== 'POST') {
         console.log("TRAZA 1: Método HTTP no permitido.");
@@ -72,7 +71,7 @@ exports.handler = async (event, context) => {
         
         // --- PAYLOAD COMO OBJETO (FÁCIL DE LEER) ---
         const payloadData = {
-            // ✅ Comando que define la acción, debe ir en el cuerpo (Body) para Plisio.
+            // ✅ Comando que define la acción, correctamente en el cuerpo (Body).
             cmd: 'create_invoice', 
             api_key: apiKey,
             order_name: "Recarga de Servicios Malok",
@@ -85,8 +84,8 @@ exports.handler = async (event, context) => {
         };
         // ----------------------------------------------------
         
-        // 🚀 CORRECCIÓN CLAVE: Usaremos la URL sin "/new" para una mejor compatibilidad con el enrutador de Plisio.
-        const PLISIO_INVOICE_URL = 'https://plisio.net/api/v1/invoices/'; 
+        // 🚀 CORRECCIÓN CLAVE: Usamos la URL sin el slash final, asumiendo que es el endpoint base.
+        const PLISIO_INVOICE_URL = 'https://plisio.net/api/v1/invoices'; 
 
         console.log("TRAZA 13: Payload FINAL a enviar a Plisio (sin la API Key):");
         // Logueamos el payload excepto la clave
