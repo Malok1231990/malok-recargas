@@ -4,7 +4,7 @@ const axios = require('axios');
 const { URLSearchParams } = require('url'); 
 
 exports.handler = async (event, context) => {
-    console.log("--- INICIO DE EJECUCIÓN DE FUNCIÓN PLISIO ---");
+    console.log("--- INICIO DE EJECUCIÓN DE FUNCIÓN PLISIO (USDT_TRX) ---");
 
     if (event.httpMethod !== 'POST') {
         return { statusCode: 405, body: 'Method Not Allowed' };
@@ -38,9 +38,10 @@ exports.handler = async (event, context) => {
         return { statusCode: 400, body: JSON.stringify({ message: 'Formato de cuerpo de solicitud inválido.' }) };
     }
     
-    // 💡 SOLUCIÓN MÁS PROBABLE AL ERROR 500: Cambiar separador de monedas de coma a ESPACIO.
-    // Esto es común para listas en payloads application/x-www-form-urlencoded
-    const acceptedCurrencies = 'USDT_TRX USDT_BSC'; // Separado por ESPACIO
+    // 🎯 CONFIGURACIÓN: Usar solo Tether TRC20.
+    // **NOTA IMPORTANTE: Confirma que el identificador en tu panel de Plisio es 'USDT_TRX'**
+    // Si no funciona, prueba con 'USDT_TRC20'.
+    const acceptedCurrencies = 'USDT_TRX'; // Solo USDT en la red TRON (TRC20)
     
     try {
         const { amount, email, whatsapp, cartDetails } = data; 
@@ -56,15 +57,13 @@ exports.handler = async (event, context) => {
         
         console.log(`DEBUG: Monto final con comisión: ${finalAmountUSD} USD`);
         
-        // La variable acceptedCurrencies ya está definida arriba.
-
         const payload = new URLSearchParams({
             api_key: apiKey,
             order_name: "Recarga de Servicios Malok",
             order_number: `MALOK-${Date.now()}`, 
             currency: 'USD', 
             amount: finalAmountUSD,
-            currency_in: acceptedCurrencies, // 👈 USANDO ESPACIO COMO SEPARADOR
+            currency_in: acceptedCurrencies, // 👈 SOLO USDT_TRX
             callback_url: callbackUrl, 
             success_url: successUrl, 
             custom: JSON.stringify({
@@ -106,11 +105,10 @@ exports.handler = async (event, context) => {
         // En caso de error de conexión (como el 500/404 que viste)
         console.error(`ERROR: Fallo al crear la Factura de Plisio: ${error.message}`);
         
-        // Intenta capturar el cuerpo de la respuesta incluso en 500 para diagnosticar el mensaje de Plisio
+        // El error 500 ahora solo apuntará a USDT_TRX
         let errorDetails = error.message;
         if (error.response && error.response.status === 500) {
-            // Este bloque ahora te dirá qué formato intentaste usar (USDT_TRX USDT_BSC)
-            errorDetails = `Plisio Status 500. Posibles causas: Monedas no activadas (${acceptedCurrencies}) o API Key inválida.`;
+            errorDetails = `Plisio Status 500. Posibles causas: Moneda no activada (${acceptedCurrencies}) o API Key inválida.`;
         }
         
         console.error(`DETALLE DE ERROR: ${errorDetails}`); 
