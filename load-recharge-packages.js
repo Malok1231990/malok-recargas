@@ -7,6 +7,7 @@ exports.handler = async (event, context) => {
     console.log("--- INICIO DE EJECUCIÓN DE FUNCIÓN PLISIO ---");
 
     if (event.httpMethod !== 'POST') {
+        console.log(`DEBUG: Método HTTP no permitido: ${event.httpMethod}`);
         return { statusCode: 405, body: 'Method Not Allowed' };
     }
     
@@ -22,9 +23,11 @@ exports.handler = async (event, context) => {
     
     console.log(`DEBUG: API Key cargada: ${!!apiKey}`);
     console.log(`DEBUG: Site URL limpia: ${siteUrlClean}`);
+    console.log(`DEBUG: URL de Callback (Webhook): ${callbackUrl}`);
 
 
     if (!apiKey || !siteUrl) {
+        console.error("ERROR: Faltan credenciales de Plisio (API Key o Site URL).");
         return { 
             statusCode: 500, 
             body: JSON.stringify({ message: "Error de configuración. Faltan credenciales de Plisio." }) 
@@ -34,19 +37,22 @@ exports.handler = async (event, context) => {
     let data;
     try {
         data = JSON.parse(event.body);
+        console.log("DEBUG: Cuerpo de la solicitud JSON parseado correctamente.");
     } catch (parseError) {
+        console.error(`ERROR: Fallo al parsear JSON del cuerpo: ${parseError.message}`);
         return { statusCode: 400, body: JSON.stringify({ message: 'Formato de cuerpo de solicitud inválido.' }) };
     }
     
-    // 🚨 AJUSTE CRÍTICO: Mover la definición de esta variable fuera del try/catch principal 
-    // para que esté disponible en el bloque 'catch' de manejo de errores.
-    // Usando los identificadores de Plisio para USDT TRC20 y BEP20 (USDT_TRX, USDT_BSC)
+    // 🚨 SOLUCIÓN AL REFERENCEERROR: Definir 'acceptedCurrencies' fuera del try
     const acceptedCurrencies = 'USDT_TRX,USDT_BSC'; 
-    
+    console.log(`DEBUG: Monedas aceptadas configuradas: ${acceptedCurrencies}`);
+
     try {
         const { amount, email, whatsapp, cartDetails } = data; 
+        console.log(`DEBUG: Datos recibidos: Monto=${amount}, Email=${email}`);
 
         if (!amount || isNaN(parseFloat(amount)) || parseFloat(amount) <= 0 || !email) {
+            console.error("ERROR: Datos de transacción incompletos o inválidos.");
             return { statusCode: 400, body: JSON.stringify({ message: 'Datos de transacción incompletos o inválidos.' }) };
         }
         
@@ -55,7 +61,9 @@ exports.handler = async (event, context) => {
         const amountWithFee = amountValue * (1 + feePercentage); 
         const finalAmountUSD = amountWithFee.toFixed(2);
         
+        console.log(`DEBUG: Monto inicial: ${amountValue.toFixed(2)}`);
         console.log(`DEBUG: Monto final con comisión: ${finalAmountUSD} USD`);
+        
         
         const payload = new URLSearchParams({
             api_key: apiKey,
@@ -63,7 +71,7 @@ exports.handler = async (event, context) => {
             order_number: `MALOK-${Date.now()}`, 
             currency: 'USD', 
             amount: finalAmountUSD,
-            currency_in: acceptedCurrencies, // 👈 USANDO LA CONSTANTE DEFINIDA ARRIBA
+            currency_in: acceptedCurrencies, // Lista de monedas para el cliente
             callback_url: callbackUrl, 
             success_url: successUrl, 
             custom: JSON.stringify({
@@ -74,6 +82,9 @@ exports.handler = async (event, context) => {
             }),
         }).toString();
 
+        // 💡 Log del Payload ANTES de enviarlo
+        console.log(`DEBUG: Payload enviado a Plisio: ${payload}`);
+
         console.log("DEBUG: Intentando crear la factura en Plisio...");
         const response = await axios.post('https://plisio.net/api/v1/invoices/new', payload, {
             headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
@@ -81,10 +92,12 @@ exports.handler = async (event, context) => {
         
         const plisioData = response.data;
         console.log(`DEBUG: Respuesta de Plisio recibida. Status: ${plisioData.status}`);
+        console.log(`DEBUG: Datos de respuesta de Plisio: ${JSON.stringify(plisioData)}`);
+
 
         if (plisioData.status === 'ok' && plisioData.data && plisioData.data.invoice_url) {
             
-            console.log("--- FINALIZACIÓN EXITOSA DE FUNCIÓN ---");
+            console.log("--- FINALIZACIÓN EXITOSA DE FUNCIÓN (Factura Creada) ---");
             
             return {
                 statusCode: 200,
@@ -97,23 +110,29 @@ exports.handler = async (event, context) => {
         } else {
             // Manejo de error de la API de Plisio que regresa un JSON de error
             const errorMessage = plisioData.data && plisioData.data.message ? `Plisio API Error: ${plisioData.data.message}` : 'Error desconocido de la API de Plisio';
-            console.error(`ERROR: Fallo al crear factura de Plisio: ${errorMessage}`);
+            console.error(`ERROR: Fallo al crear factura de Plisio (Respuesta JSON): ${errorMessage}`);
             throw new Error(errorMessage);
         }
 
     } catch (error) {
-        // En caso de error de conexión (como el 500/404 que viste)
-        console.error(`ERROR: Fallo al crear la Factura de Plisio: ${error.message}`);
+        // En caso de error de conexión o error de Axios (como el 500 que viste)
+        console.error(`ERROR: Fallo de conexión o Axios: ${error.message}`);
         
-        // Intenta capturar el cuerpo de la respuesta incluso en 500 para diagnosticar el mensaje de Plisio
         let errorDetails = error.message;
-        if (error.response && error.response.status === 500) {
-            // Un 500 que devuelve HTML (como viste) a menudo significa que un parámetro de entrada es inválido.
-            // Esto ahora funciona porque acceptedCurrencies está definida fuera del bloque try.
-            errorDetails = `Plisio Status 500. Posibles causas: Monedas no activadas (${acceptedCurrencies}) o API Key inválida.`;
+
+        if (error.response) {
+            console.error(`ERROR AXIOS: Recibido Status Code ${error.response.status}`);
+            console.error(`ERROR AXIOS: Datos de Respuesta: ${error.response.data}`);
+
+            if (error.response.status === 500) {
+                // Este bloque ahora funciona correctamente gracias a la corrección de 'acceptedCurrencies'
+                errorDetails = `Plisio Status 500. Posibles causas: Monedas no activadas (${acceptedCurrencies}), API Key inválida, o datos de payload incorrectos.`;
+            } else if (error.response.status === 400) {
+                 errorDetails = `Plisio Status 400 (Bad Request). Revisa el formato del payload.`;
+            }
         }
         
-        console.error(`DETALLE DE ERROR: ${errorDetails}`); 
+        console.error(`DETALLE FINAL DE ERROR: ${errorDetails}`); 
 
         return {
             statusCode: 500,
