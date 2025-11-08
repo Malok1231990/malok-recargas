@@ -12,7 +12,6 @@
   "dependencies": {
     "@supabase/supabase-js": "^2.79.0",
     "axios": "^1.10.0",
-    "coinbase-commerce-node": "^1.0.4",
     "form-data": "^4.0.4",
     "formidable": "^3.5.4",
     "google-auth-library": "^10.5.0",
