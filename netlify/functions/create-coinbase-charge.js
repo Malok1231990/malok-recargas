@@ -1,7 +1,9 @@
 // netlify/functions/create-coinbase-charge.js
 
-// ✅ CORRECCIÓN CLAVE: Importar Client y Charge (el modelo de recurso) directamente.
-const { Client, Charge } = require('coinbase-commerce-node');
+// ✅ CORRECCIÓN FINAL: Importar el módulo completo y luego desestructurar 
+// para asegurar que Client y Charge se carguen correctamente en entornos Node/Netlify.
+const coinbase = require('coinbase-commerce-node');
+const { Client, Charge } = coinbase; 
 
 exports.handler = async (event, context) => {
     console.log("--- INICIO DE EJECUCIÓN DE FUNCIÓN ---");
@@ -29,17 +31,12 @@ exports.handler = async (event, context) => {
     try {
         console.log("DEBUG: Intentando inicializar Coinbase Client con Client.init...");
         
-        // 🔑 Inicializamos el Client, lo que configura la API Key globalmente 
-        // para la clase Charge que hemos importado arriba.
+        // Inicializamos el Client, lo que configura la API Key globalmente.
         Client.init(apiKey); 
         console.log("DEBUG: Client.init() ejecutado exitosamente.");
         
-        // 🎉 Eliminadas las líneas que intentaban obtener Charge desde Client.Charge,
-        // ya que la clase Charge está disponible directamente por el require.
-        
     } catch (initError) {
         console.error("ERROR: Fallo en la inicialización de Coinbase:", initError.message);
-        // Dejo un mensaje más claro, aunque es poco probable que falle si la API Key es correcta.
         return { 
             statusCode: 500, 
             body: JSON.stringify({ message: "Error interno del servicio de pago (Verifique API Key)." }) 
@@ -79,7 +76,7 @@ exports.handler = async (event, context) => {
         
         // 3. Crear la factura (Charge)
         console.log("DEBUG: Intentando crear el Charge en Coinbase...");
-        // 🎯 Usamos la clase Charge importada directamente
+        // 🎯 Usamos la clase Charge importada correctamente
         const charge = await Charge.create({ 
             name: "Recarga de Servicios Malok",
             description: "Pago por carrito de recargas - Malok Recargas",
