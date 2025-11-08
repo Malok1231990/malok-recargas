@@ -1,154 +1,130 @@
-// load-recharge-packages.js (CORREGIDO: Espera la Carga de Configuración de Tasa de Cambio)
+// netlify/functions/create-plisio-invoice.js
 
-document.addEventListener('DOMContentLoaded', () => {
-    const packageGrid = document.getElementById('recharge-package-options-grid');
-    const rechargeForm = document.getElementById('recharge-wallet-form');
-    const selectButton = document.getElementById('select-package-btn');
-    let selectedPackageData = null;
+const axios = require('axios');
+const { URLSearchParams } = require('url'); 
 
-    // Paquetes de saldo (Hardcodeados para el ejemplo, idealmente desde Supabase)
-    const RECHARGE_PACKAGES = [
-        { name: 'Saldo $10 USD', usd: '10.00', ves: '380.00' }, 
-        { name: 'Saldo $25 USD', usd: '25.00', ves: '950.00' },
-        { name: 'Saldo $50 USD', usd: '50.00', ves: '1900.00' },
-        { name: 'Saldo $100 USD', usd: '100.00', ves: '3800.00' }
-    ];
+exports.handler = async (event, context) => {
+    console.log("--- INICIO DE EJECUCIÓN DE FUNCIÓN PLISIO ---");
 
-    /**
-     * 🎯 OBTENER TASA: Obtiene la tasa de cambio del Dólar guardada en la configuración CSS.
-     * @returns {number} La tasa de VES/USD. Por defecto 38.00.
-     */
-    function getExchangeRate() {
-        const rootStyle = getComputedStyle(document.documentElement);
-        // Lee la variable CSS, elimina comillas si existen, y convierte a float.
-        let rate = rootStyle.getPropertyValue('--tasa-dolar').trim().replace(/['"]/g, '');
-        // Usamos 38.00 como fallback si no se puede leer la variable
-        return parseFloat(rate) || 38.00; 
+    if (event.httpMethod !== 'POST') {
+        return { statusCode: 405, body: 'Method Not Allowed' };
     }
-
-    /**
-     * Renders the package options based on the current currency.
-     */
-    function renderPackages() {
-        if (!packageGrid) return;
-        
-        packageGrid.innerHTML = ''; // Limpiar mensaje de carga
-        
-        // La función getCurrentCurrency() se asume que existe en script.js
-        const currentCurrency = window.getCurrentCurrency ? window.getCurrentCurrency() : 'USD'; 
-        // 🎯 OBTENER: Obtener la tasa de cambio
-        const exchangeRate = getExchangeRate(); 
-        
-        RECHARGE_PACKAGES.forEach((pkg, index) => {
-            
-            const usdPrice = parseFloat(pkg.usd);
-            
-            // 🎯 CÁLCULO CLAVE: Precio en VES se calcula a partir del USD y la Tasa.
-            const calculatedVesPrice = (usdPrice * exchangeRate).toFixed(2);
-            
-            // Usamos el precio en USD o el precio CALCULADO en VES
-            const priceValue = currentCurrency === 'USD' ? usdPrice.toFixed(2) : calculatedVesPrice;
-            const priceSymbol = currentCurrency === 'USD' ? '$' : 'Bs.';
-            const price = `${priceSymbol} ${priceValue}`;
-
-            const packageHtml = document.createElement('div');
-            packageHtml.className = 'package-option';
-            // Guardar los datos en el HTML
-            packageHtml.dataset.packageName = pkg.name;
-            packageHtml.dataset.priceUsd = pkg.usd;
-            // 🎯 IMPORTANTE: El precio VES guardado AHORA es el calculado, no el hardcodeado.
-            packageHtml.dataset.priceVes = calculatedVesPrice; 
-
-            packageHtml.innerHTML = `
-                <p class="package-name">${pkg.name.replace('Saldo ', '')}</p>
-                <p class="package-price">${price}</p>
-            `;
-            
-            packageGrid.appendChild(packageHtml);
-        });
-
-        // Re-adjuntar eventos después de renderizar para que funcionen los clics
-        attachPackageEventListeners();
-
-        // Si ya había un paquete seleccionado, re-selecciona el elemento DOM y actualiza el botón
-        if (selectedPackageData) {
-            const currentSelected = Array.from(packageGrid.children).find(
-                opt => opt.dataset.packageName === selectedPackageData.name
-            );
-            if (currentSelected) {
-                currentSelected.classList.add('selected');
-                selectButton.disabled = false;
-                selectButton.textContent = `Pagar Recarga de ${selectedPackageData.name}`;
-            }
-        } else {
-             // Si no hay selección, el botón debe estar deshabilitado y con el texto por defecto
-             selectButton.disabled = true;
-             selectButton.textContent = 'Continuar al Pago';
-        }
-    }
-
-    /**
-     * Attaches click listeners to the dynamically created package options.
-     */
-    function attachPackageEventListeners() {
-        const packageOptions = document.querySelectorAll('.package-option');
-        
-        packageOptions.forEach(opt => {
-            opt.addEventListener('click', function() {
-                // 1. Deseleccionar todos
-                packageOptions.forEach(o => o.classList.remove('selected'));
-                
-                // 2. Seleccionar el actual
-                this.classList.add('selected');
-                
-                // 3. Actualizar datos seleccionados, incluyendo el precio VES calculado
-                selectedPackageData = {
-                    name: this.dataset.packageName,
-                    usd: this.dataset.priceUsd,
-                    ves: this.dataset.priceVes // Ahora toma el valor calculado del DOM
-                };
-                
-                // 4. Habilitar y actualizar el botón
-                selectButton.disabled = false;
-                selectButton.textContent = `Pagar Recarga de ${selectedPackageData.name}`;
-            });
-        });
-    }
-
-    // 💡 CLAVE 1: Escuchar el evento global de cambio de moneda (para actualizar si el usuario cambia)
-    window.addEventListener('currencyChanged', renderPackages); 
     
-    // 🎯 CLAVE 2 (SOLUCIÓN): Ejecutar renderPackages SOLO cuando la configuración (incluida la tasa) esté cargada
-    // Esto previene el race condition, asumiendo que script.js dispara 'siteConfigLoaded'.
-    document.addEventListener('siteConfigLoaded', renderPackages, { once: true });
+    // 🔑 1. OBTENER Y LIMPIAR VARIABLES DE ENTORNO
+    const apiKey = process.env.PLISIO_API_KEY; 
+    const siteUrl = process.env.NETLIFY_SITE_URL;
     
-    // 🛑 La llamada directa a renderPackages() ha sido eliminada.
+    // CORRECCIÓN CRÍTICA: Eliminar la barra diagonal final de la URL si existe.
+    const siteUrlClean = siteUrl.endsWith('/') ? siteUrl.slice(0, -1) : siteUrl;
+
+    const callbackUrl = `${siteUrlClean}/.netlify/functions/plisio-webhook`;
+    const successUrl = siteUrlClean; 
     
-    // 🎯 Lógica de Pago Directo al enviar el formulario
-    rechargeForm.addEventListener('submit', (e) => {
-        e.preventDefault();
+    console.log(`DEBUG: API Key cargada: ${!!apiKey}`);
+    console.log(`DEBUG: Site URL limpia: ${siteUrlClean}`);
 
-        if (!selectedPackageData) {
-            alert('Por favor, selecciona un paquete de saldo.');
-            return;
-        }
 
-        // 1. Crear el objeto de transacción (simulando un único item de carrito)
-        const transactionItem = {
-            id: 'WALLET_RECHARGE_' + Date.now(), 
-            game: 'Recarga de Saldo', // Identificador especial para el backend
-            playerId: 'N/A', 
-            packageName: selectedPackageData.name,
-            priceUSD: selectedPackageData.usd, 
-            priceVES: selectedPackageData.ves, 
-            requiresAssistance: false // Es un producto directo
+    if (!apiKey || !siteUrl) {
+        return { 
+            statusCode: 500, 
+            body: JSON.stringify({ message: "Error de configuración. Faltan credenciales de Plisio." }) 
         };
+    }
 
-        // 2. Guardar la transacción directamente, **saltando el carrito** de compras.
-        //    La página payment.html espera un array en 'transactionDetails'.
-        localStorage.setItem('transactionDetails', JSON.stringify([transactionItem]));
+    let data;
+    // 🚨 CORRECCIÓN DE SCOPE: Declaramos 'acceptedCurrencies' aquí para que sea accesible en el 'catch'.
+    let acceptedCurrencies = ''; 
 
-        // 3. Redirigir inmediatamente a payment.html para procesar el pago.
-        window.location.href = 'payment.html';
-    });
-});
+    try {
+        data = JSON.parse(event.body);
+    } catch (parseError) {
+        return { statusCode: 400, body: JSON.stringify({ message: 'Formato de cuerpo de solicitud inválido.' }) };
+    }
+    
+    try {
+        const { amount, email, whatsapp, cartDetails } = data; 
+
+        if (!amount || isNaN(parseFloat(amount)) || parseFloat(amount) <= 0 || !email) {
+            return { statusCode: 400, body: JSON.stringify({ message: 'Datos de transacción incompletos o inválidos.' }) };
+        }
+        
+        const feePercentage = 0.03; 
+        const amountValue = parseFloat(amount);
+        const amountWithFee = amountValue * (1 + feePercentage); 
+        const finalAmountUSD = amountWithFee.toFixed(2);
+        
+        console.log(`DEBUG: Monto final con comisión: ${finalAmountUSD} USD`);
+        
+        // 2. Definición de monedas (Ahora se reasigna la variable declarada arriba)
+        // USDT TRC20 = USDT_TRX, USDT BEP20 = USDT_BSC
+        acceptedCurrencies = 'USDT_TRX,USDT_BSC'; 
+
+        const payload = new URLSearchParams({
+            api_key: apiKey,
+            order_name: "Recarga de Servicios Malok",
+            order_number: `MALOK-${Date.now()}`, 
+            currency: 'USD', 
+            amount: finalAmountUSD,
+            currency_in: acceptedCurrencies, // 👈 Se usa la variable
+            callback_url: callbackUrl, 
+            success_url: successUrl, 
+            custom: JSON.stringify({
+                customer_email: email,
+                customer_whatsapp: whatsapp,
+                cart_details: typeof cartDetails === 'object' ? JSON.stringify(cartDetails) : cartDetails, 
+                original_amount: amountValue.toFixed(2),
+            }),
+        }).toString();
+
+        console.log("DEBUG: Intentando crear la factura en Plisio...");
+        const response = await axios.post('https://plisio.net/api/v1/invoices/new', payload, {
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
+        });
+        
+        const plisioData = response.data;
+        console.log(`DEBUG: Respuesta de Plisio recibida. Status: ${plisioData.status}`);
+
+        if (plisioData.status === 'ok' && plisioData.data && plisioData.data.invoice_url) {
+            
+            console.log("--- FINALIZACIÓN EXITOSA DE FUNCIÓN ---");
+            
+            return {
+                statusCode: 200,
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    chargeUrl: plisioData.data.invoice_url, 
+                    chargeId: plisioData.data.txn_id, 
+                }),
+            };
+        } else {
+            // Manejo de error de la API de Plisio que regresa un JSON de error
+            const errorMessage = plisioData.data && plisioData.data.message ? `Plisio API Error: ${plisioData.data.message}` : 'Error desconocido de la API de Plisio';
+            console.error(`ERROR: Fallo al crear factura de Plisio: ${errorMessage}`);
+            throw new Error(errorMessage);
+        }
+
+    } catch (error) {
+        // En caso de error de conexión (como el 500/404 que viste, que ahora es un problema de parámetros)
+        console.error(`ERROR: Fallo al crear la Factura de Plisio: ${error.message}`);
+        
+        let errorDetails = error.message;
+        
+        // El error 500/404 (Request failed with status code 500) es lo que Plisio devuelve cuando
+        // la API Key es incorrecta o las monedas en 'currency_in' no están activadas.
+        if (error.response && error.response.status === 500) {
+            // 🚨 Aquí usamos la variable 'acceptedCurrencies' de forma segura.
+            errorDetails = `Plisio Status 500. Posibles causas: Monedas no activadas (${acceptedCurrencies}) o API Key inválida.`;
+        }
+        
+        console.error(`DETALLE DE ERROR: ${errorDetails}`); 
+
+        return {
+            statusCode: 500,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+                message: `Error al crear la factura de pago.`,
+                details: errorDetails
+            }),
+        };
+    }
+};
