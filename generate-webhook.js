@@ -1,41 +1,47 @@
 const crypto = require('crypto');
 const { URLSearchParams } = require('url'); 
 
-// 🚨 CLAVE SECRETA PROPORCIONADA POR EL USUARIO 🚨
-const PLISIO_SECRET_KEY = 'ffu-VfsL3WDet7YNDsjkVUMt4EflfeOolYj-ZvTcgHm1F1dbKiX76zjV93RRFmKK'; 
+// 🚨 1. REEMPLAZA ESTO con tu CLAVE SECRETA REAL de Plisio
+const PLISIO_API_KEY = 'TU_CLAVE_SECRETA_DE_PLISIO'; 
 
-// --- 1. Parámetros que simulan una respuesta 'completed' de Plisio ---
+// 🚨 2. REEMPLAZA con el 'id_transaccion' REAL de Supabase (ID de Plisio)
+const realPlisioTxnId = 'ID_PLISIO_DE_SUPABASE'; 
+
+// 🚨 3. REEMPLAZA con el 'order_number' TEMPORAL de Supabase (MALOK-timestamp)
+const temporalOrderNumber = 'MALOK-timestamp'; 
+
+// Parámetros que Plisio enviaría al Webhook
 const params = {
-    amount: '1.00', // Monto simulado
+    amount: '1.03', // El monto que se usó en la prueba de $1.00 + 3% de comisión
     currency: 'USD',
-    // Datos de ejemplo para el correo de confirmación
-    data: '{"customer_email":"test.malok.webhook@example.com","product_id":"test_product"}', 
+    data: 'TEST_DATA', 
     expire_at: '1766467200',
-    // Un número de orden de prueba único. Si esta orden existe en Supabase y está 'pending', se actualizará.
-    order_number: 'ORD-WEBHOOK-TEST-001', 
+    order_number: temporalOrderNumber,
     psys_cid: 'USDT_TRC20', 
-    status: 'completed', // ESTADO CRUCIAL para disparar el procesamiento
-    txn_id: 'TEST-TXN-SIMULADO-9876'
+    status: 'completed', 
+    txn_id: realPlisioTxnId,
+    api_key: PLISIO_API_KEY // La API Key se usa para generar la firma
 };
 
-// --- Lógica para Generar la Firma (SHA1) ---
-const sortedKeys = Object.keys(params).sort();
+// --- Lógica de Hash MD5 (Como está en plisio-webhook.js) ---
+const keys = Object.keys(params)
+    .filter(key => key !== 'verify_hash' && key !== 'api_key')
+    .sort();
 
-let signatureString = '';
-for (const key of sortedKeys) {
-    signatureString += params[key];
-}
-signatureString += PLISIO_SECRET_KEY;
+let hashString = '';
+keys.forEach(key => {
+    // Usamos el valor directamente de los params
+    hashString += params[key]; 
+});
+hashString += PLISIO_API_KEY; 
 
-// Calcular el SHA1 hash
-const calculatedSecret = crypto.createHash('sha1').update(signatureString).digest('hex');
+const calculatedHash = crypto.createHash('md5').update(hashString).digest('hex');
 
-// 2. Adjuntar la firma y formatear el cuerpo de la petición
-params.secret = calculatedSecret;
+// El cuerpo que se envía al webhook
+const postBodyParams = { ...params, verify_hash: calculatedHash };
+delete postBodyParams.api_key; // La API Key no se envía en el cuerpo
 
-// Formatear el cuerpo de la petición para cURL/Postman
-const postBody = new URLSearchParams(params).toString();
+const postBody = new URLSearchParams(postBodyParams).toString();
 
-console.log(`\n--- RESULTADOS DE LA PRUEBA SIMULADA ---`);
-console.log(`Paso 3: Copia el siguiente texto COMPLETO (el BODY) para usarlo en el comando cURL.`);
-console.log(`\nBODY (x-www-form-urlencoded):\n${postBody}`);
+console.log(`\n--- COPIA EL SIGUIENTE COMANDO EN POWERSHELL ---\n`);
+console.log(`$BodyData = '${postBody}'; Invoke-WebRequest -Uri 'https://malok-recargas.netlify.app/.netlify/functions/plisio-webhook?json=true' -Method POST -Body $BodyData -ContentType 'application/x-www-form-urlencoded'`);

@@ -3,7 +3,7 @@ const crypto = require('crypto');
 const { URLSearchParams } = require('url');
 const { createClient } = require('@supabase/supabase-js');
 const axios = require('axios');
-const nodemailer = require('nodemailer'); 
+const nodemailer = require('nodemailer');
 
 exports.handler = async (event, context) => {
     if (event.httpMethod !== "POST") {
@@ -28,16 +28,13 @@ exports.handler = async (event, context) => {
     }
     
     const data = new URLSearchParams(event.body);
-    // 🚨 CORRECCIÓN 1: El hash se recibe en el campo 'secret', no 'verify_hash'
-    const receivedHash = data.get('secret'); 
-    
-    const invoiceID = data.get('txn_id'); // Este es el ID de Transacción que usaremos
+    const receivedHash = data.get('verify_hash');
+    const invoiceID = data.get('txn_id');
     const status = data.get('status');
     
     // --- 1. VERIFICACIÓN DE SEGURIDAD ---
     const keys = Array.from(data.keys())
-        // 🚨 CORRECCIÓN 2: Filtrar 'secret' (el hash que recibimos) y 'api_key'
-        .filter(key => key !== 'secret' && key !== 'api_key') 
+        .filter(key => key !== 'verify_hash' && key !== 'api_key')
         .sort();
         
     let hashString = '';
@@ -45,21 +42,17 @@ exports.handler = async (event, context) => {
         hashString += data.get(key);
     });
     hashString += PLISIO_API_KEY; 
-    
-    // 🚨 CORRECCIÓN 3: Plisio usa SHA1, no MD5
-    const generatedHash = crypto.createHash('sha1').update(hashString).digest('hex');
+    const generatedHash = crypto.createHash('md5').update(hashString).digest('hex');
 
     if (generatedHash !== receivedHash) {
         console.error("ERROR: Firma de Webhook de Plisio INVÁLIDA.");
-        // Devolvemos 200 OK para evitar que Plisio siga reintentando
-        return { statusCode: 200, body: `Invalid Plisio Hash.` }; 
+        return { statusCode: 401, body: `Invalid Plisio Hash.` }; 
     }
     
     console.log("Webhook de Plisio verificado exitosamente.");
     
     // --- 2. PROCESAMIENTO DEL PAGO CONFIRMADO ---
     
-    // Plisio usa 'completed' o 'amount_check' para pagos exitosos.
     if (status !== 'completed' && status !== 'amount_check') {
         console.log(`Evento de Plisio recibido, estado: ${status}. No se requiere acción de orden.`);
         return { statusCode: 200, body: "Webhook processed, not a completion event" };
@@ -71,7 +64,7 @@ exports.handler = async (event, context) => {
         const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
         let transactionData;
         
-        // a) BUSCAR LA TRANSACCIÓN EN SUPABASE (por el ID_TRANSACCION)
+        // a) BUSCAR LA TRANSACCIÓN EN SUPABASE
         const { data: transactions, error: fetchError } = await supabase
             .from('transactions')
             .select('*')
@@ -80,7 +73,6 @@ exports.handler = async (event, context) => {
 
         if (fetchError || !transactions) {
              console.error(`ERROR: No se encontró la transacción con id_transaccion: ${invoiceID}. Deteniendo el proceso.`, fetchError);
-             // Devolvemos 200 para no reintentar, pero se requiere revisión manual.
              return { statusCode: 200, body: "Transaction not found." };
         }
         
@@ -91,7 +83,7 @@ exports.handler = async (event, context) => {
             .from('transactions')
             .update({ 
                 status: 'CONFIRMADO', 
-                paymentMethod: `PLISIO (${data.get('currency_in')})`, // Actualizar el método
+                paymentMethod: `PLISIO (${data.get('currency_in')})`,
                 methodDetails: {
                     plisio_txn_id: data.get('txn_id'),
                     plisio_currency_in: data.get('currency_in'),
@@ -102,57 +94,38 @@ exports.handler = async (event, context) => {
 
         if (updateError) {
              console.error("Error al actualizar el estado de la transacción en Supabase:", updateError.message);
-             // Continuamos, pero con advertencia.
         }
 
-        // c) PREPARAR Y ENVIAR LA NOTIFICACIÓN DETALLADA A TELEGRAM (Lógica de process-payment.js)
+        // c) PREPARAR Y ENVIAR LA NOTIFICACIÓN DETALLADA A TELEGRAM
         
-        // El 'cartDetails' está guardado como un JSON string en Supabase
-        let cartItems = [];
-        if (transactionData.cartDetails) {
-            try {
-                // El campo cartDetails en la BD debería ser JSONB. Si es TEXT, necesita parseo.
-                cartItems = JSON.parse(transactionData.cartDetails); 
-            } catch (e) {
-                console.error("Error al parsear cartDetails de la BD:", e);
-            }
-        }
-        
-        const finalPrice = transactionData.finalPrice || data.get('amount');
-        const currency = transactionData.currency || 'USD';
+        // 🚨 CAMBIO CLAVE: Usamos los campos individuales de la fila, como el proceso manual.
+        const { game, packageName, playerId, roblox_email, roblox_password, codm_email, codm_password, codm_vinculation } = transactionData;
         
         let messageText = `✅ ¡PAGO POR PASARELA CONFIRMADO! (Plisio) ✅\n\n`;
         messageText += `*ID de Transacción:* \`${invoiceID || 'N/A'}\`\n`;
         messageText += `*Estado:* \`CONFIRMADO\`\n`;
         messageText += `------------------------------------------------\n`;
 
-        // Iterar sobre los productos del carrito para el detalle
-        cartItems.forEach((item, index) => {
-            messageText += `*📦 Producto ${index + 1}:*\n`;
-            messageText += `🎮 Juego/Servicio: *${item.game || 'N/A'}*\n`;
-            messageText += `📦 Paquete: *${item.packageName || 'N/A'}*\n`;
-            
-            // Lógica de impresión de credenciales y IDs
-            if (item.game === 'Roblox') {
-                messageText += `📧 Correo Roblox: ${item.robloxEmail || 'N/A'}\n`;
-                messageText += `🔑 Contraseña Roblox: ${item.robloxPassword || 'N/A'}\n`;
-            } else if (item.game === 'Call of Duty Mobile') {
-                messageText += `📧 Correo CODM: ${item.codmEmail || 'N/A'}\n`;
-                messageText += `🔑 Contraseña CODM: ${item.codmPassword || 'N/A'}\n`;
-                messageText += `🔗 Vinculación CODM: ${item.codmVinculation || 'N/A'}\n`;
-            } else if (item.playerId) {
-                messageText += `👤 ID de Jugador: *${item.playerId}*\n`;
-            }
-            
-            // Mostrar precio individual (si está disponible)
-            const itemPrice = item.currency === 'VES' ? item.priceVES : item.priceUSD;
-            const itemCurrency = item.currency || 'USD';
-            if (itemPrice) {
-                messageText += `💲 Precio (Est.): ${parseFloat(itemPrice).toFixed(2)} ${itemCurrency}\n`;
-            }
-            
-            messageText += `------------------------------------------------\n`;
-        });
+        // Detalles del Producto (basado en el patrón de la tabla)
+        messageText += `*📦 Producto Solicitado:*\n`;
+        messageText += `🎮 Juego/Servicio: *${game || 'N/A'}*\n`;
+        messageText += `📦 Paquete: *${packageName || 'N/A'}*\n`;
+        
+        if (playerId) {
+            messageText += `👤 ID de Jugador: *${playerId}*\n`;
+        }
+        
+        // Lógica de impresión de credenciales
+        if (game === 'Roblox' && roblox_email) {
+            messageText += `📧 Correo Roblox: ${roblox_email}\n`;
+            messageText += `🔑 Contraseña Roblox: ${roblox_password || 'N/A'}\n`;
+        } else if (game === 'Call of Duty Mobile' && codm_email) {
+            messageText += `📧 Correo CODM: ${codm_email}\n`;
+            messageText += `🔑 Contraseña CODM: ${codm_password || 'N/A'}\n`;
+            messageText += `🔗 Vinculación CODM: ${codm_vinculation || 'N/A'}\n`;
+        }
+        
+        messageText += `------------------------------------------------\n`;
 
         // Información de Pago y Contacto (Global)
         messageText += `\n*RESUMEN DE PAGO (Plisio)*\n`;
@@ -197,10 +170,8 @@ exports.handler = async (event, context) => {
             console.error("ERROR: Fallo al enviar mensaje de Telegram.", telegramError.response ? telegramError.response.data : telegramError.message);
         }
 
-        // e) Enviar Correo de Confirmación al Cliente (Opcional, pero recomendado)
-        if (transactionData.email) {
-             // ... Lógica de Nodemailer adaptada para CONFIRMACIÓN DE PAGO ...
-             // Puedes usar una plantilla de correo más simple aquí.
+        // e) Enviar Correo de Confirmación al Cliente
+        if (transactionData.email && SMTP_HOST) {
              const transporter = nodemailer.createTransport({
                  host: SMTP_HOST,
                  port: parseInt(SMTP_PORT, 10),
@@ -221,11 +192,7 @@ exports.handler = async (event, context) => {
 
     } catch (procError) {
         console.error("ERROR CRÍTICO durante el procesamiento de la orden de Plisio:", procError.message);
-        // Si hay un error, el log en Netlify es crucial para la depuración.
     }
 
-    // SIEMPRE devolver 200 OK para indicarle a Plisio que el webhook fue recibido
     return { statusCode: 200, body: "Webhook processed" };
 };
-
-//https://es.pornhub.com/view_video.php?viewkey=68f009f85f328
