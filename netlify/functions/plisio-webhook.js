@@ -3,7 +3,7 @@ const crypto = require('crypto');
 const { URLSearchParams } = require('url');
 const { createClient } = require('@supabase/supabase-js');
 const axios = require('axios');
-const nodemailer = require('nodemailer'); // Mantenemos Nodemailer por si lo usas
+const nodemailer = require('nodemailer'); 
 
 exports.handler = async (event, context) => {
     if (event.httpMethod !== "POST") {
@@ -28,13 +28,16 @@ exports.handler = async (event, context) => {
     }
     
     const data = new URLSearchParams(event.body);
-    const receivedHash = data.get('verify_hash');
+    // 🚨 CORRECCIÓN 1: El hash se recibe en el campo 'secret', no 'verify_hash'
+    const receivedHash = data.get('secret'); 
+    
     const invoiceID = data.get('txn_id'); // Este es el ID de Transacción que usaremos
     const status = data.get('status');
     
     // --- 1. VERIFICACIÓN DE SEGURIDAD ---
     const keys = Array.from(data.keys())
-        .filter(key => key !== 'verify_hash' && key !== 'api_key')
+        // 🚨 CORRECCIÓN 2: Filtrar 'secret' (el hash que recibimos) y 'api_key'
+        .filter(key => key !== 'secret' && key !== 'api_key') 
         .sort();
         
     let hashString = '';
@@ -42,11 +45,14 @@ exports.handler = async (event, context) => {
         hashString += data.get(key);
     });
     hashString += PLISIO_API_KEY; 
-    const generatedHash = crypto.createHash('md5').update(hashString).digest('hex');
+    
+    // 🚨 CORRECCIÓN 3: Plisio usa SHA1, no MD5
+    const generatedHash = crypto.createHash('sha1').update(hashString).digest('hex');
 
     if (generatedHash !== receivedHash) {
         console.error("ERROR: Firma de Webhook de Plisio INVÁLIDA.");
-        return { statusCode: 401, body: `Invalid Plisio Hash.` }; 
+        // Devolvemos 200 OK para evitar que Plisio siga reintentando
+        return { statusCode: 200, body: `Invalid Plisio Hash.` }; 
     }
     
     console.log("Webhook de Plisio verificado exitosamente.");
@@ -221,3 +227,5 @@ exports.handler = async (event, context) => {
     // SIEMPRE devolver 200 OK para indicarle a Plisio que el webhook fue recibido
     return { statusCode: 200, body: "Webhook processed" };
 };
+
+//https://es.pornhub.com/view_video.php?viewkey=68f009f85f328
