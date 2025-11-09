@@ -2,10 +2,10 @@
 
 const axios = require('axios');
 const { URLSearchParams } = require('url'); 
-// URLSearchParams ahora se usa para construir la cadena de consulta (query string)
 
 exports.handler = async (event, context) => {
-    console.log("--- INICIO DE EJECUCIÓN DE FUNCIÓN PLISIO (CORRECCIÓN FINAL: CAMBIO a GET) ---");
+    // Trazas actualizadas para el nuevo diagnóstico
+    console.log("--- INICIO DE EJECUCIÓN DE FUNCIÓN PLISIO (CORRECCIÓN FINAL: URL con /invoices) ---");
 
     if (event.httpMethod !== 'POST') {
         return { statusCode: 405, body: 'Method Not Allowed' };
@@ -18,7 +18,6 @@ exports.handler = async (event, context) => {
     // Eliminar la barra diagonal final de la URL si existe.
     const siteUrlClean = siteUrl.endsWith('/') ? siteUrl.slice(0, -1) : siteUrl;
 
-    // La URL de callback/success sigue siendo la misma.
     const callbackUrl = `${siteUrlClean}/.netlify/functions/plisio-webhook`;
     const successUrl = siteUrlClean; 
     
@@ -60,7 +59,7 @@ exports.handler = async (event, context) => {
         
         // --- PAYLOAD FINAL - LOS DATOS SE CONVERTIRÁN EN QUERY PARAMETERS ---
         const payloadData = {
-            // El comando debe ir en la URL para Plisio (como query param)
+            // El comando permanece en los datos para ser parte del query string
             cmd: 'create_invoice', 
             api_key: apiKey,
             order_name: "Recarga de Servicios Malok",
@@ -73,20 +72,19 @@ exports.handler = async (event, context) => {
         };
         // ----------------------------------------------------
         
-        // 🚀 CORRECCIÓN CLAVE: Usamos la URL base de la API
-        const PLISIO_BASE_URL = 'https://api.plisio.net/api/v1'; 
+        // 🚀 CORRECCIÓN CLAVE: La URL ahora incluye el recurso /invoices
+        const PLISIO_INVOICES_URL = 'https://api.plisio.net/api/v1/invoices'; 
         
         // Convertir los datos a una cadena de consulta (query string)
         const queryString = new URLSearchParams(payloadData).toString();
         
-        // Construir la URL final con todos los parámetros
-        const PLISIO_FINAL_URL = `${PLISIO_BASE_URL}?${queryString}`;
+        // Construir la URL final: URL_DEL_RECURSO + ? + QUERY_STRING
+        const PLISIO_FINAL_URL = `${PLISIO_INVOICES_URL}?${queryString}`;
 
 
         console.log("TRAZA 14: Iniciando solicitud GET a Plisio...");
         
-        // **CORRECCIÓN CLAVE: Usamos axios.get en lugar de axios.post**
-        // Pasamos la URL final que contiene todos los parámetros de Plisio.
+        // Usamos axios.get con la URL completa y correcta
         const response = await axios.get(PLISIO_FINAL_URL);
         
         const plisioData = response.data;
@@ -122,11 +120,16 @@ exports.handler = async (event, context) => {
             console.error(`TRAZA 21: Cuerpo de la RESPUESTA de ERROR (HTML/Texto/JSON):`);
             console.error(error.response.data); 
             
-            if (error.response.status === 422) {
-                 // El error 422 podría seguir ocurriendo si la API Key es incorrecta o el dominio no está verificado.
+            if (error.response.status === 404) {
+                 // Diagnóstico específico para el error 404
+                 errorDetails = 'Plisio Status 404: La URL de la API es incorrecta. Asegúrese de que la ruta *https://api.plisio.net/api/v1/invoices* es la correcta.';
+            } else if (error.response.status === 422) {
+                 // Si regresa a 422 (Unprocessable Entity), es un problema de credenciales o dominio no verificado.
                  errorDetails = 'Plisio Status 422: Falló la solicitud. Por favor, asegúrese de que la **API Key es correcta** y el **dominio está verificado** en el panel de Plisio.';
-            } else if (error.response.status === 404 || error.response.status === 500) {
-                 errorDetails = 'Plisio Status 404/500: Revise la URL o si la API Key es correcta.';
+            } else if (error.response.status >= 500) {
+                 errorDetails = 'Error 5xx: Problema interno del servidor de Plisio. Inténtelo más tarde.';
+            } else {
+                 errorDetails = `Error HTTP no manejado: ${error.response.status}`;
             }
             
         } 
