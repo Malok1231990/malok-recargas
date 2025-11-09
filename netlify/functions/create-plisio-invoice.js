@@ -20,7 +20,7 @@ exports.handler = async (event, context) => {
     // Nota: Es crucial agregar el parámetro 'json=true' a las URLs de callback/success
     // para asegurar que Plisio responda con JSON y no con el formato PHP por defecto.
     const callbackUrl = `${siteUrlClean}/.netlify/functions/plisio-webhook?json=true`;
-    const successUrl = `${siteUrlClean}?json=true`; 
+    const successUrl = `${siteUrlClean}/payment.html?status=success&json=true`;
     
     console.log(`TRAZA 2: API Key cargada: ${!!apiKey} (true si se cargó)`);
     console.log(`TRAZA 4: Callback URL para Plisio: ${callbackUrl}`);

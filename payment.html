@@ -196,7 +196,7 @@
         </div>
     </footer>
 
-    <script src="script.js"></script>
+<script src="script.js"></script>
 <script>
     // 1. PLANTILLAS Y DATOS ESTATICOS
     const paymentDetailsTemplates = {
@@ -213,12 +213,12 @@
                 <input type="file" id="payment-receipt" name="paymentReceipt" accept="image/*,application/pdf" required>
             </div>
         `,
-        // 🛑 MODIFICACIÓN CLAVE: Plantilla para Coinbase Commerce (Método Binance)
+        // 🛑 MODIFICACIÓN CLAVE: Plantilla para Plisio (Método Binance)
         'binance': `
             <div class="payment-fields-container">
-                <p><strong>Paso 1:</strong> Serás redirigido a la pasarela segura de **Coinbase Commerce** para completar tu pago con criptomonedas (incluyendo Binance Pay si está disponible).</p>
+                <p><strong>Paso 1:</strong> Serás redirigido a la pasarela segura de **Plisio** para completar tu pago con criptomonedas (incluyendo Binance Pay si está disponible).</p>
                 <p><strong>Paso 2:</strong> Al finalizar el pago en la pasarela, serás automáticamente redirigido de vuelta. La confirmación del pago es automática.</p>
-                <input type="hidden" id="payment-receipt" name="paymentReceipt" value="Coinbase_Commerce_Managed_Payment" required> 
+                <input type="hidden" id="payment-receipt" name="paymentReceipt" value="Plisio_Managed_Payment" required> 
             </div>
         `,
         'zinli': `
@@ -239,7 +239,7 @@
     ];
 
     const paymentMethodsUSD = [
-        { id: 'binance', name: 'Binance', type: 'usd', icon: 'fab fa-bitcoin' },
+        { id: 'binance', name: 'Binance (Plisio)', type: 'usd', icon: 'fab fa-bitcoin' },
         { id: 'zinli', name: 'Zinli', type: 'usd', icon: 'fas fa-wallet' }
     ];
 
@@ -583,7 +583,7 @@
 
         if (isAssistedFlow()) { // Flujo asistido
             areDetailsFilled = true; 
-        } else if (selectedMethodId === 'binance') { // 🛑 MODIFICACIÓN: Si es Binance (Coinbase), no se necesita archivo
+        } else if (selectedMethodId === 'binance') { // 🛑 MODIFICACIÓN: Si es Binance (Plisio), no se necesita archivo
             areDetailsFilled = true;
         } else if (isMethodSelected) {
             const fileInput = document.getElementById('payment-receipt');
@@ -607,6 +607,37 @@
     // 4. EVENT LISTENERS
     document.addEventListener('DOMContentLoaded', () => {
         const transactionSummaryDiv = document.getElementById('transaction-summary');
+
+        // 🟢 NUEVA LÓGICA: DETECCIÓN DE REDIRECCIÓN DE PLISIO (FLUSO AUTOMÁTICO)
+        const urlParams = new URLSearchParams(window.location.search);
+        const status = urlParams.get('status');
+
+        if (status === 'success') {
+            console.log('Detectada redirección de Plisio exitosa. Activando mensaje de procesamiento.');
+            
+            // 1. Ocultar el formulario de comprobante de pago
+            if (paymentForm) paymentForm.style.display = 'none';
+            
+            // 2. Ocultar la sección de mensaje de WhatsApp (si existe)
+            if (whatsappMessageContainer) whatsappMessageContainer.style.display = 'none';
+            
+            // 3. Mostrar el mensaje de éxito (el cuadro de "Su recarga está siendo procesada...")
+            if (successMessageDisplay) successMessageDisplay.style.display = 'block';
+
+            // 4. Opcional: Limpiar el localStorage (El webhook de Plisio debería haberlo hecho, pero como respaldo)
+            localStorage.removeItem('transactionDetails');
+            localStorage.removeItem('cartItems'); 
+
+            // 5. Iniciar la redirección automática a index.html después de 5 segundos
+            setTimeout(() => {
+                window.location.href = 'index.html';
+            }, 5000);
+            
+            // 🛑 Detener la ejecución del resto del script
+            return; 
+        }
+        // 🛑 FIN DE NUEVA LÓGICA DE PLISIO
+
         
         const storedDetails = localStorage.getItem('transactionDetails');
         if (storedDetails) {
@@ -687,7 +718,7 @@
             return;
         }
 
-        // 🛑 MODIFICACIÓN CLAVE: Lógica para el flujo de pago con Coinbase Commerce (Método Binance)
+        // 🛑 MODIFICACIÓN CLAVE: Lógica para el flujo de pago con Plisio (Método Binance)
         if (selectedPaymentMethod === 'binance') {
             // Usar totalUSD. Si es un array, se usa 'totalUSD', si es singular se usa 'priceUSD'.
             const finalPriceUSD = transactionDetails.totalUSD || transactionDetails.priceUSD; 
@@ -698,17 +729,17 @@
             }
 
             finalizeBtn.disabled = true;
-            finalizeBtn.textContent = 'Creando Factura en Coinbase...';
+            finalizeBtn.textContent = 'Creando Factura en Plisio...';
             
             try {
-                // Llamada a la función de Netlify para crear la factura de Coinbase Commerce
+                // Llamada a la función de Netlify para crear la factura de Plisio
                 const response = await fetch('/.netlify/functions/create-plisio-invoice', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({
-                        // Datos necesarios para crear la factura en Coinbase
+                        // Datos necesarios para crear la factura en Plisio
                         amount: finalPriceUSD, // El monto debe ser en USD
                         email: emailInput.value.trim(),
                         whatsapp: whatsappInput.value.trim(),
@@ -721,16 +752,16 @@
                     const data = await response.json();
                     
                     if (data.chargeUrl) {
-                        console.log('Redirigiendo a Coinbase Commerce:', data.chargeUrl);
+                        console.log('Redirigiendo a Plisio:', data.chargeUrl);
                         // No limpiar el localStorage aquí. La limpieza se hace en el webhook.
                         window.location.href = data.chargeUrl;
                     } else {
-                        alert('Error: No se pudo obtener la URL de pago de Coinbase.');
+                        alert('Error: No se pudo obtener la URL de pago de Plisio.');
                     }
                 } else {
                     const errorData = await response.json();
                     alert(`Error al crear la factura de pago: ${errorData.message || response.statusText}.`);
-                    console.error('Server error creating Coinbase charge:', errorData);
+                    console.error('Server error creating Plisio charge:', errorData);
                 }
             } catch (error) {
                 alert('Hubo un problema de conexión al intentar crear la factura.');
