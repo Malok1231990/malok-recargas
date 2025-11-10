@@ -11,8 +11,8 @@ exports.handler = async (event, context) => {
     const SUPABASE_URL = process.env.SUPABASE_URL;
     const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
     const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
-    const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID; // Usado solo para referencia, el ID del chat viene del webhook
-    
+    // TELEGRAM_CHAT_ID no es estrictamente necesario aquí, se usa el chat.id del webhook
+
     if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY || !TELEGRAM_BOT_TOKEN) {
         console.error("Faltan variables de entorno esenciales.");
         return { statusCode: 500, body: "Error de configuración." };
@@ -33,7 +33,7 @@ exports.handler = async (event, context) => {
         // 1. Verificar si es el botón de "Marcar como Realizada"
         if (callbackData.startsWith(transactionPrefix)) {
             const transactionId = callbackData.replace(transactionPrefix, '');
-            const NEW_STATUS = 'REALIZADA';
+            const NEW_STATUS = 'REALIZADA'; // El estado final de la recarga completada
             
             console.log(`Callback recibido: Intentando marcar transacción ${transactionId} como ${NEW_STATUS}.`);
 
@@ -41,7 +41,7 @@ exports.handler = async (event, context) => {
                 // 2. BUSCAR LA TRANSACCIÓN (Para obtener datos y editar el mensaje)
                 const { data: transaction, error: fetchError } = await supabase
                     .from('transactions')
-                    .select('status, telegram_message_id, finalPrice, currency, game')
+                    .select('status, finalPrice, currency, game')
                     .eq('id_transaccion', transactionId)
                     .maybeSingle();
 
@@ -54,12 +54,12 @@ exports.handler = async (event, context) => {
                 // 3. ACTUALIZACIÓN DEL ESTADO (EL FIX)
                 const { error: updateError } = await supabase
                     .from('transactions')
+                    // 🚨 CORRECCIÓN: SOLO actualizamos el estado. Sin columna de fecha.
                     .update({ 
-                        status: NEW_STATUS,
-                        fecha_servicio_finalizado: new Date().toISOString()
+                        status: NEW_STATUS
                     })
                     .eq('id_transaccion', transactionId)
-                    // ✅ ACEPTAMOS TANTO PENDIENTE (Manual) COMO CONFIRMADO (Plisio)
+                    // ✅ ACEPTAMOS PENDIENTE (Manual) O CONFIRMADO (Plisio)
                     .in('status', ['pendiente', 'CONFIRMADO']); 
                 
                 if (updateError) {
@@ -72,10 +72,13 @@ exports.handler = async (event, context) => {
                     return { statusCode: 200, body: "Processed" };
                 }
                 
+                // Si data es nulo, significa que el estado ya era REALIZADA o no elegible, 
+                // pero si la actualización tuvo éxito (no hubo updateError), procedemos a confirmar.
+                
                 // 4. CONFIRMACIÓN Y EDICIÓN DEL MENSAJE DE TELEGRAM
                 const confirmationText = `✅ ¡RECARGA ${transactionId} MARCADA COMO REALIZADA! ✅\n\n` +
-                                         `*Juego:* ${transaction.game}\n` +
-                                         `*Monto:* ${transaction.finalPrice} ${transaction.currency}\n` +
+                                         `*Juego:* ${transaction.game || 'N/A'}\n` +
+                                         `*Monto:* ${transaction.finalPrice || 'N/A'} ${transaction.currency || 'USD'}\n` +
                                          `*Estado final:* \`${NEW_STATUS}\`\n\n` +
                                          `*Hora:* ${new Date().toLocaleTimeString('es-VE')}`;
 
@@ -85,8 +88,7 @@ exports.handler = async (event, context) => {
                     {} // Se pasa un objeto vacío para eliminar el botón inline
                 );
                 
-                // 5. Opcional: Ejecutar lógica de recarga/notificación al cliente si no se hizo antes
-                // if (transaction.status === 'pendiente') { /* Lógica para recarga manual */ }
+                // 5. Opcional: Lógica de recarga/notificación al cliente si aún no se ha hecho
                 
             } catch (e) {
                 console.error("Error FATAL en callback_query handler:", e.message);
@@ -94,7 +96,7 @@ exports.handler = async (event, context) => {
         }
     } 
     
-    // Aquí puedes incluir la lógica para otros tipos de actualizaciones de Telegram (mensajes, etc.)
+    // Aquí el manejo de otros webhooks de Telegram (mensajes, etc.)
     
     // Siempre devuelve 200 OK para confirmar la recepción del webhook
     return { statusCode: 200, body: "Webhook processed" };
@@ -115,6 +117,7 @@ async function editTelegramMessage(token, chatId, messageId, text, replyMarkup) 
         });
         console.log("Mensaje de Telegram editado exitosamente.");
     } catch (error) {
+        // En caso de error (ej: mensaje no modificado), no es crítico
         console.error("Fallo al editar mensaje de Telegram.", error.response ? error.response.data : error.message);
     }
 }
@@ -133,7 +136,3 @@ async function sendTelegramAlert(token, chatId, text, replyToMessageId = null) {
         console.error("Fallo al enviar alerta de Telegram.", error.response ? error.response.data : error.message);
     }
 }
-
-// ----------------------------------------------------------------------
-// FIN DEL ARCHIVO telegram-webhook.js
-// ----------------------------------------------------------------------
