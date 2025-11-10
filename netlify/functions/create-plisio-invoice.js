@@ -48,6 +48,7 @@ exports.handler = async (event, context) => {
 
     try {
         // OBTENCIÓN DE DATOS
+        // 'cartDetails' contiene el JSON string del array de productos
         const { amount, email, whatsapp, cartDetails } = data; 
 
         // Validaciones básicas
@@ -59,6 +60,7 @@ exports.handler = async (event, context) => {
         let productDetails = {};
         if (cartDetails) {
             try {
+                // Usamos solo el primer ítem para llenar los campos de compatibilidad (game, playerId, etc.)
                 const cartArray = JSON.parse(cartDetails);
                 productDetails = cartArray.length > 0 ? cartArray[0] : {};
             } catch (e) {
@@ -109,6 +111,10 @@ exports.handler = async (event, context) => {
                     paymentMethod: 'plisio', 
                     methodDetails: {}, // Inicialmente vacío
                     
+                    // 💥 CAMBIO CRÍTICO: ALMACENAR el JSON string del carrito en la nueva columna 'cartDetails' (JSONB)
+                    "cartDetails": cartDetails, // <--- ¡AÑADIDO!
+                    
+                    // Campos de compatibilidad (solo con el primer producto, para retrocompatibilidad)
                     game: game,
                     "playerId": playerId,
                     "packageName": packageName,
