@@ -2,17 +2,17 @@ const crypto = require('crypto');
 const { URLSearchParams } = require('url'); 
 
 // 🚨 1. REEMPLAZA ESTO con tu CLAVE SECRETA REAL de Plisio
-const PLISIO_API_KEY = 'TU_CLAVE_SECRETA_DE_PLISIO'; 
+const PLISIO_API_KEY = 'ffu-VfsL3WDet7YNDsjkVUMt4EflfeOolYj-ZvTcgHm1F1dbKiX76zjV93RRFmKK'; 
 
 // 🚨 2. REEMPLAZA con el 'id_transaccion' REAL de Supabase (ID de Plisio)
-const realPlisioTxnId = 'ID_PLISIO_DE_SUPABASE'; 
+const realPlisioTxnId = '6910f70962dca4e78c0d3352'; // <--- EJEMPLO: USA TU VALOR REAL
 
 // 🚨 3. REEMPLAZA con el 'order_number' TEMPORAL de Supabase (MALOK-timestamp)
-const temporalOrderNumber = 'MALOK-timestamp'; 
+const temporalOrderNumber = 'MALOK-1731174984252'; // <--- EJEMPLO: USA TU VALOR REAL
 
 // Parámetros que Plisio enviaría al Webhook
 const params = {
-    amount: '1.03', // El monto que se usó en la prueba de $1.00 + 3% de comisión
+    amount: '1.03', // Monto de la prueba
     currency: 'USD',
     data: 'TEST_DATA', 
     expire_at: '1766467200',
@@ -20,28 +20,27 @@ const params = {
     psys_cid: 'USDT_TRC20', 
     status: 'completed', 
     txn_id: realPlisioTxnId,
-    api_key: PLISIO_API_KEY // La API Key se usa para generar la firma
+    api_key: PLISIO_API_KEY 
 };
 
-// --- Lógica de Hash MD5 (Como está en plisio-webhook.js) ---
+// --- CÁLCULO DEL HASH MD5 (Tu lógica de Webhook) ---
 const keys = Object.keys(params)
     .filter(key => key !== 'verify_hash' && key !== 'api_key')
     .sort();
 
 let hashString = '';
 keys.forEach(key => {
-    // Usamos el valor directamente de los params
     hashString += params[key]; 
 });
 hashString += PLISIO_API_KEY; 
 
 const calculatedHash = crypto.createHash('md5').update(hashString).digest('hex');
 
-// El cuerpo que se envía al webhook
+// Prepara el cuerpo del POST
 const postBodyParams = { ...params, verify_hash: calculatedHash };
-delete postBodyParams.api_key; // La API Key no se envía en el cuerpo
+delete postBodyParams.api_key; 
 
 const postBody = new URLSearchParams(postBodyParams).toString();
 
-console.log(`\n--- COPIA EL SIGUIENTE COMANDO EN POWERSHELL ---\n`);
+console.log(`\n--- COPIA Y EJECUTA ESTE COMANDO EN POWERSHELL ---\n`);
 console.log(`$BodyData = '${postBody}'; Invoke-WebRequest -Uri 'https://malok-recargas.netlify.app/.netlify/functions/plisio-webhook?json=true' -Method POST -Body $BodyData -ContentType 'application/x-www-form-urlencoded'`);
