@@ -27,17 +27,20 @@ exports.handler = async (event, context) => {
         return { statusCode: 500, body: "Error de configuración." };
     }
     
-    // Parseamos el cuerpo (URL-encoded)
+    // Parseamos el cuerpo (URL-encoded) en un objeto URLSearchParams
     const data = new URLSearchParams(event.body);
+
+    // Creamos el objeto 'body' para mantener la compatibilidad con el resto del código
     const body = {};
     for (const [key, value] of data.entries()) {
         body[key] = value;
     }
     
-    // El ID de Transacción en Supabase es el campo 'id_transaccion'.
-    const receivedHash = body.secret; 
-    const invoiceID = body.txn_id; // Usamos txn_id como ID de Supabase
-    const status = body.status;
+    // --- OBTENCIÓN DE DATOS CRÍTICOS (CORREGIDO) ---
+    // Usamos data.get() que es el método correcto para URLSearchParams
+    const receivedHash = data.get('secret'); 
+    const invoiceID = data.get('txn_id'); // Usamos txn_id como ID de Supabase
+    const status = data.get('status');
     
     // --- 1. VERIFICACIÓN DE SEGURIDAD (Hash de Plisio) ---
     const keys = Array.from(data.keys())
@@ -47,11 +50,18 @@ exports.handler = async (event, context) => {
         
     let hashString = '';
     keys.forEach(key => {
-        hashString += data.get(key);
+        // CORREGIDO: Usamos data.get(key) para obtener el valor de cada campo
+        hashString += data.get(key); 
     });
     hashString += PLISIO_API_KEY; 
     
     const generatedHash = crypto.createHash('sha1').update(hashString).digest('hex');
+
+    // Aquí validamos que el invoiceID no sea nulo antes de continuar
+    if (!invoiceID) {
+        console.error("ERROR: No se pudo obtener el ID de Transacción (txn_id) de Plisio.");
+        return { statusCode: 200, body: "Missing Plisio txn_id." };
+    }
 
     if (generatedHash !== receivedHash) {
         console.error(`ERROR: Firma de Webhook de Plisio INVÁLIDA para ID: ${invoiceID}.`);
@@ -146,12 +156,12 @@ exports.handler = async (event, context) => {
              // Si no hay cartDetails o falló el parseo, usamos los campos de la transacción directamente
              // ESTO ES LO QUE ESTABA CAUSANDO QUE LLEGUE UN SOLO ÍTEM con el precio total.
              cartItems = [{
-                game: transactionData.game,
-                packageName: transactionData.packageName,
-                playerId: transactionData.playerId,
-                // Usamos el precio final total si solo hay un ítem de fallback
-                finalPrice: transactionData.finalPrice,
-                currency: transactionData.currency
+                 game: transactionData.game,
+                 packageName: transactionData.packageName,
+                 playerId: transactionData.playerId,
+                 // Usamos el precio final total si solo hay un ítem de fallback
+                 finalPrice: transactionData.finalPrice,
+                 currency: transactionData.currency
              }];
              console.log("ADVERTENCIA: Usando datos de compatibilidad (producto único) para el mensaje de Telegram.");
         }
@@ -218,7 +228,7 @@ exports.handler = async (event, context) => {
         messageText += `\n*DATOS DEL CLIENTE*\n`;
         messageText += `📧 Correo Cliente: ${transactionData.email || 'N/A'}\n`;
         if (transactionData.whatsappNumber) { // Nombre de columna exacto
-            messageText += `📱 WhatsApp Cliente: ${transactionData.whatsappNumber}\n`;
+             messageText += `📱 WhatsApp Cliente: ${transactionData.whatsappNumber}\n`;
         }
 
 
