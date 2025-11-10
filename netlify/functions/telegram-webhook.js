@@ -1,180 +1,261 @@
-// netlify/functions/telegram-webhook.js
-const axios = require('axios');
+// netlify/functions/plisio-webhook.js
+const crypto = require('crypto');
+const { URLSearchParams } = require('url');
 const { createClient } = require('@supabase/supabase-js');
-const nodemailer = require('nodemailer'); // <--- AÑADIDO: Para enviar el segundo correo
+const axios = require('axios');
+const nodemailer = require('nodemailer'); 
 
-exports.handler = async function(event, context) {
-    if (event.httpMethod !== "POST") {
-        return { statusCode: 405, body: "Method Not Allowed" };
-    }
+exports.handler = async (event, context) => {
+    if (event.httpMethod !== "POST") {
+        return { statusCode: 405, body: "Method Not Allowed" };
+    }
 
-    const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
-    const SUPABASE_URL = process.env.SUPABASE_URL;
-    const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
+    // --- Variables de Entorno ---
+    const PLISIO_API_KEY = process.env.PLISIO_API_KEY; 
+    const SUPABASE_URL = process.env.SUPABASE_URL;
+    const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
+    const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID;
+    const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
+    const SMTP_HOST = process.env.SMTP_HOST;
+    const SMTP_PORT = process.env.SMTP_PORT;
+    const SMTP_USER = process.env.SMTP_USER;
+    const SMTP_PASS = process.env.SMTP_PASS;
+    const SENDER_EMAIL = process.env.SENDER_EMAIL || SMTP_USER;
 
-    // AÑADIDO: Variables de entorno para SMTP
-    const SMTP_HOST = process.env.SMTP_HOST;
-    const SMTP_PORT = process.env.SMTP_PORT;
-    const SMTP_USER = process.env.SMTP_USER;
-    const SMTP_PASS = process.env.SMTP_PASS;
-    const SENDER_EMAIL = process.env.SENDER_EMAIL || SMTP_USER;
+    if (!PLISIO_API_KEY || !SUPABASE_URL || !SUPABASE_SERVICE_KEY || !TELEGRAM_BOT_TOKEN || !TELEGRAM_CHAT_ID) {
+        console.error("Faltan variables de entorno esenciales.");
+        return { statusCode: 500, body: "Error de configuración." };
+    }
+    
+    // Parseamos el cuerpo (URL-encoded)
+    const data = new URLSearchParams(event.body);
+    
+    const receivedHash = data.get('secret'); 
+    const invoiceID = data.get('txn_id'); // Usamos txn_id como ID de Supabase
+    const status = data.get('status');
+    
+    // --- 1. VERIFICACIÓN DE SEGURIDAD (Hash de Plisio) ---
+    const keys = Array.from(data.keys())
+        // Filtrar 'secret' (el hash que recibimos) y 'api_key'
+        .filter(key => key !== 'secret' && key !== 'api_key') 
+        .sort();
+        
+    let hashString = '';
+    keys.forEach(key => {
+        hashString += data.get(key);
+    });
+    hashString += PLISIO_API_KEY; 
+    
+    const generatedHash = crypto.createHash('sha1').update(hashString).digest('hex');
 
-    if (!TELEGRAM_BOT_TOKEN || !SUPABASE_URL || !SUPABASE_SERVICE_KEY || !SMTP_HOST || !parseInt(SMTP_PORT, 10) || !SMTP_USER || !SMTP_PASS) {
-        console.error("Faltan variables de entorno requeridas para el webhook de Telegram o SMTP_PORT inválido.");
-        return { statusCode: 500, body: "Error de configuración del servidor." };
-    }
+    if (generatedHash !== receivedHash) {
+        console.error(`ERROR: Firma de Webhook de Plisio INVÁLIDA para ID: ${invoiceID}.`);
+        return { statusCode: 200, body: `Invalid Plisio Hash.` }; 
+    }
+    
+    console.log(`Webhook de Plisio verificado exitosamente para ID: ${invoiceID}, Estado: ${status}`);
+    
+    // --- 2. PROCESAMIENTO DEL PAGO CONFIRMADO ---
+    
+    // Plisio usa 'completed' o 'amount_check' para pagos exitosos.
+    if (status !== 'completed' && status !== 'amount_check') {
+        console.log(`Evento de Plisio recibido, estado: ${status}. No se requiere acción de orden.`);
+        // Actualizamos el estado de forma pasiva si es diferente de PENDIENTE
+        let updateData = {};
+        if (status === 'mismatch' || status === 'expired' || status === 'error') {
+             updateData.status = `FALLO: ${status.toUpperCase()} (PLISIO)`;
+             // No es un error crítico, devolvemos 200 a Plisio
+        } else {
+             // Ignoramos estados como 'waiting', 'pending'
+             return { statusCode: 200, body: "Webhook processed, no action needed for this status." };
+        }
+        
+        try {
+            const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
+            await supabase.from('transactions').update(updateData).eq('id_transaccion', invoiceID);
+        } catch (e) {
+            console.error("Error al actualizar estado intermedio:", e.message);
+        }
+        
+        return { statusCode: 200, body: "Webhook processed, no completion event" };
+    }
+    
+    console.log(`Pago CONFIRMADO para la orden: ${invoiceID}`);
+    
+    try {
+        const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY, {
+            auth: { persistSession: false },
+        });
+        let transactionData;
+        
+        // a) BUSCAR LA TRANSACCIÓN EN SUPABASE (por el ID_TRANSACCION)
+        const { data: transactions, error: fetchError } = await supabase
+            .from('transactions')
+            .select('*')
+            .eq('id_transaccion', invoiceID)
+            .maybeSingle(); // Usamos maybeSingle ya que Plisio debería enviar una sola vez un ID
 
-    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
+        if (fetchError || !transactions) {
+             console.error(`ERROR: No se encontró la transacción con id_transaccion: ${invoiceID}. Deteniendo el proceso.`, fetchError);
+             return { statusCode: 200, body: "Transaction not found." };
+        }
+        
+        transactionData = transactions;
+        
+        // b) ACTUALIZAR EL ESTADO DE LA TRANSACCIÓN
+        const { error: updateError } = await supabase
+            .from('transactions')
+            .update({ 
+                status: 'CONFIRMADO', 
+                paymentMethod: `PLISIO (${data.get('currency_in')})`, // Actualizar el método
+                fecha_completado: new Date().toISOString(),
+                methodDetails: { // Guardamos detalles de Plisio en un campo JSON
+                    plisio_txn_id: data.get('txn_id'),
+                    plisio_currency_in: data.get('currency_in'),
+                    plisio_amount: data.get('amount'),
+                    plisio_hash: receivedHash
+                }
+            })
+            .eq('id_transaccion', invoiceID);
 
-    try {
-        const body = JSON.parse(event.body);
-        const callbackQuery = body.callback_query;
+        if (updateError) {
+             console.error("Error al actualizar el estado de la transacción en Supabase:", updateError.message);
+        }
 
-        if (callbackQuery) {
-            const chatId = callbackQuery.message.chat.id;
-            const messageId = callbackQuery.message.message_id; // ID del mensaje original que se va a editar
-            const userId = callbackQuery.from.id; // ID del usuario que presionó el botón
-            const userName = callbackQuery.from.first_name || `Usuario ${userId}`; // Nombre del usuario
-            const data = callbackQuery.data;
+// --------------------------------------------------------------------------------------
+// CÓDIGO MODIFICADO: Envío de NOTIFICACIÓN DETALLADA A TELEGRAM
+// --------------------------------------------------------------------------------------
 
-            if (data.startsWith('mark_done_')) {
-                const transactionId = data.replace('mark_done_', '');
+        // c) PREPARAR Y ENVIAR LA NOTIFICACIÓN DETALLADA A TELEGRAM
+        
+        let cartItems = [];
+        if (transactionData.cartDetails) {
+             try {
+                 // Si cartDetails es un string JSON, lo parseamos
+                 cartItems = JSON.parse(transactionData.cartDetails); 
+             } catch (e) {
+                 console.error("Error al parsear cartDetails de la BD:", e);
+             }
+        }
+        
+        let messageText = `✅ ¡PAGO POR PASARELA CONFIRMADO! (Plisio) ✅\n\n`;
+        messageText += `*ID de Transacción (MALOK):* \`${invoiceID || 'N/A'}\`\n`;
+        messageText += `*Estado:* \`CONFIRMADO\`\n`;
+        messageText += `*Método de Pago:* \`PLISIO (${data.get('currency_in')})\`\n`;
+        messageText += `💰 *TOTAL PAGADO (Plisio):* *${data.get('amount')} USD* (En ${data.get('currency_in')})\n`;
+        messageText += `------------------------------------------------\n`;
+        messageText += `*🛒 DETALLES DEL CARRITO/PRODUCTO*\n`;
 
-                // 1. Obtener la transacción de Supabase
-                const { data: transaction, error: fetchError } = await supabase
-                    .from('transactions')
-                    .select('*')
-                    .eq('id_transaccion', transactionId)
-                    .single();
 
-                if (fetchError || !transaction) {
-                    console.error("Error al obtener la transacción de Supabase:", fetchError ? fetchError.message : "Transacción no encontrada.");
-                    await axios.post(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
-                        chat_id: chatId,
-                        text: `❌ Error: No se pudo encontrar la transacción ${transactionId}.`,
-                    });
-                    return { statusCode: 200, body: "Error fetching transaction" };
-                }
+        // Iterar sobre los productos del carrito para el detalle
+        cartItems.forEach((item, index) => {
+            messageText += `*📦 Producto ${index + 1}:*\n`;
+            messageText += `🎮 Juego/Servicio: *${item.game || 'N/A'}*\n`;
+            messageText += `📦 Paquete: *${item.packageName || 'N/A'}*\n`;
+            
+            // Lógica de impresión de credenciales y IDs
+            if (item.game === 'Roblox' && item.robloxEmail && item.robloxPassword) {
+                 messageText += `📧 Correo Roblox: \`${item.robloxEmail}\`\n`;
+                 messageText += `🔑 Contraseña Roblox: \`${item.robloxPassword}\`\n`;
+            } else if (item.game === 'Call of Duty Mobile' && item.codmEmail && item.codmPassword) {
+                 messageText += `📧 Correo CODM: \`${item.codmEmail}\`\n`;
+                 messageText += `🔑 Contraseña CODM: \`${item.codmPassword}\`\n`;
+                 messageText += `🔗 Vinculación CODM: ${item.codmVinculation || 'N/A'}\n`;
+            } else if (item.playerId) {
+                 messageText += `👤 ID de Jugador: *${item.playerId}*\n`;
+            }
+            
+            // Mostrar precio individual
+            const itemPrice = item.priceUSD || item.priceVES; 
+            const itemCurrency = item.currency || (item.priceUSD ? 'USD' : 'VES');
+            if (itemPrice) {
+                 messageText += `💲 Precio (Est.): ${parseFloat(itemPrice).toFixed(2)} ${itemCurrency}\n`;
+            }
+            
+            messageText += `------------------------------------------------\n`;
+        });
 
-                // Verificar si ya está marcada para evitar re-procesamiento
-                if (transaction.status === 'realizada') {
-                    await axios.post(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/answerCallbackQuery`, {
-                        callback_query_id: callbackQuery.id,
-                        text: "¡Esta recarga ya fue marcada como realizada!",
-                        show_alert: true
-                    });
-                    // Opcional: editar el mensaje original para indicar que ya está realizada
-                    return { statusCode: 200, body: "Already completed" };
-                }
+        // Información de la FILA COMPLETA DE SUPABASE (Campos de la tabla transactions)
+        messageText += `\n*📄 DATOS COMPLETOS DE SUPABASE (Transactions)*\n`;
+        messageText += `🆔 ID Fila Supabase (UUID): \`${transactionData.id}\`\n`;
+        messageText += `📧 Email Cliente: ${transactionData.email || 'N/A'}\n`;
+        messageText += `📱 WhatsApp Cliente: ${transactionData.whatsappNumber || 'N/A'}\n`;
+        messageText += `💰 Precio Final Calculado: *${transactionData.finalPrice || 'N/A'} ${transactionData.currency || 'USD'}*\n`;
+        messageText += `🎮 Juego/Servicio Principal: *${transactionData.game || 'N/A'}*\n`;
+        messageText += `📦 Paquete Principal: *${transactionData.packageName || 'N/A'}*\n`;
+        messageText += `👤 Player ID/ID Jugador: *${transactionData.playerId || 'N/A'}*\n`;
+        // Credenciales
+        messageText += `📧 Roblox Email: \`${transactionData.roblox_email || 'N/A'}\`\n`;
+        messageText += `🔑 Roblox Password: \`${transactionData.roblox_password || 'N/A'}\`\n`;
+        messageText += `📧 CODM Email: \`${transactionData.codm_email || 'N/A'}\`\n`;
+        messageText += `🔑 CODM Password: \`${transactionData.codm_password || 'N/A'}\`\n`;
+        messageText += `🔗 CODM Vinculación: ${transactionData.codm_vinculation || 'N/A'}\n`;
+        // Fechas y detalles
+        messageText += `🗓️ Creado en: ${new Date(transactionData.created_at).toLocaleString('es-VE')}\n`;
+        messageText += `🆔 TXID Plisio: \`${data.get('txn_id') || 'N/A'}\`\n`;
+        messageText += `(Detalles de Pago): \`${JSON.stringify(transactionData.methodDetails) || 'N/A'}\`\n`;
+        
 
-                // 2. Actualizar el estado en Supabase
-                const { error: updateError } = await supabase
-                    .from('transactions')
-                    .update({
-                        status: 'realizada',
-                        completed_at: new Date().toISOString(), // Usar ISO string para timestampz
-                        completed_by: userName // Guardar quién la completó
-                    })
-                    .eq('id_transaccion', transactionId);
+        // Botones inline para Telegram
+        const replyMarkup = {
+            inline_keyboard: [
+                [{ text: "✅ Marcar como Realizada", callback_data: `mark_done_${invoiceID}` }]
+            ]
+        };
+        
+// --------------------------------------------------------------------------------------
+// FIN DE CÓDIGO MODIFICADO
+// --------------------------------------------------------------------------------------
 
-                if (updateError) {
-                    console.error("Error al actualizar la transacción en Supabase:", updateError.message);
-                    await axios.post(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
-                        chat_id: chatId,
-                        text: `❌ Error al procesar la recarga ${transactionId}: ${updateError.message}. Consulta los logs de Netlify.`,
-                    });
-                    return { statusCode: 200, body: "Error updating transaction" };
-                }
+        const telegramApiUrl = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`;
+        let telegramMessageResponse;
+        
+        try {
+            telegramMessageResponse = await axios.post(telegramApiUrl, {
+                chat_id: TELEGRAM_CHAT_ID,
+                text: messageText,
+                parse_mode: 'Markdown',
+                reply_markup: replyMarkup
+            });
+            console.log("Mensaje de Telegram de confirmación enviado con éxito.");
+            
+            // d) ACTUALIZAR EL message_id en Supabase
+            if (telegramMessageResponse && telegramMessageResponse.data && telegramMessageResponse.data.result) {
+                await supabase
+                    .from('transactions')
+                    .update({ telegram_message_id: telegramMessageResponse.data.result.message_id })
+                    .eq('id_transaccion', invoiceID);
+                console.log("Transaction actualizada con telegram_message_id.");
+            }
 
-                // 3. Editar el mensaje original en Telegram
-                let newCaption = callbackQuery.message.text; // Captura el texto actual del mensaje
-                // Reemplaza "Estado: PENDIENTE" con "Estado: REALIZADA"
-                newCaption = newCaption.replace('Estado: `PENDIENTE`', 'Estado: `REALIZADA` ✅');
-                // Añade la línea "Recarga marcada por:"
-                newCaption += `\n\nRecarga marcada por: *${userName}* (${new Date().toLocaleTimeString('es-VE', { hour: '2-digit', minute: '2-digit' })} ${new Date().toLocaleDateString('es-VE')})`; 
+        } catch (telegramError) {
+            console.error("ERROR: Fallo al enviar mensaje de Telegram.", telegramError.response ? telegramError.response.data : telegramError.message);
+        }
 
-                await axios.post(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/editMessageText`, {
-                    chat_id: chatId,
-                    message_id: messageId,
-                    text: newCaption,
-                    parse_mode: 'Markdown',
-                    reply_markup: {
-                        inline_keyboard: [
-                            [{ text: "✅ Recarga Realizada", callback_data: `completed_${transactionId}` }] // Cambiar el botón para indicar que ya está completa
-                        ]
-                    }
-                });
+        // e) Enviar Correo de Confirmación al Cliente (Si está configurado)
+        if (transactionData.email && SMTP_HOST) {
+             const transporter = nodemailer.createTransport({
+                 host: SMTP_HOST,
+                 port: parseInt(SMTP_PORT, 10),
+                 secure: parseInt(SMTP_PORT, 10) === 465,
+                 auth: { user: SMTP_USER, pass: SMTP_PASS },
+                 tls: { rejectUnauthorized: false }
+             });
+             
+             const mailOptions = {
+                 from: SENDER_EMAIL,
+                 to: transactionData.email,
+                 subject: `✅ ¡Pago CONFIRMADO! Tu pedido #${invoiceID} está en proceso.`,
+                 html: `<p>Hola,</p><p>Tu pago de ${data.get('amount')} USD ha sido confirmado por la pasarela de Plisio. Tu recarga está siendo procesada por nuestro equipo.</p><p>Gracias por tu compra.</p>`,
+             };
+             
+             await transporter.sendMail(mailOptions).catch(err => console.error("Error al enviar el correo de confirmación de Plisio:", err.message));
+        }
 
-                // 4. Enviar un feedback al usuario que presionó el botón
-                await axios.post(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/answerCallbackQuery`, {
-                    callback_query_id: callbackQuery.id,
-                    text: `Recarga ${transactionId} marcada como realizada por ${userName}.`,
-                    show_alert: false // No mostrar una alerta grande
-                });
+    } catch (procError) {
+        console.error("ERROR CRÍTICO durante el procesamiento de la orden de Plisio:", procError.message);
+    }
 
-                // --- AÑADIDO: Enviar correo de confirmación de recarga completada ---
-                if (transaction.email) { // Asegúrate de que haya un correo al que enviar
-                    let transporter;
-                    try {
-                        transporter = nodemailer.createTransport({
-                            host: SMTP_HOST,
-                            port: parseInt(SMTP_PORT, 10),
-                            secure: parseInt(SMTP_PORT, 10) === 465,
-                            auth: {
-                                user: SMTP_USER,
-                                pass: SMTP_PASS,
-                            },
-                            tls: {
-                                rejectUnauthorized: false
-                            }
-                        });
-                    } catch (createTransportError) {
-                        console.error("Error al crear el transportador de Nodemailer en webhook:", createTransportError);
-                    }
-
-                    const mailOptionsCompleted = {
-                        from: SENDER_EMAIL,
-                        to: transaction.email,
-                        subject: `✅ ¡Tu Recarga de ${transaction.game} ha sido Completada con Éxito por Malok Recargas! ✅`,
-                        html: `
-                            <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
-                                <h2 style="color: #28a745;">¡Recarga Completada!</h2>
-                                <p>¡Hola ${transaction.email}!</p>
-                                <p>Nos complace informarte que tu recarga para <strong>${transaction.game}</strong>, con ID de transacción <strong>${transaction.id_transaccion}</strong>, ha sido <strong>completada exitosamente</strong> por nuestro equipo.</p>
-                                <p>¡Ya puedes disfrutar de tu paquete <strong>${transaction.packageName}</strong>!</p>
-                                <p>Aquí tienes un resumen de tu recarga:</p>
-                                <ul style="list-style: none; padding: 0;">
-                                    <li><strong>Juego:</strong> ${transaction.game}</li>
-                                    ${transaction.playerId ? `<li><strong>ID de Jugador:</strong> ${transaction.playerId}</li>` : ''}
-                                    <li><strong>Paquete:</strong> ${transaction.packageName}</li>
-                                    <li><strong>Monto Pagado:</strong> ${transaction.finalPrice} ${transaction.currency}</li>
-                                    <li><strong>Método de Pago:</strong> ${transaction.paymentMethod.replace('-', ' ').toUpperCase()}</li>
-                                    <li><strong>Estado:</strong> <span style="color: #28a745; font-weight: bold;">REALIZADA</span></li>
-                                    <li><strong>Completada por:</strong> ${userName} el ${new Date().toLocaleTimeString('es-VE')} ${new Date().toLocaleDateString('es-VE')}</li>
-                                </ul>
-                                <p style="margin-top: 20px;">Si tienes alguna pregunta o necesitas asistencia, no dudes en contactarnos a través de nuestro WhatsApp: <a href="https://wa.me/584126949631" style="color: #28a745; text-decoration: none;">+58 412 6949631</a></p>
-                                <p>¡Gracias por elegir Malok Recargas!</p>
-                                <p style="font-size: 0.9em; color: #777;">Este es un correo automático, por favor no respondas a este mensaje.</p>
-                            </div>
-                        `,
-                    };
-
-                    try {
-                        await transporter.sendMail(mailOptionsCompleted);
-                        console.log("Correo de confirmación de recarga completada enviado a:", transaction.email);
-                    } catch (emailError) {
-                        console.error("Error al enviar el correo de recarga completada:", emailError.message);
-                        if (emailError.response) {
-                            console.error("Detalles del error SMTP del correo completado:", emailError.response);
-                        }
-                    }
-                }
-                // --- FIN DE AÑADIDO ---
-            }
-        }
-        return { statusCode: 200, body: "Webhook processed" };
-    } catch (error) {
-        console.error("Error en el webhook de Telegram:", error.message);
-        return { statusCode: 500, body: `Error en el webhook: ${error.message}` };
-    }
+    // SIEMPRE devolver 200 OK para indicarle a Plisio que el webhook fue recibido
+    return { statusCode: 200, body: "Webhook processed" };
 };
