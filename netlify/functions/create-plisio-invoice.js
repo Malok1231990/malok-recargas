@@ -6,171 +6,160 @@ const { createClient } = require('@supabase/supabase-js');
 
 
 exports.handler = async (event, context) => {
-    console.log("--- INICIO DE EJECUCIÓN DE FUNCIÓN PLISIO (CREACIÓN DE FACTURA) ---");
+    console.log("--- INICIO DE EJECUCIÓN DE FUNCIÓN PLISIO (CREACIÓN DE FACTURA) ---");
 
-    if (event.httpMethod !== 'POST') {
-        return { statusCode: 405, body: 'Method Not Allowed' };
-    }
-    
-    // 🔑 1. OBTENER Y LIMPIAR VARIABLES DE ENTORNO
-    const apiKey = process.env.PLISIO_API_KEY; 
-    const siteUrl = process.env.NETLIFY_SITE_URL;
-    
-    // 🚨 VARIABLES DE SUPABASE
-    const SUPABASE_URL = process.env.SUPABASE_URL;
-    const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
+    if (event.httpMethod !== 'POST') {
+        return { statusCode: 405, body: 'Method Not Allowed' };
+    }
+    
+    // 🔑 1. OBTENER Y LIMPIAR VARIABLES DE ENTORNO
+    const apiKey = process.env.PLISIO_API_KEY; 
+    const siteUrl = process.env.NETLIFY_SITE_URL;
+    
+    // 🚨 VARIABLES DE SUPABASE
+    const SUPABASE_URL = process.env.SUPABASE_URL;
+    const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
 
-    // CORRECCIÓN CRÍTICA: Eliminar la barra diagonal final de la URL si existe.
-    const siteUrlClean = siteUrl.endsWith('/') ? siteUrl.slice(0, -1) : siteUrl;
+    const siteUrlClean = siteUrl.endsWith('/') ? siteUrl.slice(0, -1) : siteUrl;
 
-    const callbackUrl = `${siteUrlClean}/.netlify/functions/plisio-webhook`;
-    const successUrl = siteUrlClean; 
-    const cancelUrl = siteUrlClean;
+    const callbackUrl = `${siteUrlClean}/.netlify/functions/plisio-webhook?json=true`;
+    // Nota: success_url no necesita todos los parámetros, el webhook se encarga de la confirmación
+    const successUrl = `${siteUrlClean}/payment.html?status=processing`; 
+    
+    console.log(`TRAZA 2: API Key cargada: ${!!apiKey} | Callback URL: ${callbackUrl}`);
+
+    if (!apiKey || !siteUrl || !SUPABASE_URL || !SUPABASE_SERVICE_KEY) {
+        return { 
+            statusCode: 500, 
+            body: JSON.stringify({ message: "Error de configuración. Faltan credenciales esenciales (Plisio/Supabase)." }) 
+        };
+    }
     
-    // 2. CONFIGURACIÓN INICIAL Y PARSEO DE DATOS
-    if (!apiKey || !SUPABASE_URL || !SUPABASE_SERVICE_KEY) {
-        console.error("TRAZA 1: Faltan credenciales de Plisio o Supabase.");
-        return { 
-            statusCode: 500, 
-            body: JSON.stringify({ message: "Error de configuración del servidor. Contacte al administrador." }) 
-        };
-    }
-    
-    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
-    
-    let orderData;
-    try {
-        orderData = JSON.parse(event.body);
-    } catch (e) {
-        console.error("TRAZA 2: Error al parsear JSON del cuerpo de la solicitud:", e.message);
-        return { statusCode: 400, body: JSON.stringify({ message: "Formato de solicitud inválido." }) };
-    }
-    
-    console.log("TRAZA 3: Datos de la orden recibidos:", orderData);
-    
-    // 3. EXTRACCIÓN DE DATOS DE LA ORDEN
-    const { 
-        userData, 
-        cartItems, 
-        totalAmountUSD, 
-        totalAmountVES, 
-        acceptedCurrencies, 
-        currency, // 'USD'
-        orderNumber,
-        email,
-        description,
-        cartDetails
-    } = orderData;
-    
-    if (!userData || !cartItems || !totalAmountUSD || !orderNumber || !email || !acceptedCurrencies || !currency) {
-         console.error("TRAZA 4: Faltan campos esenciales en el cuerpo de la solicitud.");
-         return { statusCode: 400, body: JSON.stringify({ message: "Faltan datos de la orden." }) };
-    }
-    
-    // 4. CONSTRUIR REGISTRO DE TRANSACCIÓN PARA SUPABASE (PENDIENTE)
-    const transactionRecord = {
-        id_transaccion: orderNumber,
-        user_id: userData.id,
-        email: email,
-        monto_usd: totalAmountUSD,
-        monto_ves: totalAmountVES,
-        metodo_pago: 'plisio', // Método de pago fijo para esta función
-        estado: 'pendiente', // Estado inicial
-        monedas_aceptadas: acceptedCurrencies.join(','),
-        detalles_carrito: cartDetails,
-        fecha_creacion: new Date().toISOString()
-    };
-    
-    // 5. INSERTAR LA TRANSACCIÓN EN SUPABASE CON ESTADO 'PENDIENTE'
-    try {
-        console.log(`TRAZA 5: Insertando transacción pendiente ${orderNumber} en Supabase...`);
-        const { error: insertError } = await supabase
-            .from('transactions')
-            .insert([transactionRecord]);
-            
-        if (insertError) {
-            console.error("TRAZA 6: Error de Supabase al insertar transacción:", insertError.message);
-            throw new Error(`Error de DB al registrar la orden: ${insertError.message}`);
-        }
-        console.log(`TRAZA 7: Transacción ${orderNumber} insertada como pendiente.`);
-        
-    } catch (dbError) {
-        console.error(`TRAZA 8: Fallo CRÍTICO de Supabase: ${dbError.message}`);
-         return { statusCode: 500, body: JSON.stringify({ message: `Error interno al registrar la orden: ${dbError.message}` }) };
-    }
+    let data;
+    try {
+        data = JSON.parse(event.body);
+    } catch (parseError) {
+        return { statusCode: 400, body: JSON.stringify({ message: 'Formato de cuerpo de solicitud inválido.' }) };
+    }
+    
+    let finalAmountUSD = '0.00'; 
+    const orderNumber = `MALOK-${Date.now()}`; // Número único de orden para Plisio
+
+    try {
+        // Obtener datos del formulario que vienen del frontend
+        const { amount, email, game, playerId, packageName, whatsappNumber, roblox_email, roblox_password, codm_email, codm_password, codm_vinculation } = data; 
+        
+        if (!amount || isNaN(parseFloat(amount)) || parseFloat(amount) <= 0 || !email) {
+            return { statusCode: 400, body: JSON.stringify({ message: 'Datos de transacción incompletos o inválidos.' }) };
+        }
+        
+        const feePercentage = 0.03; 
+        const amountValue = parseFloat(amount);
+        const amountWithFee = amountValue * (1 + feePercentage); 
+        
+        finalAmountUSD = amountWithFee.toFixed(2);
+        
+        console.log(`TRAZA 12: Monto final con comisión (3%): ${finalAmountUSD} USD`);
+        
+        // 🚨 2. INSERCIÓN EN SUPABASE (PENDIENTE)
+        const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
+        
+        console.log(`TRAZA 13: Iniciando inserción de orden PENDIENTE a Supabase... Order_Number: ${orderNumber}`);
+        
+        // Usamos el orderNumber como ID_TRANSACCION inicial; el Webhook usará esto para encontrar la fila.
+        const { data: insertedData, error: insertError } = await supabase
+            .from('transactions')
+            .insert([
+                {
+                    id_transaccion: orderNumber, // Usamos el order_number como ID_TRANSACCION inicial
+                    "finalPrice": finalAmountUSD,
+                    status: 'PENDIENTE',
+                    email: email,
+                    game: game,
+                    "playerId": playerId,
+                    "packageName": packageName,
+                    "whatsappNumber": whatsappNumber,
+                    roblox_email: roblox_email,
+                    roblox_password: roblox_password,
+                    codm_email: codm_email,
+                    codm_password: codm_password,
+                    codm_vinculation: codm_vinculation,
+                }
+            ])
+            .select();
+        
+        if (insertError) {
+            console.error("TRAZA 13.5: ERROR CRÍTICO al insertar a Supabase:", insertError.message);
+            throw new Error(`Fallo al iniciar transacción en Supabase: ${insertError.message}`);
+        }
+        
+        console.log("TRAZA 14: Inserción exitosa en Supabase. Continuando con Plisio...");
+
+        // --- PAYLOAD FINAL PLISIO ---
+        const payloadData = {
+            api_key: apiKey,
+            source_currency: 'USD', 
+            source_amount: finalAmountUSD,
+            order_name: "Recarga de Servicios Malok",
+            order_number: orderNumber, // Enviamos el order_number a Plisio
+            
+            allowed_psys_cids: 'USDT_TRX,USDT_BSC', 
+            
+            email: email, 
+            callback_url: callbackUrl, 
+            success_invoice_url: successUrl, 
+        };
+        // ----------------------------------------------------
+        
+        const PLISIO_INVOICES_URL = 'https://api.plisio.net/api/v1/invoices/new'; 
+        
+        const queryString = new URLSearchParams(payloadData).toString();
+        
+        const PLISIO_FINAL_URL = `${PLISIO_INVOICES_URL}?${queryString}`;
 
 
-    // 6. CONSTRUIR PAYLOAD PARA PLISIO (CON COMAS CORREGIDAS)
-    const plisioPayload = {
-        api_key: apiKey, // COMA AÑADIDA
-        order_number: orderNumber, // COMA AÑADIDA
-        amount: totalAmountUSD, // COMA AÑADIDA
-        currency: currency, // COMA AÑADIDA
-        source_currency: currency, // COMA AÑADIDA
-        email: email, // COMA AÑADIDA
-        description: description, // COMA AÑADIDA
-        callback_url: callbackUrl, // COMA AÑADIDA
-        success_url: successUrl, // COMA AÑADIDA
-        cancel_url: cancelUrl, // COMA AÑADIDA
-        // CLAVE CORREGIDA: Usamos 'allowed_currencies' y añadimos la coma
-        allowed_currencies: acceptedCurrencies.join(','), 
-        customer_name: userData.nombre, // COMA AÑADIDA
-        customer_email: userData.email, // COMA AÑADIDA
-        customer_notes: cartDetails, // COMA AÑADIDA
-        expire_mins: 60, // COMA AÑADIDA
-        custom: JSON.stringify({ userId: userData.id }), // COMA AÑADIDA
-    };
+        console.log("TRAZA 16: Iniciando solicitud GET a Plisio...");
+        
+        const response = await axios.get(PLISIO_FINAL_URL);
+        
+        const plisioData = response.data;
+        console.log(`TRAZA 18: Respuesta de Plisio recibida. Status general: ${plisioData.status}`);
 
-    // 7. HACER LA LLAMADA A LA API DE PLISIO
-    try {
-        console.log("TRAZA 10: Llamando a la API de Plisio...");
-        
-        // 🚨 Plisio espera los datos como x-www-form-urlencoded, no JSON
-        const params = new URLSearchParams(plisioPayload).toString(); 
-        
-        const response = await axios.post(
-            'https://plisio.net/api/v1/invoices/new', 
-            params, 
-            {
-                headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded'
-                }
-            }
-        );
+        if (plisioData.status === 'success' && plisioData.data && plisioData.data.invoice_url) {
+            
+            // 🚨 3. ACTUALIZAR ID DE TRANSACCIÓN REAL DE PLISIO
+            // Plisio devuelve su propio TXN_ID. Lo guardamos en la fila que acabamos de crear.
+            console.log(`TRAZA 19: Actualizando ID de Transacción de Plisio: ${plisioData.data.txn_id}`);
+            await supabase
+                .from('transactions')
+                .update({ 
+                    id_transaccion: plisioData.data.txn_id, 
+                    currency: 'USD',
+                    "finalPrice": finalAmountUSD // Nos aseguramos de guardar el precio final
+                })
+                .eq('id_transaccion', orderNumber);
+                
+            console.log("--- FINALIZACIÓN EXITOSA DE FUNCIÓN (Factura Creada y BD Actualizada) ---");
+            
+            return {
+                statusCode: 200,
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    chargeUrl: plisioData.data.invoice_url, 
+                    chargeId: plisioData.data.txn_id, 
+                }),
+            };
+        } else {
+            // Manejo de error de la API de Plisio que regresa un JSON de error
+            const errorMessage = plisioData.data && plisioData.data.message ? `Plisio API Error: ${plisioData.data.message}` : 'Error desconocido de la API de Plisio';
+            console.error(`TRAZA 20: ERROR: Fallo al crear factura de Plisio. Respuesta de la API no "success": ${errorMessage}`);
+            throw new Error(errorMessage);
+        }
 
-        const plisioResponse = response.data;
-        
-        console.log("TRAZA 11: Respuesta de Plisio recibida.");
-
-        // 8. VERIFICAR RESPUESTA DE PLISIO
-        if (plisioResponse.status !== 'success') {
-            const errorMessage = plisioResponse.data && plisioResponse.data.message ? plisioResponse.data.message : 'Fallo desconocido de Plisio';
-            console.error(`TRAZA 12: Fallo al crear factura de Plisio (Respuesta JSON): ${errorMessage}`);
-            // No se borra la transacción pendiente en este caso, se deja para revisión manual
-            return {
-                statusCode: 500,
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ message: `Error de la pasarela de pago: ${errorMessage}` }),
-            };
-        }
-        
-        // 9. EXTRAER URL DE PAGO Y DEVOLVER AL CLIENTE
-        const paymentUrl = plisioResponse.data.url;
-        console.log("TRAZA 13: Factura creada. URL de pago generada.");
-        
-        return {
-            statusCode: 200,
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ 
-                paymentUrl: paymentUrl,
-                invoiceId: plisioResponse.data.txn_id, // Usar el ID de Plisio
-            }),
-        };
-
-    } catch (error) {
-        // Manejo de errores de Axios o ejecución general
-        console.error(`TRAZA 21: ERROR DE CONEXIÓN O EJECUCIÓN: ${error.message}`);
-        
+    } catch (error) {
+        // Diagnóstico para errores de conexión o ejecución
+        console.error(`TRAZA 21: ERROR DE CONEXIÓN O EJECUCIÓN: ${error.message}`);
+        
         // 🚨 CRÍTICO: Si falló después de la inserción, debemos eliminar la fila PENDIENTE para evitar basura
         if(supabase && orderNumber) {
             console.warn(`TRAZA 22: Limpieza: Intentando eliminar la fila ${orderNumber} de Supabase debido a un fallo.`);
@@ -182,20 +171,22 @@ exports.handler = async (event, context) => {
             });
         }
         
-        let errorDetails = error.message;
-        
-        if (error.response) {
-            console.error(`TRAZA 23: El error es una respuesta de Axios. Status HTTP: ${error.response.status}`);
-            errorDetails = `Error HTTP ${error.response.status}. Ver logs de Netlify para más detalles.`;
-        } else if (error.request) {
-            console.error("TRAZA 24: No se recibió respuesta de Plisio (Problema de red).");
-            errorDetails = `Error de conexión: ${error.message}`;
-        }
-        
-        return {
-            statusCode: 500,
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ message: `Error interno del servidor: ${errorDetails}` }),
-        };
-    }
+        let errorDetails = error.message;
+        
+        if (error.response) {
+            console.error(`TRAZA 23: El error es una respuesta de Axios. Status HTTP: ${error.response.status}`);
+            errorDetails = `Error HTTP ${error.response.status}. Ver logs de Netlify para más detalles.`;
+        }
+        
+        console.error(`DETALLE DE ERROR FINAL: ${errorDetails}`); 
+
+        return {
+            statusCode: 500,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+                message: `Error al crear la factura de pago.`,
+                details: errorDetails
+            }),
+        };
+    }
 };
