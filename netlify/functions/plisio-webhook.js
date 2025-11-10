@@ -1,6 +1,5 @@
 // netlify/functions/plisio-webhook.js
 const crypto = require('crypto');
-const { URLSearchParams } = require('url');
 const { createClient } = require('@supabase/supabase-js');
 const axios = require('axios');
 const nodemailer = require('nodemailer'); 
@@ -31,8 +30,9 @@ exports.handler = async (event, context) => {
         return { statusCode: 500, body: "Error de configuración." };
     }
     
-    // --- FIX CRÍTICO: Decodificación y Parseo del Body (SOPORTE JSON) ---
+    // --- Parseo del Body (SOPORTE JSON) ---
     let rawBody = event.body;
+    
     console.log(`TRAZA 1: event.isBase64Encoded es: ${event.isBase64Encoded}.`);
     
     // 1. Decodificar Base64 si es necesario
@@ -49,71 +49,55 @@ exports.handler = async (event, context) => {
     console.log(`TRAZA 2: Body (raw) para parsear: ${rawBody.substring(0, 100)}...`);
 
     let body = {}; // Objeto final con los datos
-    let data; // URLSearchParams para el cálculo del hash
 
     try {
-        // 2. Intentar parsear como JSON
+        // 2. Intentar parsear como JSON (Es el formato esperado debido a ?json=true)
         body = JSON.parse(rawBody);
         console.log("TRAZA 2.1: Body parseado exitosamente como JSON.");
         
-        // Re-crear URLSearchParams 'data' a partir del objeto JSON para el hash
-        data = new URLSearchParams();
-        for (const key in body) {
-            if (body.hasOwnProperty(key)) {
-                // Convertir a string para compatibilidad con URLSearchParams
-                data.append(key, String(body[key])); 
-            }
-        }
-        
     } catch (e) {
-        // 3. Fallback: Si no es JSON, asumir URL-encoded
-        console.warn("TRAZA 2.2: Fallo al parsear JSON. Asumiendo URL-encoded.");
-        data = new URLSearchParams(rawBody);
-        for (const [key, value] of data.entries()) {
-            body[key] = value;
-        }
+        console.error("TRAZA 2.2: ERROR: Fallo al parsear JSON. Deteniendo.");
+        return { statusCode: 400, body: "Invalid JSON body. Expected JSON due to ?json=true." };
     }
-    // Fin FIX CRÍTICO
+    // Fin Parseo
 
-    // --- OBTENCIÓN DE DATOS CRÍTICOS (CORREGIDO) ---
-    // 🔑 Buscar el hash en secret, api_key o hash (el campo más probable en JSON sin secret)
-    const receivedHash = body.secret || body.api_key || body.hash; 
+    // --- OBTENCIÓN DE DATOS CRÍTICOS ---
+    // 🔑 El hash de seguridad para JSON es 'verify_hash'
+    const receivedHash = body.verify_hash; // <--- CORRECCIÓN CLAVE: usamos verify_hash
     const invoiceID = body.txn_id; 
     const status = body.status;
 
     console.log(`TRAZA 3: Variables de Plisio obtenidas: ID=${invoiceID}, Status=${status}, Hash recibido=${receivedHash ? receivedHash.substring(0, 5) + '...' : 'N/A'}`);
     
-    // --- 1. VERIFICACIÓN DE SEGURIDAD (Hash de Plisio) ---
-    const keys = Array.from(data.keys())
-        // 🔑 Filtrar 'secret', 'api_key', y ahora también 'hash' del string de verificación
-        .filter(key => key !== 'secret' && key !== 'api_key' && key !== 'hash') 
-        .sort();
-        
-    let hashString = '';
-    keys.forEach(key => {
-        hashString += data.get(key); 
-    });
-    hashString += PLISIO_API_KEY; 
-
-    console.log(`TRAZA 4: HashString (fragmento) para cálculo: ${hashString.substring(0, 50)}...`);
+    // --- 1. VERIFICACIÓN DE SEGURIDAD (HMAC-SHA1 de Plisio) ---
     
-    const generatedHash = crypto.createHash('sha1').update(hashString).digest('hex');
-
-    console.log(`TRAZA 5: Hash generado: ${generatedHash.substring(0, 10)}... | Hash recibido: ${receivedHash ? receivedHash.substring(0, 10) + '...' : 'N/A'}`);
-
     if (!invoiceID) {
         console.error("TRAZA 5.1: ERROR: No se pudo obtener el ID de Transacción (txn_id) de Plisio. Deteniendo.");
         return { statusCode: 200, body: "Missing Plisio txn_id." };
     }
     
     if (!receivedHash) {
-         // Esta es la línea que falló, ahora con la triple comprobación
-         console.error(`TRAZA 5.2: ERROR: No se recibió ningún hash de seguridad (secret, api_key o hash) para ID: ${invoiceID}.`);
-         return { statusCode: 200, body: `Missing Plisio Security Hash.` };
+         console.error(`TRAZA 5.2: ERROR: No se recibió verify_hash para ID: ${invoiceID}.`); // <--- Log actualizado
+         return { statusCode: 200, body: `Missing Plisio Security Hash (verify_hash).` };
     }
+    
+    // 🔑 IMPLEMENTACIÓN DEL MÉTODO DE VERIFICACIÓN DE PLISIO (Node.js/HMAC-SHA1)
+    const ordered = { ...body };
+    delete ordered.verify_hash; // Eliminar el hash recibido antes de stringificar
+    
+    // 💡 IMPORTANTE: El objeto se stringifica como JSON para el cálculo del hash
+    const stringToHash = JSON.stringify(ordered);
+    
+    // 🔑 Usar HMAC-SHA1 con la PLISIO_API_KEY (SECRET_KEY)
+    const hmac = crypto.createHmac('sha1', PLISIO_API_KEY);
+    hmac.update(stringToHash);
+    const generatedHash = hmac.digest('hex');
+
+    console.log(`TRAZA 5: Hash generado: ${generatedHash.substring(0, 10)}... | Hash recibido: ${receivedHash ? receivedHash.substring(0, 10) + '...' : 'N/A'}`);
 
     if (generatedHash !== receivedHash) {
-        console.error(`TRAZA 6: ERROR: Firma de Webhook de Plisio INVÁLIDA para ID: ${invoiceID}. Generated Hash: ${generatedHash}. Received Hash: ${receivedHash}.`);
+        console.error(`TRAZA 6: ERROR: Firma de Webhook de Plisio INVÁLIDA para ID: ${invoiceID}.`);
+        console.error(`TRAZA 6.1: Generated Hash (Full): ${generatedHash}. Received Hash (Full): ${receivedHash}.`); // Log detallado
         return { statusCode: 200, body: `Invalid Plisio Hash.` }; 
     }
     

@@ -23,7 +23,8 @@ exports.handler = async (event, context) => {
 
     const siteUrlClean = siteUrl.endsWith('/') ? siteUrl.slice(0, -1) : siteUrl;
 
-    const callbackUrl = `${siteUrlClean}/.netlify/functions/plisio-webhook?json=true`;
+    // Se mantiene ?json=true para usar la verificación HMAC-SHA1 en el webhook.
+    const callbackUrl = `${siteUrlClean}/.netlify/functions/plisio-webhook?json=true`; 
     const successUrl = `${siteUrlClean}/payment.html?status=processing`; 
     
     console.log(`TRAZA 2: API Key cargada: ${!!apiKey} | Callback URL: ${callbackUrl}`);
@@ -44,11 +45,21 @@ exports.handler = async (event, context) => {
     
     let finalAmountUSD = '0.00'; 
     let finalAmountFloat = 0; 
-    const orderNumber = `MALOK-${Date.now()}`; // Número único de orden inicial (ID_TRANSACCION)
+    // Generamos un ID de transacción interno para el seguimiento.
+    const orderNumber = `MALOK-${Date.now()}`; 
+
+    // Inicializar Supabase para su uso posterior en caso de fallo.
+    let supabase = null; 
+    try {
+        supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
+    } catch (dbInitError) {
+        console.error("TRAZA 10: Error al inicializar el cliente de Supabase:", dbInitError.message);
+        return { statusCode: 500, body: JSON.stringify({ message: "Error al conectar con la base de datos." }) };
+    }
+
 
     try {
         // OBTENCIÓN DE DATOS
-        // 'cartDetails' contiene el JSON string del array de productos
         const { amount, email, whatsapp, cartDetails } = data; 
 
         // Validaciones básicas
@@ -74,14 +85,14 @@ exports.handler = async (event, context) => {
         const packageName = productDetails.packageName || 'Múltiples Paquetes';
         const whatsappNumber = whatsapp || null;
         
-        // Mapeo de credenciales: Usar || null para COINCIDIR con la inserción manual
+        // Mapeo de credenciales: Usar || null
         const roblox_email = productDetails.robloxEmail || productDetails.roblox_email || null;
         const roblox_password = productDetails.robloxPassword || productDetails.roblox_password || null;
         const codm_email = productDetails.codmEmail || productDetails.codm_email || null;
         const codm_password = productDetails.codmPassword || productDetails.codm_password || null;
         const codm_vinculation = productDetails.codmVinculation || productDetails.codm_vinculation || null;
         
-        // Cálculo del monto
+        // Cálculo del monto con comisión del 3%
         const feePercentage = 0.03; 
         const amountValue = parseFloat(amount);
         const amountWithFee = amountValue * (1 + feePercentage); 
@@ -92,12 +103,11 @@ exports.handler = async (event, context) => {
         console.log(`TRAZA 12: Monto final con comisión (3%): ${finalAmountUSD} USD`);
         
         // 🚨 2. INSERCIÓN EN SUPABASE (PENDIENTE)
-        const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
         
         console.log(`TRAZA 13: Iniciando inserción de orden PENDIENTE a Supabase... Order_Number: ${orderNumber}`);
         
         // Usamos el orderNumber como ID_TRANSACCION inicial; este es el ID que queremos mantener (MALOK-XXXXX).
-        const { data: insertedData, error: insertError } = await supabase
+        const { error: insertError } = await supabase
             .from('transactions')
             .insert([
                 {
@@ -111,8 +121,8 @@ exports.handler = async (event, context) => {
                     paymentMethod: 'plisio', 
                     methodDetails: {}, // Inicialmente vacío
                     
-                    // 💥 CAMBIO CRÍTICO: ALMACENAR el JSON string del carrito en la nueva columna 'cartDetails' (JSONB)
-                    "cartDetails": cartDetails, // <--- ¡AÑADIDO!
+                    // Almacenar el JSON string del carrito
+                    "cartDetails": cartDetails, 
                     
                     // Campos de compatibilidad (solo con el primer producto, para retrocompatibilidad)
                     game: game,
@@ -124,8 +134,7 @@ exports.handler = async (event, context) => {
                     codm_password: codm_password,
                     codm_vinculation: codm_vinculation,
                 }
-            ])
-            .select();
+            ]);
         
         if (insertError) {
             console.error("TRAZA 13.5: ERROR CRÍTICO al insertar a Supabase:", insertError.message);
@@ -139,9 +148,9 @@ exports.handler = async (event, context) => {
             api_key: apiKey,
             source_currency: 'USD', 
             source_amount: finalAmountUSD, 
-            order_name: "Recarga de Servicios Malok",
+            order_name: `Recarga Malok #${orderNumber}`,
             order_number: orderNumber, // Enviamos MALOK-XXXXX como número de orden a Plisio
-            allowed_psys_cids: 'USDT_TRX,USDT_BSC', 
+            allowed_psys_cids: 'USDT_TRX,USDT_BSC', // Sugerencia de monedas
             email: email, 
             callback_url: callbackUrl, 
             success_invoice_url: successUrl, 
@@ -162,7 +171,7 @@ exports.handler = async (event, context) => {
             // 🚨 3. ACTUALIZAR DETALLES: Mantenemos el ID de transacción MALOK-XXXXX
             console.log(`TRAZA 19: Actualizando detalles de Plisio (TXN_ID: ${plisioData.data.txn_id})`);
             
-            // 💡 CAMBIO CRÍTICO: NO se actualiza id_transaccion. Se guarda plisioData.data.txn_id en methodDetails.
+            // NO se actualiza id_transaccion. Se guarda plisioData.data.txn_id en methodDetails.
             await supabase
                 .from('transactions')
                 .update({ 
@@ -194,7 +203,8 @@ exports.handler = async (event, context) => {
             // Manejo de error de la API de Plisio
             const errorMessage = plisioData.data && plisioData.data.message ? `Plisio API Error: ${plisioData.data.message}` : 'Error desconocido de la API de Plisio';
             console.error(`TRAZA 20: ERROR: Fallo al crear factura de Plisio. Respuesta de la API no "success": ${errorMessage}`);
-            throw new Error(errorMessage);
+            // Usamos un error de ejecución para forzar la limpieza.
+            throw new Error(`Fallo de Plisio: ${errorMessage}`);
         }
 
     } catch (error) {
@@ -204,6 +214,7 @@ exports.handler = async (event, context) => {
         
         if(supabase && orderNumber) {
             console.warn(`TRAZA 22: Limpieza: Intentando eliminar la fila ${orderNumber} de Supabase debido a un fallo.`);
+            // No esperamos la promesa, solo la iniciamos.
             supabase.from('transactions').delete().eq('id_transaccion', orderNumber).then(() => {
                 console.log(`TRAZA 22.5: Fila ${orderNumber} eliminada correctamente.`);
             }).catch(cleanError => {
