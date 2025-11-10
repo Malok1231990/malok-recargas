@@ -63,21 +63,23 @@ exports.handler = async (event, context) => {
 
     // --- OBTENCIÓN DE DATOS CRÍTICOS ---
     // 🔑 El hash de seguridad para JSON es 'verify_hash'
-    const receivedHash = body.verify_hash; // <--- CORRECCIÓN CLAVE: usamos verify_hash
-    const invoiceID = body.txn_id; 
+    const receivedHash = body.verify_hash; 
+    const invoiceID = body.order_number; // Usar order_number (MALOK-XXXXX) para buscar la transacción.
+    const plisioTxnId = body.txn_id; // Guardar el ID interno de Plisio.
     const status = body.status;
 
-    console.log(`TRAZA 3: Variables de Plisio obtenidas: ID=${invoiceID}, Status=${status}, Hash recibido=${receivedHash ? receivedHash.substring(0, 5) + '...' : 'N/A'}`);
+    console.log(`TRAZA 3: Variables de Plisio obtenidas: OrderID=${invoiceID}, Status=${status}, Hash recibido=${receivedHash ? receivedHash.substring(0, 5) + '...' : 'N/A'}`);
     
     // --- 1. VERIFICACIÓN DE SEGURIDAD (HMAC-SHA1 de Plisio) ---
     
     if (!invoiceID) {
-        console.error("TRAZA 5.1: ERROR: No se pudo obtener el ID de Transacción (txn_id) de Plisio. Deteniendo.");
-        return { statusCode: 200, body: "Missing Plisio txn_id." };
+        console.error("TRAZA 5.1: ERROR: No se pudo obtener el Número de Orden (order_number) de Plisio. Deteniendo.");
+        // Devolvemos 200 ya que no es un fallo de verificación, solo un dato faltante.
+        return { statusCode: 200, body: "Missing Plisio order_number." }; 
     }
     
     if (!receivedHash) {
-         console.error(`TRAZA 5.2: ERROR: No se recibió verify_hash para ID: ${invoiceID}.`); // <--- Log actualizado
+         console.error(`TRAZA 5.2: ERROR: No se recibió verify_hash para OrderID: ${invoiceID}.`); 
          return { statusCode: 200, body: `Missing Plisio Security Hash (verify_hash).` };
     }
     
@@ -96,39 +98,48 @@ exports.handler = async (event, context) => {
     console.log(`TRAZA 5: Hash generado: ${generatedHash.substring(0, 10)}... | Hash recibido: ${receivedHash ? receivedHash.substring(0, 10) + '...' : 'N/A'}`);
 
     if (generatedHash !== receivedHash) {
-        console.error(`TRAZA 6: ERROR: Firma de Webhook de Plisio INVÁLIDA para ID: ${invoiceID}.`);
-        console.error(`TRAZA 6.1: Generated Hash (Full): ${generatedHash}. Received Hash (Full): ${receivedHash}.`); // Log detallado
+        console.error(`TRAZA 6: ERROR: Firma de Webhook de Plisio INVÁLIDA para OrderID: ${invoiceID}.`);
+        console.error(`TRAZA 6.1: Generated Hash (Full): ${generatedHash}. Received Hash (Full): ${receivedHash}.`); 
         return { statusCode: 200, body: `Invalid Plisio Hash.` }; 
     }
     
-    console.log(`TRAZA 7: Webhook de Plisio verificado exitosamente para ID: ${invoiceID}, Estado: ${status}`);
+    console.log(`TRAZA 7: Webhook de Plisio verificado exitosamente para OrderID: ${invoiceID}, Estado: ${status}`);
     
     // ----------------------------------------------------------------------
-    // --- 2. PROCESAMIENTO DEL PAGO CONFIRMADO (RESTO DEL CÓDIGO) ---
+    // --- 2. PROCESAMIENTO DEL PAGO (COMPLETED/PENDING/FALLO) ---
     // ----------------------------------------------------------------------
-    
+
+    // --- 2a. Manejo de estados intermedios o de fallo ---
     if (status !== 'completed' && status !== 'amount_check') {
-        console.log(`TRAZA 8: Evento de Plisio recibido, estado: ${status}. No es un estado de éxito.`);
         
         let updateData = {};
-        if (status === 'mismatch' || status === 'expired' || status === 'error') {
+        let needsDbUpdate = false;
+        
+        if (status === 'pending') {
+             updateData.status = 'PENDIENTE DE CONFIRMACIÓN'; // ✅ CORREGIDO: Manejo del estado pending
+             needsDbUpdate = true;
+        } else if (status === 'mismatch' || status === 'expired' || status === 'error' || status === 'cancelled') {
              updateData.status = `FALLO: ${status.toUpperCase()} (PLISIO)`;
+             needsDbUpdate = true;
         } else {
-             console.log("TRAZA 8.1: Estado intermedio o irrelevante. Fin.");
+             console.log("TRAZA 8.1: Estado intermedio (new, pending internal, cancelled duplicate). Fin.");
              return { statusCode: 200, body: "Webhook processed, no action needed for this status." };
         }
         
-        try {
-            console.log(`TRAZA 8.2: Actualizando estado de fallo en Supabase a: ${updateData.status}`);
-            const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
-            await supabase.from('transactions').update(updateData).eq('id_transaccion', invoiceID);
-        } catch (e) {
-            console.error("TRAZA 8.3: Error al actualizar estado intermedio:", e.message);
+        if (needsDbUpdate) { 
+            try {
+                console.log(`TRAZA 8.2: Actualizando estado de fallo/intermedio en Supabase a: ${updateData.status}`);
+                const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
+                await supabase.from('transactions').update(updateData).eq('id_transaccion', invoiceID);
+            } catch (e) {
+                console.error("TRAZA 8.3: Error al actualizar estado intermedio:", e.message);
+            }
         }
         
-        return { statusCode: 200, body: "Webhook processed, no completion event" };
+        return { statusCode: 200, body: "Webhook processed, non-completion event" };
     }
     
+    // --- 2b. Manejo del estado COMPLETED/AMOUNT_CHECK ---
     console.log(`TRAZA 9: Pago CONFIRMADO para la orden: ${invoiceID}. Iniciando proceso de BD/Telegram.`);
     
     try {
@@ -163,11 +174,11 @@ exports.handler = async (event, context) => {
             .from('transactions')
             .update({ 
                 status: 'CONFIRMADO', 
-                "paymentMethod": `PLISIO (${body.currency_in || 'N/A'})`, 
+                "paymentMethod": `PLISIO (${body.currency || 'N/A'})`, // ✅ CORREGIDO: Usar body.currency
                 "completed_at": new Date().toISOString(),
                 "methodDetails": { 
-                    plisio_txn_id: body.txn_id,
-                    plisio_currency_in: body.currency_in,
+                    plisio_txn_id: plisioTxnId,
+                    plisio_currency_paid: body.currency, // ✅ CORREGIDO: Usar body.currency
                     plisio_amount: body.amount,
                     plisio_hash: receivedHash
                 }
@@ -249,9 +260,12 @@ exports.handler = async (event, context) => {
 
         // Información de Pago y Contacto (Global)
         messageText += `\n*RESUMEN DE PAGO (Plisio)*\n`;
-        messageText += `💰 *TOTAL PAGADO:* *${body.amount || 'N/A'} ${body.currency_out || 'N/A'}* (En ${body.currency_in || 'N/A'})\n`;
+        // ✅ CORREGIDO: Usar body.amount y body.currency (monto y cripto recibida)
+        messageText += `💰 *Monto Recibido (Cripto):* *${body.amount || 'N/A'} ${body.currency || 'N/A'}*\n`; 
+        // ✅ CORREGIDO: Usar body.source_amount y body.source_currency (monto y fiat original)
+        messageText += `💵 *Monto de Orden (USD):* *${body.source_amount || 'N/A'} ${body.source_currency || 'N/A'}*\n`;
         messageText += `💳 Método de Pago: *PLISIO (${body.psys_cid || 'Cripto'})*\n`;
-        messageText += `🆔 TXID Plisio: \`${body.txn_id || 'N/A'}\`\n`;
+        messageText += `🆔 TXID Plisio: \`${plisioTxnId || 'N/A'}\`\n`;
         
         messageText += `\n*DATOS DEL CLIENTE*\n`;
         messageText += `📧 Correo Cliente: ${transactionData.email || 'N/A'}\n`;
@@ -310,7 +324,7 @@ exports.handler = async (event, context) => {
                  from: SENDER_EMAIL,
                  to: transactionData.email,
                  subject: `✅ ¡Pago CONFIRMADO! Tu pedido #${invoiceID} está en proceso.`,
-                 html: `<p>Hola,</p><p>Tu pago de ${body.amount || 'N/A'} ${body.currency_out || 'USD'} ha sido confirmado por la pasarela de Plisio. Tu recarga está siendo procesada por nuestro equipo.</p><p>Gracias por tu compra.</p>`,
+                 html: `<p>Hola,</p><p>Tu pago de ${body.source_amount || 'N/A'} ${body.source_currency || 'USD'} ha sido confirmado por la pasarela de Plisio. Tu recarga está siendo procesada por nuestro equipo.</p><p>Gracias por tu compra.</p>`,
              };
              
              await transporter.sendMail(mailOptions).catch(err => console.error("TRAZA 16.1: Error al enviar el correo de confirmación de Plisio:", err.message));
