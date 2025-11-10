@@ -204,8 +204,16 @@
             <p><strong>Paso 1:</strong> Realiza el Pago Móvil a los siguientes datos:</p>
             <ul>
                 <li><strong>Banco:</strong> Banco de Mercantil (0105)</li>
-                <li><strong>Cédula/RIF:</strong> V-30258234</li>
-                <li><strong>Teléfono:</strong> 0412-6949631</li>
+                <li class="copy-container">
+                    <strong>Cédula/RIF:</strong> <span id="pm-cedula">V-30258234</span>
+                    <button type="button" class="copy-button" data-copy-target="pm-cedula"><i class="fas fa-copy"></i></button>
+                    <span id="pm-cedula-copy-feedback" class="copy-feedback"></span>
+                </li>
+                <li class="copy-container">
+                    <strong>Teléfono:</strong> <span id="pm-telefono">0412-6949631</span>
+                    <button type="button" class="copy-button" data-copy-target="pm-telefono"><i class="fas fa-copy"></i></button>
+                    <span id="pm-telefono-copy-feedback" class="copy-feedback"></span>
+                </li>
             </ul>
             <div class="payment-fields-container">
                 <p><strong>Paso 2:</strong> Sube tu comprobante de pago.</p>
@@ -224,7 +232,11 @@
         'zinli': `
             <p><strong>Paso 1:</strong> Transfiere el monto exacto a nuestra cuenta Zinli.</p>
             <ul>
-                <li><strong>Usuario Zinli:</strong> miladelarocaedwar04@gmail.com</li>
+                <li class="copy-container">
+                    <strong>Usuario Zinli:</strong> <span id="zinli-email">miladelarocaedwar04@gmail.com</span>
+                    <button type="button" class="copy-button" data-copy-target="zinli-email"><i class="fas fa-copy"></i></button>
+                    <span id="zinli-email-copy-feedback" class="copy-feedback"></span>
+                </li>
             </ul>
             <div class="payment-fields-container">
                 <p><strong>Paso 2:</strong> Sube tu comprobante de pago.</p>
@@ -519,10 +531,11 @@
                 }
             }
 
-            const copyButton = paymentDetailsFormDiv.querySelector('.copy-button');
-            if (copyButton) {
-                copyButton.addEventListener('click', handleCopyButtonClick);
-            }
+            // 🛠️ CORRECCIÓN: Usar querySelectorAll para adjuntar evento a *todos* los botones de copiar
+            const copyButtons = paymentDetailsFormDiv.querySelectorAll('.copy-button'); 
+            copyButtons.forEach(button => { 
+                button.addEventListener('click', handleCopyButtonClick);
+            });
         } else {
             paymentDetailsFormDiv.innerHTML = '<p>Selecciona un método de pago para ver los detalles.</p>';
         }
@@ -538,7 +551,7 @@
         if (textToCopyElement && navigator.clipboard) {
             try {
                 // Usamos textContent en lugar de innerText, ya que el CSS puede ocultar el elemento
-                await navigator.clipboard.writeText(textToCopyElement.textContent);
+                await navigator.clipboard.writeText(textToCopyElement.textContent.trim()); // Usar trim para limpiar espacios
                 if (feedbackElement) {
                     feedbackElement.textContent = '¡Copiado!';
                     feedbackElement.style.display = 'inline-block';
@@ -612,7 +625,7 @@
         const urlParams = new URLSearchParams(window.location.search);
         const status = urlParams.get('status');
 
-        if (status === 'success') {
+        if (status === 'success' || status === 'processing') { // Añadido 'processing' como estado de redirección
             console.log('Detectada redirección de Plisio exitosa. Activando mensaje de procesamiento.');
             
             // 1. Ocultar el formulario de comprobante de pago
@@ -699,7 +712,6 @@
         
         if (!whatsappInput || whatsappInput.value.trim() === '') {
             alert('Por favor, ingresa tu número de WhatsApp para poder contactarte y completar la recarga.');
-            whatsappInput.focus();
             return;
         }
         
