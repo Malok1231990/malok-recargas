@@ -52,7 +52,7 @@ exports.handler = async (event, context) => {
     let data; // URLSearchParams para el cálculo del hash
 
     try {
-        // 2. Intentar parsear como JSON (el formato que Plisio está usando)
+        // 2. Intentar parsear como JSON
         body = JSON.parse(rawBody);
         console.log("TRAZA 2.1: Body parseado exitosamente como JSON.");
         
@@ -60,7 +60,7 @@ exports.handler = async (event, context) => {
         data = new URLSearchParams();
         for (const key in body) {
             if (body.hasOwnProperty(key)) {
-                // Solo añadir si el valor no es null/undefined, y convertir a string
+                // Convertir a string para compatibilidad con URLSearchParams
                 data.append(key, String(body[key])); 
             }
         }
@@ -76,7 +76,8 @@ exports.handler = async (event, context) => {
     // Fin FIX CRÍTICO
 
     // --- OBTENCIÓN DE DATOS CRÍTICOS (CORREGIDO) ---
-    const receivedHash = body.secret || body.api_key; // <--- USAR API_KEY COMO FALLBACK PARA EL HASH
+    // 🔑 Buscar el hash en secret, api_key o hash (el campo más probable en JSON sin secret)
+    const receivedHash = body.secret || body.api_key || body.hash; 
     const invoiceID = body.txn_id; 
     const status = body.status;
 
@@ -84,13 +85,12 @@ exports.handler = async (event, context) => {
     
     // --- 1. VERIFICACIÓN DE SEGURIDAD (Hash de Plisio) ---
     const keys = Array.from(data.keys())
-        // Filtrar 'secret' y 'api_key' ya que NINGUNO de los dos debe estar en el hashString
-        .filter(key => key !== 'secret' && key !== 'api_key') 
+        // 🔑 Filtrar 'secret', 'api_key', y ahora también 'hash' del string de verificación
+        .filter(key => key !== 'secret' && key !== 'api_key' && key !== 'hash') 
         .sort();
         
     let hashString = '';
     keys.forEach(key => {
-        // Obtenemos el valor del URLSearchParams (data)
         hashString += data.get(key); 
     });
     hashString += PLISIO_API_KEY; 
@@ -106,9 +106,9 @@ exports.handler = async (event, context) => {
         return { statusCode: 200, body: "Missing Plisio txn_id." };
     }
     
-    // 🚨 AÑADIDO: Si el hash no se pudo obtener, forzamos un fallo.
     if (!receivedHash) {
-         console.error(`TRAZA 5.2: ERROR: No se recibió ningún hash de seguridad (secret o api_key) para ID: ${invoiceID}.`);
+         // Esta es la línea que falló, ahora con la triple comprobación
+         console.error(`TRAZA 5.2: ERROR: No se recibió ningún hash de seguridad (secret, api_key o hash) para ID: ${invoiceID}.`);
          return { statusCode: 200, body: `Missing Plisio Security Hash.` };
     }
 
