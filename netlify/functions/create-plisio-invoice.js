@@ -4,9 +4,7 @@ const { URLSearchParams } = require('url');
 // 🚨 Importar el cliente de Supabase
 const { createClient } = require('@supabase/supabase-js');
 
-// 💡 FUNCIÓN DE SEGURIDAD: Convierte valores null/undefined a cadena vacía para la BD
-// Mantenemos esta función para que los campos de texto opcionales se inserten como '' en lugar de NULL
-const safeText = (val) => val === undefined || val === null ? '' : val;
+// 💡 Se elimina safeText, se usará || null para los campos opcionales
 
 exports.handler = async (event, context) => {
     console.log("--- INICIO DE EJECUCIÓN DE FUNCIÓN PLISIO (CREACIÓN DE FACTURA) ---");
@@ -45,11 +43,11 @@ exports.handler = async (event, context) => {
     }
     
     let finalAmountUSD = '0.00'; 
-    let finalAmountFloat = 0; // 💡 Para inserción correcta en el tipo NUMERIC
+    let finalAmountFloat = 0; 
     const orderNumber = `MALOK-${Date.now()}`; // Número único de orden inicial (ID_TRANSACCION)
 
     try {
-        // 💡 OBTENCIÓN DE DATOS CONSISTENTE CON process-payment.js
+        // OBTENCIÓN DE DATOS
         const { amount, email, whatsapp, cartDetails } = data; 
 
         // Validaciones básicas
@@ -62,26 +60,25 @@ exports.handler = async (event, context) => {
         if (cartDetails) {
             try {
                 const cartArray = JSON.parse(cartDetails);
-                // 💡 Consistencia: Usamos el primer elemento para rellenar los campos de la tabla de una sola transacción
                 productDetails = cartArray.length > 0 ? cartArray[0] : {};
             } catch (e) {
                 console.error("TRAZA 11.5: Error al parsear cartDetails, usando objeto vacío.", e.message);
             }
         }
         
-        // Mapeo de datos para la base de datos, usando safeText()
-        const game = safeText(productDetails.game);
-        const playerId = safeText(productDetails.playerId);
-        const packageName = safeText(productDetails.packageName);
-        const whatsappNumber = safeText(whatsapp);
+        // Mapeo de datos para la base de datos:
+        // Los campos de texto principal (game, packageName) usan '||' para valores por defecto.
+        const game = productDetails.game || 'Carrito Múltiple';
+        const playerId = productDetails.playerId || null; // 💡 Usar || null para coincidir con manual (si está ausente, será null)
+        const packageName = productDetails.packageName || 'Múltiples Paquetes';
+        const whatsappNumber = whatsapp || null; // 💡 Usar || null
         
-        // Mapeo de campos de credenciales. Usamos || null para los opcionales si safeText() no es deseado, 
-        // pero mantendremos safeText para consistencia con la función anterior.
-        const roblox_email = safeText(productDetails.robloxEmail || productDetails.roblox_email);
-        const roblox_password = safeText(productDetails.robloxPassword || productDetails.roblox_password);
-        const codm_email = safeText(productDetails.codmEmail || productDetails.codm_email);
-        const codm_password = safeText(productDetails.codmPassword || productDetails.codm_password);
-        const codm_vinculation = safeText(productDetails.codmVinculation || productDetails.codm_vinculation);
+        // Mapeo de credenciales: 💡 Usar || null para COINCIDIR con la inserción manual
+        const roblox_email = productDetails.robloxEmail || productDetails.roblox_email || null;
+        const roblox_password = productDetails.robloxPassword || productDetails.roblox_password || null;
+        const codm_email = productDetails.codmEmail || productDetails.codm_email || null;
+        const codm_password = productDetails.codmPassword || productDetails.codm_password || null;
+        const codm_vinculation = productDetails.codmVinculation || productDetails.codm_vinculation || null;
         
         // Cálculo del monto
         const feePercentage = 0.03; 
@@ -98,32 +95,31 @@ exports.handler = async (event, context) => {
         
         console.log(`TRAZA 13: Iniciando inserción de orden PENDIENTE a Supabase... Order_Number: ${orderNumber}`);
         
-        // Usamos el orderNumber como ID_TRANSACCION inicial; el Webhook usará esto para encontrar la fila.
         const { data: insertedData, error: insertError } = await supabase
             .from('transactions')
             .insert([
                 {
-                    id_transaccion: orderNumber, // MALOK-XXXXX
-                    "finalPrice": finalAmountFloat, // 💡 FLOAT
+                    id_transaccion: orderNumber,
+                    "finalPrice": finalAmountFloat,
                     currency: 'USD', 
-                    status: 'PENDIENTE',
+                    // 💡 CORRECCIÓN: Estado en minúscula para consistencia con process-payment.js
+                    status: 'pendiente', 
                     email: email,
                     "whatsappNumber": whatsappNumber,
                     
-                    // 💡 CONSISTENCIA CON process-payment.js
-                    paymentMethod: 'plisio', // Método de pago constante
-                    methodDetails: {}, // Inicialmente vacío o nulo
-                    // receipt_url: null, // No aplica
+                    // 💡 CONSISTENCIA: Insertar campos de método y detalles
+                    paymentMethod: 'plisio', 
+                    methodDetails: {}, // Inicialmente vacío
                     
                     // Campos del producto (tomados del primer ítem)
                     game: game,
                     "playerId": playerId,
                     "packageName": packageName,
-                    roblox_email: roblox_email,
-                    roblox_password: roblox_password,
-                    codm_email: codm_email,
-                    codm_password: codm_password,
-                    codm_vinculation: codm_vinculation,
+                    roblox_email: roblox_email, // ⬅️ Ahora será null si está ausente
+                    roblox_password: roblox_password, // ⬅️ Ahora será null si está ausente
+                    codm_email: codm_email, // ⬅️ Ahora será null si está ausente
+                    codm_password: codm_password, // ⬅️ Ahora será null si está ausente
+                    codm_vinculation: codm_vinculation, // ⬅️ Ahora será null si está ausente
                 }
             ])
             .select();
@@ -161,15 +157,14 @@ exports.handler = async (event, context) => {
         if (plisioData.status === 'success' && plisioData.data && plisioData.data.invoice_url) {
             
             // 🚨 3. ACTUALIZAR ID DE TRANSACCIÓN REAL DE PLISIO
-            // Usamos el TXN_ID de Plisio y guardamos el método y los detalles de pago.
             console.log(`TRAZA 19: Actualizando ID de Transacción de Plisio: ${plisioData.data.txn_id}`);
             await supabase
                 .from('transactions')
                 .update({ 
-                    id_transaccion: plisioData.data.txn_id, // ⬅️ Nuevo ID de Plisio
+                    id_transaccion: plisioData.data.txn_id,
                     currency: 'USD',
-                    "finalPrice": finalAmountFloat, // ⬅️ Asegurar que el precio es el flotante
-                    paymentMethod: 'plisio',
+                    "finalPrice": finalAmountFloat,
+                    // 💡 CONSISTENCIA: Actualizar methodDetails con los datos de Plisio
                     methodDetails: {
                         invoice_id: plisioData.data.invoice_id,
                         address: plisioData.data.wallet_hash,
@@ -178,7 +173,7 @@ exports.handler = async (event, context) => {
                         psys_cid: plisioData.data.psys_cid
                     }
                 })
-                .eq('id_transaccion', orderNumber); // Buscamos por el ID temporal MALOK-XXXXX
+                .eq('id_transaccion', orderNumber);
                 
             console.log("--- FINALIZACIÓN EXITOSA DE FUNCIÓN (Factura Creada y BD Actualizada) ---");
             
@@ -203,10 +198,8 @@ exports.handler = async (event, context) => {
         
         console.error(`TRAZA 21: ERROR DE CONEXIÓN O EJECUCIÓN: ${error.message}`);
         
-        // 🚨 CRÍTICO: Si falló después de la inserción, debemos eliminar la fila PENDIENTE para evitar basura
         if(supabase && orderNumber) {
             console.warn(`TRAZA 22: Limpieza: Intentando eliminar la fila ${orderNumber} de Supabase debido a un fallo.`);
-            // No esperamos la respuesta de eliminación para no bloquear el flujo de error
             supabase.from('transactions').delete().eq('id_transaccion', orderNumber).then(() => {
                 console.log(`TRAZA 22.5: Fila ${orderNumber} eliminada correctamente.`);
             }).catch(cleanError => {
