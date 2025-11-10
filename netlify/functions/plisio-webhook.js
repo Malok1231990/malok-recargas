@@ -130,30 +130,30 @@ exports.handler = async (event, context) => {
         // c) PREPARAR Y ENVIAR LA NOTIFICACIÓN DETALLADA A TELEGRAM
         
         let cartItems = [];
-        // Intentamos parsear cartDetails (si existe en la fila)
-        if (transactionData.cartDetails) {
+        // Intentamos obtener y parsear cartDetails (si existe en la fila y si es una cadena)
+        if (transactionData.cartDetails && typeof transactionData.cartDetails === 'string') {
              try {
+                 // 💡 Se usa el JSON del carrito almacenado
                  cartItems = JSON.parse(transactionData.cartDetails); 
              } catch (e) {
                  console.error("Error al parsear cartDetails de la BD:", e);
-                 // Como fallback, podemos usar los campos directos de la transacción para el mensaje:
-                 cartItems = [{
-                    game: transactionData.game,
-                    packageName: transactionData.packageName,
-                    playerId: transactionData.playerId,
-                    finalPrice: transactionData.finalPrice,
-                    currency: transactionData.currency
-                 }];
+                 // Si falla, se deja cartItems vacío
              }
-        } else {
-             // Si no hay cartDetails, usamos los campos de la transacción directamente
+        } 
+        
+        // 💥 CAMBIO CRÍTICO: Usar el fallback SOLO si cartItems SIGUE vacío.
+        if (!Array.isArray(cartItems) || cartItems.length === 0) {
+             // Si no hay cartDetails o falló el parseo, usamos los campos de la transacción directamente
+             // ESTO ES LO QUE ESTABA CAUSANDO QUE LLEGUE UN SOLO ÍTEM con el precio total.
              cartItems = [{
                 game: transactionData.game,
                 packageName: transactionData.packageName,
                 playerId: transactionData.playerId,
+                // Usamos el precio final total si solo hay un ítem de fallback
                 finalPrice: transactionData.finalPrice,
                 currency: transactionData.currency
              }];
+             console.log("ADVERTENCIA: Usando datos de compatibilidad (producto único) para el mensaje de Telegram.");
         }
         
         let messageText = `✅ *¡PAGO POR PASARELA CONFIRMADO!* (Plisio) ✅\n\n`;
@@ -163,10 +163,11 @@ exports.handler = async (event, context) => {
 
         // Iterar sobre los productos (o el producto único) para el detalle
         cartItems.forEach((item, index) => {
+            // Se asume que los ítems del carrito pueden tener 'priceUSD' o 'finalPrice' (como lo hace process-payment.js)
             if (item.game || item.packageName || item.playerId) {
                 messageText += `*📦 Producto ${cartItems.length > 1 ? index + 1 : ''}:*\n`;
                 
-                // Usamos los campos de la BD o los ítems del carrito
+                // Usamos los campos del ítem del carrito
                 const game = item.game || 'N/A';
                 const packageName = item.packageName || 'N/A';
                 const playerId = item.playerId || 'N/A';
@@ -175,6 +176,8 @@ exports.handler = async (event, context) => {
                 messageText += `📦 Paquete: *${packageName}*\n`;
                 
                 // Lógica de impresión de credenciales y IDs
+                // Para las credenciales, siempre se intenta obtenerlas del ítem del carrito (item)
+                // Si el item es el fallback (un solo producto), usarán los datos de la BD (transactionData)
                 const robloxEmail = item.roblox_email || transactionData.roblox_email;
                 const robloxPassword = item.roblox_password || transactionData.roblox_password;
                 const codmEmail = item.codm_email || transactionData.codm_email;
@@ -192,9 +195,10 @@ exports.handler = async (event, context) => {
                      messageText += `👤 ID de Jugador: *${playerId}*\n`;
                 }
                 
-                // Mostrar precio individual (usamos 'finalPrice' de la BD para esto)
-                const itemPrice = item.finalPrice || item.priceUSD || 'N/A'; 
-                const itemCurrency = item.currency || (item.finalPrice ? transactionData.currency : 'N/A');
+                // Mostrar precio individual. Si estamos en el modo carrito, usamos priceUSD.
+                const itemPrice = item.priceUSD || item.finalPrice || 'N/A'; 
+                // La moneda debería venir del item, si no, se usa la de la BD.
+                const itemCurrency = item.currency || transactionData.currency || 'USD';
 
                 if (itemPrice !== 'N/A' && itemCurrency !== 'N/A') {
                      messageText += `💲 Precio (Est.): ${parseFloat(itemPrice).toFixed(2)} ${itemCurrency}\n`;
