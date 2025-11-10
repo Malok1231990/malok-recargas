@@ -5,6 +5,7 @@ const { URLSearchParams } = require('url');
 const { createClient } = require('@supabase/supabase-js');
 
 // 💡 FUNCIÓN DE SEGURIDAD: Convierte valores null/undefined a cadena vacía para la BD
+// Mantenemos esta función para que los campos de texto opcionales se inserten como '' en lugar de NULL
 const safeText = (val) => val === undefined || val === null ? '' : val;
 
 exports.handler = async (event, context) => {
@@ -25,7 +26,6 @@ exports.handler = async (event, context) => {
     const siteUrlClean = siteUrl.endsWith('/') ? siteUrl.slice(0, -1) : siteUrl;
 
     const callbackUrl = `${siteUrlClean}/.netlify/functions/plisio-webhook?json=true`;
-    // Nota: success_url no necesita todos los parámetros, el webhook se encarga de la confirmación
     const successUrl = `${siteUrlClean}/payment.html?status=processing`; 
     
     console.log(`TRAZA 2: API Key cargada: ${!!apiKey} | Callback URL: ${callbackUrl}`);
@@ -45,11 +45,11 @@ exports.handler = async (event, context) => {
     }
     
     let finalAmountUSD = '0.00'; 
-    let finalAmountFloat = 0; // 💡 Nueva variable para el valor numérico
-    const orderNumber = `MALOK-${Date.now()}`; // Número único de orden para Plisio
+    let finalAmountFloat = 0; // 💡 Para inserción correcta en el tipo NUMERIC
+    const orderNumber = `MALOK-${Date.now()}`; // Número único de orden inicial (ID_TRANSACCION)
 
     try {
-        // 💡 CAMBIO CRÍTICO: Obtener los campos de primer nivel y 'cartDetails'
+        // 💡 OBTENCIÓN DE DATOS CONSISTENTE CON process-payment.js
         const { amount, email, whatsapp, cartDetails } = data; 
 
         // Validaciones básicas
@@ -57,25 +57,26 @@ exports.handler = async (event, context) => {
             return { statusCode: 400, body: JSON.stringify({ message: 'Datos de transacción incompletos o inválidos (monto o email).' }) };
         }
 
-        // 💡 NUEVA LÓGICA: Procesar los detalles del producto anidados en cartDetails
+        // Procesar los detalles del producto anidados en cartDetails
         let productDetails = {};
         if (cartDetails) {
             try {
                 const cartArray = JSON.parse(cartDetails);
-                // Asumimos que el primer elemento del carrito contiene los metadatos importantes
+                // 💡 Consistencia: Usamos el primer elemento para rellenar los campos de la tabla de una sola transacción
                 productDetails = cartArray.length > 0 ? cartArray[0] : {};
             } catch (e) {
                 console.error("TRAZA 11.5: Error al parsear cartDetails, usando objeto vacío.", e.message);
             }
         }
         
-        // 💡 NUEVA LÓGICA: Mapeo de datos para la base de datos, usando safeText()
+        // Mapeo de datos para la base de datos, usando safeText()
         const game = safeText(productDetails.game);
         const playerId = safeText(productDetails.playerId);
         const packageName = safeText(productDetails.packageName);
-        // Asumimos que el frontend envía 'whatsapp'
         const whatsappNumber = safeText(whatsapp);
-        // Mapeo de campos de credenciales, considerando posibles variaciones en el casing
+        
+        // Mapeo de campos de credenciales. Usamos || null para los opcionales si safeText() no es deseado, 
+        // pero mantendremos safeText para consistencia con la función anterior.
         const roblox_email = safeText(productDetails.robloxEmail || productDetails.roblox_email);
         const roblox_password = safeText(productDetails.robloxPassword || productDetails.roblox_password);
         const codm_email = safeText(productDetails.codmEmail || productDetails.codm_email);
@@ -87,9 +88,7 @@ exports.handler = async (event, context) => {
         const amountValue = parseFloat(amount);
         const amountWithFee = amountValue * (1 + feePercentage); 
         
-        // 💡 CORRECCIÓN TIPO DATO: Guardar el flotante para Supabase
         finalAmountFloat = amountWithFee;
-        // El string es solo para la API de Plisio
         finalAmountUSD = amountWithFee.toFixed(2);
         
         console.log(`TRAZA 12: Monto final con comisión (3%): ${finalAmountUSD} USD`);
@@ -104,17 +103,22 @@ exports.handler = async (event, context) => {
             .from('transactions')
             .insert([
                 {
-                    id_transaccion: orderNumber,
-                    // 💡 CORRECCIÓN: Usar el valor flotante para el tipo NUMERIC
-                    "finalPrice": finalAmountFloat, 
-                    currency: 'USD', // Recomendación: Insertar moneda desde el inicio
+                    id_transaccion: orderNumber, // MALOK-XXXXX
+                    "finalPrice": finalAmountFloat, // 💡 FLOAT
+                    currency: 'USD', 
                     status: 'PENDIENTE',
                     email: email,
-                    // ⬅️ Todos estos campos ahora tienen un valor (o '' si no se enviaron)
+                    "whatsappNumber": whatsappNumber,
+                    
+                    // 💡 CONSISTENCIA CON process-payment.js
+                    paymentMethod: 'plisio', // Método de pago constante
+                    methodDetails: {}, // Inicialmente vacío o nulo
+                    // receipt_url: null, // No aplica
+                    
+                    // Campos del producto (tomados del primer ítem)
                     game: game,
                     "playerId": playerId,
                     "packageName": packageName,
-                    "whatsappNumber": whatsappNumber,
                     roblox_email: roblox_email,
                     roblox_password: roblox_password,
                     codm_email: codm_email,
@@ -131,50 +135,50 @@ exports.handler = async (event, context) => {
         
         console.log("TRAZA 14: Inserción exitosa en Supabase. Continuando con Plisio...");
 
-        // --- PAYLOAD FINAL PLISIO ---
+        // --- PAYLOAD FINAL PLISIO (Lógica de API) ---
         const payloadData = {
             api_key: apiKey,
             source_currency: 'USD', 
-            source_amount: finalAmountUSD, // Plisio usa el string
+            source_amount: finalAmountUSD, 
             order_name: "Recarga de Servicios Malok",
-            order_number: orderNumber, // Enviamos el order_number a Plisio
-            
+            order_number: orderNumber,
             allowed_psys_cids: 'USDT_TRX,USDT_BSC', 
-            
             email: email, 
             callback_url: callbackUrl, 
             success_invoice_url: successUrl, 
         };
-        // ----------------------------------------------------
         
         const PLISIO_INVOICES_URL = 'https://api.plisio.net/api/v1/invoices/new'; 
-        
         const queryString = new URLSearchParams(payloadData).toString();
-        
         const PLISIO_FINAL_URL = `${PLISIO_INVOICES_URL}?${queryString}`;
-
 
         console.log("TRAZA 16: Iniciando solicitud GET a Plisio...");
         
         const response = await axios.get(PLISIO_FINAL_URL);
-        
         const plisioData = response.data;
         console.log(`TRAZA 18: Respuesta de Plisio recibida. Status general: ${plisioData.status}`);
 
         if (plisioData.status === 'success' && plisioData.data && plisioData.data.invoice_url) {
             
             // 🚨 3. ACTUALIZAR ID DE TRANSACCIÓN REAL DE PLISIO
-            // Plisio devuelve su propio TXN_ID. Lo guardamos en la fila que acabamos de crear.
+            // Usamos el TXN_ID de Plisio y guardamos el método y los detalles de pago.
             console.log(`TRAZA 19: Actualizando ID de Transacción de Plisio: ${plisioData.data.txn_id}`);
             await supabase
                 .from('transactions')
                 .update({ 
-                    id_transaccion: plisioData.data.txn_id, 
+                    id_transaccion: plisioData.data.txn_id, // ⬅️ Nuevo ID de Plisio
                     currency: 'USD',
-                    // 💡 CORRECCIÓN: Usamos el valor flotante para asegurar la precisión
-                    "finalPrice": finalAmountFloat 
+                    "finalPrice": finalAmountFloat, // ⬅️ Asegurar que el precio es el flotante
+                    paymentMethod: 'plisio',
+                    methodDetails: {
+                        invoice_id: plisioData.data.invoice_id,
+                        address: plisioData.data.wallet_hash,
+                        expected_amount: plisioData.data.expected_amount,
+                        currency: plisioData.data.currency,
+                        psys_cid: plisioData.data.psys_cid
+                    }
                 })
-                .eq('id_transaccion', orderNumber);
+                .eq('id_transaccion', orderNumber); // Buscamos por el ID temporal MALOK-XXXXX
                 
             console.log("--- FINALIZACIÓN EXITOSA DE FUNCIÓN (Factura Creada y BD Actualizada) ---");
             
@@ -187,14 +191,16 @@ exports.handler = async (event, context) => {
                 }),
             };
         } else {
-            // Manejo de error de la API de Plisio que regresa un JSON de error
+            // Manejo de error de la API de Plisio
             const errorMessage = plisioData.data && plisioData.data.message ? `Plisio API Error: ${plisioData.data.message}` : 'Error desconocido de la API de Plisio';
             console.error(`TRAZA 20: ERROR: Fallo al crear factura de Plisio. Respuesta de la API no "success": ${errorMessage}`);
             throw new Error(errorMessage);
         }
 
     } catch (error) {
-        // Diagnóstico para errores de conexión o ejecución
+        // Diagnóstico y limpieza de la fila PENDIENTE en caso de fallo
+        // ... (el código de manejo de errores y limpieza se mantiene igual)
+        
         console.error(`TRAZA 21: ERROR DE CONEXIÓN O EJECUCIÓN: ${error.message}`);
         
         // 🚨 CRÍTICO: Si falló después de la inserción, debemos eliminar la fila PENDIENTE para evitar basura
