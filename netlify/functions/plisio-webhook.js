@@ -97,7 +97,7 @@ exports.handler = async (event, context) => {
             .from('transactions')
             .select('*')
             .eq('id_transaccion', invoiceID)
-            .maybeSingle(); 
+            .maybeSingle(); // Usamos maybeSingle ya que Plisio debería enviar una sola vez un ID
 
         if (fetchError || !transactions) {
              console.error(`ERROR: No se encontró la transacción con id_transaccion: ${invoiceID}. Deteniendo el proceso.`, fetchError);
@@ -111,9 +111,10 @@ exports.handler = async (event, context) => {
             .from('transactions')
             .update({ 
                 status: 'CONFIRMADO', 
+                // Usamos el campo paymentMethod de la BD
                 "paymentMethod": `PLISIO (${body.currency_in || 'N/A'})`, 
                 "completed_at": new Date().toISOString(),
-                "methodDetails": { 
+                "methodDetails": { // Guardamos detalles de Plisio en un campo JSON
                     plisio_txn_id: body.txn_id,
                     plisio_currency_in: body.currency_in,
                     plisio_amount: body.amount,
@@ -129,41 +130,26 @@ exports.handler = async (event, context) => {
         // c) PREPARAR Y ENVIAR LA NOTIFICACIÓN DETALLADA A TELEGRAM
         
         let cartItems = [];
-        
-        // 🚨 LOG para inspección
-        console.log(`LOG CART (RAW): transactionData.cartDetails existe: ${!!transactionData.cartDetails}`);
-        if (transactionData.cartDetails) {
-            console.log(`LOG CART (RAW): Tipo de cartDetails: ${typeof transactionData.cartDetails}`);
-            // Solo loguea un snippet para evitar logs excesivamente largos
-            console.log(`LOG CART (RAW): Snippet: ${String(transactionData.cartDetails).substring(0, 150)}...`); 
-        }
-
-        if (Array.isArray(transactionData.cartDetails)) {
-            // Caso 1: Supabase devolvió un array (JSONB)
-            cartItems = transactionData.cartDetails;
-            console.log(`LOG CART: 'cartDetails' encontrado y usado como Array. Items: ${cartItems.length}`);
-        } else if (transactionData.cartDetails && typeof transactionData.cartDetails === 'string') {
+        // Intentamos obtener y parsear cartDetails (si existe en la fila y si es una cadena)
+        if (transactionData.cartDetails && typeof transactionData.cartDetails === 'string') {
              try {
-                 // Caso 2: Supabase devolvió un string (Columna TEXT o JSONB leída como String)
+                 // 💡 Se usa el JSON del carrito almacenado
                  cartItems = JSON.parse(transactionData.cartDetails); 
-                 console.log(`LOG CART: 'cartDetails' encontrado como String y parseado. Items: ${cartItems.length}`);
              } catch (e) {
-                 console.error("LOG CART: Error al parsear cartDetails de la BD. El string es inválido.", e);
+                 console.error("Error al parsear cartDetails de la BD:", e);
+                 // Si falla, se deja cartItems vacío
              }
-        } else if (transactionData.cartDetails) {
-             console.warn(`LOG CART: 'cartDetails' encontrado, pero no es Array ni String. Tipo: ${typeof transactionData.cartDetails}.`);
-        } else {
-             console.warn("LOG CART: 'cartDetails' no encontrado en la fila de Supabase (null/undefined).");
-        }
-
-
-        // 💥 Se usa el fallback si no se pudo cargar el array del carrito.
+        } 
+        
+        // 💥 CAMBIO CRÍTICO: Usar el fallback SOLO si cartItems SIGUE vacío.
         if (!Array.isArray(cartItems) || cartItems.length === 0) {
              // Si no hay cartDetails o falló el parseo, usamos los campos de la transacción directamente
+             // ESTO ES LO QUE ESTABA CAUSANDO QUE LLEGUE UN SOLO ÍTEM con el precio total.
              cartItems = [{
                 game: transactionData.game,
                 packageName: transactionData.packageName,
                 playerId: transactionData.playerId,
+                // Usamos el precio final total si solo hay un ítem de fallback
                 finalPrice: transactionData.finalPrice,
                 currency: transactionData.currency
              }];
@@ -177,9 +163,11 @@ exports.handler = async (event, context) => {
 
         // Iterar sobre los productos (o el producto único) para el detalle
         cartItems.forEach((item, index) => {
+            // Se asume que los ítems del carrito pueden tener 'priceUSD' o 'finalPrice' (como lo hace process-payment.js)
             if (item.game || item.packageName || item.playerId) {
                 messageText += `*📦 Producto ${cartItems.length > 1 ? index + 1 : ''}:*\n`;
                 
+                // Usamos los campos del ítem del carrito
                 const game = item.game || 'N/A';
                 const packageName = item.packageName || 'N/A';
                 const playerId = item.playerId || 'N/A';
@@ -187,6 +175,9 @@ exports.handler = async (event, context) => {
                 messageText += `🎮 Juego/Servicio: *${game}*\n`;
                 messageText += `📦 Paquete: *${packageName}*\n`;
                 
+                // Lógica de impresión de credenciales y IDs
+                // Para las credenciales, siempre se intenta obtenerlas del ítem del carrito (item)
+                // Si el item es el fallback (un solo producto), usarán los datos de la BD (transactionData)
                 const robloxEmail = item.roblox_email || transactionData.roblox_email;
                 const robloxPassword = item.roblox_password || transactionData.roblox_password;
                 const codmEmail = item.codm_email || transactionData.codm_email;
@@ -204,7 +195,9 @@ exports.handler = async (event, context) => {
                      messageText += `👤 ID de Jugador: *${playerId}*\n`;
                 }
                 
+                // Mostrar precio individual. Si estamos en el modo carrito, usamos priceUSD.
                 const itemPrice = item.priceUSD || item.finalPrice || 'N/A'; 
+                // La moneda debería venir del item, si no, se usa la de la BD.
                 const itemCurrency = item.currency || transactionData.currency || 'USD';
 
                 if (itemPrice !== 'N/A' && itemCurrency !== 'N/A') {
@@ -217,13 +210,14 @@ exports.handler = async (event, context) => {
 
         // Información de Pago y Contacto (Global)
         messageText += `\n*RESUMEN DE PAGO (Plisio)*\n`;
+        // Usamos el monto de Plisio (body.amount) que es el pagado
         messageText += `💰 *TOTAL PAGADO:* *${body.amount || 'N/A'} ${body.currency_out || 'N/A'}* (En ${body.currency_in || 'N/A'})\n`;
         messageText += `💳 Método de Pago: *PLISIO (${body.psys_cid || 'Cripto'})*\n`;
         messageText += `🆔 TXID Plisio: \`${body.txn_id || 'N/A'}\`\n`;
         
         messageText += `\n*DATOS DEL CLIENTE*\n`;
         messageText += `📧 Correo Cliente: ${transactionData.email || 'N/A'}\n`;
-        if (transactionData.whatsappNumber) { 
+        if (transactionData.whatsappNumber) { // Nombre de columna exacto
             messageText += `📱 WhatsApp Cliente: ${transactionData.whatsappNumber}\n`;
         }
 
