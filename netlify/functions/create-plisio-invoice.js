@@ -4,7 +4,7 @@ const { URLSearchParams } = require('url');
 // 🚨 Importar el cliente de Supabase
 const { createClient } = require('@supabase/supabase-js');
 
-// 💡 Se elimina safeText, se usará || null para los campos opcionales
+// Se elimina safeText, se usará || null para los campos opcionales
 
 exports.handler = async (event, context) => {
     console.log("--- INICIO DE EJECUCIÓN DE FUNCIÓN PLISIO (CREACIÓN DE FACTURA) ---");
@@ -67,13 +67,12 @@ exports.handler = async (event, context) => {
         }
         
         // Mapeo de datos para la base de datos:
-        // Los campos de texto principal (game, packageName) usan '||' para valores por defecto.
         const game = productDetails.game || 'Carrito Múltiple';
-        const playerId = productDetails.playerId || null; // 💡 Usar || null para coincidir con manual (si está ausente, será null)
+        const playerId = productDetails.playerId || null;
         const packageName = productDetails.packageName || 'Múltiples Paquetes';
-        const whatsappNumber = whatsapp || null; // 💡 Usar || null
+        const whatsappNumber = whatsapp || null;
         
-        // Mapeo de credenciales: 💡 Usar || null para COINCIDIR con la inserción manual
+        // Mapeo de credenciales: Usar || null para COINCIDIR con la inserción manual
         const roblox_email = productDetails.robloxEmail || productDetails.roblox_email || null;
         const roblox_password = productDetails.robloxPassword || productDetails.roblox_password || null;
         const codm_email = productDetails.codmEmail || productDetails.codm_email || null;
@@ -95,31 +94,29 @@ exports.handler = async (event, context) => {
         
         console.log(`TRAZA 13: Iniciando inserción de orden PENDIENTE a Supabase... Order_Number: ${orderNumber}`);
         
+        // Usamos el orderNumber como ID_TRANSACCION inicial; este es el ID que queremos mantener (MALOK-XXXXX).
         const { data: insertedData, error: insertError } = await supabase
             .from('transactions')
             .insert([
                 {
-                    id_transaccion: orderNumber,
+                    id_transaccion: orderNumber, // ⬅️ ¡Se inserta MALOK-XXXXX!
                     "finalPrice": finalAmountFloat,
                     currency: 'USD', 
-                    // 💡 CORRECCIÓN: Estado en minúscula para consistencia con process-payment.js
                     status: 'pendiente', 
                     email: email,
                     "whatsappNumber": whatsappNumber,
                     
-                    // 💡 CONSISTENCIA: Insertar campos de método y detalles
                     paymentMethod: 'plisio', 
                     methodDetails: {}, // Inicialmente vacío
                     
-                    // Campos del producto (tomados del primer ítem)
                     game: game,
                     "playerId": playerId,
                     "packageName": packageName,
-                    roblox_email: roblox_email, // ⬅️ Ahora será null si está ausente
-                    roblox_password: roblox_password, // ⬅️ Ahora será null si está ausente
-                    codm_email: codm_email, // ⬅️ Ahora será null si está ausente
-                    codm_password: codm_password, // ⬅️ Ahora será null si está ausente
-                    codm_vinculation: codm_vinculation, // ⬅️ Ahora será null si está ausente
+                    roblox_email: roblox_email,
+                    roblox_password: roblox_password,
+                    codm_email: codm_email,
+                    codm_password: codm_password,
+                    codm_vinculation: codm_vinculation,
                 }
             ])
             .select();
@@ -137,7 +134,7 @@ exports.handler = async (event, context) => {
             source_currency: 'USD', 
             source_amount: finalAmountUSD, 
             order_name: "Recarga de Servicios Malok",
-            order_number: orderNumber,
+            order_number: orderNumber, // Enviamos MALOK-XXXXX como número de orden a Plisio
             allowed_psys_cids: 'USDT_TRX,USDT_BSC', 
             email: email, 
             callback_url: callbackUrl, 
@@ -156,16 +153,17 @@ exports.handler = async (event, context) => {
 
         if (plisioData.status === 'success' && plisioData.data && plisioData.data.invoice_url) {
             
-            // 🚨 3. ACTUALIZAR ID DE TRANSACCIÓN REAL DE PLISIO
-            console.log(`TRAZA 19: Actualizando ID de Transacción de Plisio: ${plisioData.data.txn_id}`);
+            // 🚨 3. ACTUALIZAR DETALLES: Mantenemos el ID de transacción MALOK-XXXXX
+            console.log(`TRAZA 19: Actualizando detalles de Plisio (TXN_ID: ${plisioData.data.txn_id})`);
+            
+            // 💡 CAMBIO CRÍTICO: NO se actualiza id_transaccion. Se guarda plisioData.data.txn_id en methodDetails.
             await supabase
                 .from('transactions')
                 .update({ 
-                    id_transaccion: plisioData.data.txn_id,
                     currency: 'USD',
                     "finalPrice": finalAmountFloat,
-                    // 💡 CONSISTENCIA: Actualizar methodDetails con los datos de Plisio
                     methodDetails: {
+                        plisio_txn_id: plisioData.data.txn_id, // ⬅️ Guardamos el ID de Plisio aquí
                         invoice_id: plisioData.data.invoice_id,
                         address: plisioData.data.wallet_hash,
                         expected_amount: plisioData.data.expected_amount,
@@ -173,7 +171,7 @@ exports.handler = async (event, context) => {
                         psys_cid: plisioData.data.psys_cid
                     }
                 })
-                .eq('id_transaccion', orderNumber);
+                .eq('id_transaccion', orderNumber); // Buscamos por el ID MALOK-XXXXX
                 
             console.log("--- FINALIZACIÓN EXITOSA DE FUNCIÓN (Factura Creada y BD Actualizada) ---");
             
@@ -182,7 +180,8 @@ exports.handler = async (event, context) => {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     chargeUrl: plisioData.data.invoice_url, 
-                    chargeId: plisioData.data.txn_id, 
+                    // 💡 Enviamos el ID temporal MALOK-XXXXX de vuelta al frontend para el tracking
+                    chargeId: orderNumber, 
                 }),
             };
         } else {
@@ -194,7 +193,6 @@ exports.handler = async (event, context) => {
 
     } catch (error) {
         // Diagnóstico y limpieza de la fila PENDIENTE en caso de fallo
-        // ... (el código de manejo de errores y limpieza se mantiene igual)
         
         console.error(`TRAZA 21: ERROR DE CONEXIÓN O EJECUCIÓN: ${error.message}`);
         
