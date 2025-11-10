@@ -31,13 +31,14 @@ exports.handler = async (event, context) => {
         return { statusCode: 500, body: "Error de configuración." };
     }
     
-    // --- 🔑 FIX CRÍTICO: Decodificación Base64 del Body ---
-    let requestBody = event.body;
+    // --- 🔑 FIX CRÍTICO: Decodificación y Parseo del Body (SOPORTE JSON) ---
+    let rawBody = event.body;
     console.log(`TRAZA 1: event.isBase64Encoded es: ${event.isBase64Encoded}.`);
     
+    // 1. Decodificar Base64 si es necesario
     if (event.isBase64Encoded) {
         try {
-            requestBody = Buffer.from(event.body, 'base64').toString('utf8');
+            rawBody = Buffer.from(event.body, 'base64').toString('utf8');
             console.log("TRAZA 1.1: Body decodificado de Base64 exitosamente."); 
         } catch (e) {
             console.error("TRAZA 1.2: ERROR FATAL al decodificar Base64.", e);
@@ -45,21 +46,38 @@ exports.handler = async (event, context) => {
         }
     }
     
-    console.log(`TRAZA 2: Body (decodificado/raw) para URLSearchParams: ${requestBody.substring(0, 100)}...`);
+    console.log(`TRAZA 2: Body (raw) para parsear: ${rawBody.substring(0, 100)}...`);
 
-    // Parseamos el cuerpo (URL-encoded) en un objeto URLSearchParams
-    const data = new URLSearchParams(requestBody);
+    let body = {}; // Objeto final con los datos
+    let data; // URLSearchParams para el cálculo del hash (Paso 2)
 
-    // Creamos el objeto 'body' para mantener la compatibilidad con el resto del código
-    const body = {};
-    for (const [key, value] of data.entries()) {
-        body[key] = value;
+    try {
+        // 2. Intentar parsear como JSON (el formato que Plisio está usando)
+        body = JSON.parse(rawBody);
+        console.log("TRAZA 2.1: Body parseado exitosamente como JSON.");
+        
+        // Re-crear URLSearchParams 'data' a partir del objeto JSON para el hash
+        data = new URLSearchParams();
+        for (const key in body) {
+            if (body.hasOwnProperty(key)) {
+                data.append(key, body[key]);
+            }
+        }
+        
+    } catch (e) {
+        // 3. Fallback: Si no es JSON, asumir URL-encoded (el código original)
+        console.warn("TRAZA 2.2: Fallo al parsear JSON. Asumiendo URL-encoded.");
+        data = new URLSearchParams(rawBody);
+        for (const [key, value] of data.entries()) {
+            body[key] = value;
+        }
     }
-    
-    // --- OBTENCIÓN DE DATOS CRÍTICOS (Usando data.get()) ---
-    const receivedHash = data.get('secret'); 
-    const invoiceID = data.get('txn_id'); 
-    const status = data.get('status');
+    // Fin FIX CRÍTICO
+
+    // --- OBTENCIÓN DE DATOS CRÍTICOS (Usando el objeto 'body' parseado) ---
+    const receivedHash = body.secret; 
+    const invoiceID = body.txn_id; 
+    const status = body.status;
 
     console.log(`TRAZA 3: Variables de Plisio obtenidas: ID=${invoiceID}, Status=${status}, Hash=${receivedHash ? receivedHash.substring(0, 5) + '...' : 'N/A'}`);
     
@@ -71,6 +89,8 @@ exports.handler = async (event, context) => {
         
     let hashString = '';
     keys.forEach(key => {
+        // 💡 Importante: Usamos el objeto 'data' (URLSearchParams) para obtener los valores 
+        // porque garantiza que el cálculo sea idéntico a la especificación de Plisio.
         hashString += data.get(key); 
     });
     hashString += PLISIO_API_KEY; 
@@ -94,7 +114,7 @@ exports.handler = async (event, context) => {
     console.log(`TRAZA 7: Webhook de Plisio verificado exitosamente para ID: ${invoiceID}, Estado: ${status}`);
     
     // ----------------------------------------------------------------------
-    // --- 2. PROCESAMIENTO DEL PAGO CONFIRMADO ---
+    // --- 2. PROCESAMIENTO DEL PAGO CONFIRMADO (RESTO DEL CÓDIGO) ---
     // ----------------------------------------------------------------------
     
     if (status !== 'completed' && status !== 'amount_check') {
@@ -195,9 +215,10 @@ exports.handler = async (event, context) => {
         }
         
         let messageText = `✅ *¡PAGO POR PASARELA CONFIRMADO!* (Plisio) ✅\n\n`;
-        // ... (El resto de la construcción del mensaje permanece igual)
+        messageText += `*ID de Transacción:* \`${invoiceID || 'N/A'}\`\n`;
+        messageText += `*Estado:* \`CONFIRMADO\`\n`;
+        messageText += `------------------------------------------------\n`;
 
-        // Iterar sobre los productos (o el producto único) para el detalle
         cartItems.forEach((item, index) => {
             if (item.game || item.packageName || item.playerId) {
                 messageText += `*📦 Producto ${cartItems.length > 1 ? index + 1 : ''}:*\n`;
