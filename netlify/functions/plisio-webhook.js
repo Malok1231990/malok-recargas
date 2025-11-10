@@ -31,7 +31,7 @@ exports.handler = async (event, context) => {
         return { statusCode: 500, body: "Error de configuración." };
     }
     
-    // --- 🔑 FIX CRÍTICO: Decodificación y Parseo del Body (SOPORTE JSON) ---
+    // --- FIX CRÍTICO: Decodificación y Parseo del Body (SOPORTE JSON) ---
     let rawBody = event.body;
     console.log(`TRAZA 1: event.isBase64Encoded es: ${event.isBase64Encoded}.`);
     
@@ -49,7 +49,7 @@ exports.handler = async (event, context) => {
     console.log(`TRAZA 2: Body (raw) para parsear: ${rawBody.substring(0, 100)}...`);
 
     let body = {}; // Objeto final con los datos
-    let data; // URLSearchParams para el cálculo del hash (Paso 2)
+    let data; // URLSearchParams para el cálculo del hash
 
     try {
         // 2. Intentar parsear como JSON (el formato que Plisio está usando)
@@ -60,12 +60,13 @@ exports.handler = async (event, context) => {
         data = new URLSearchParams();
         for (const key in body) {
             if (body.hasOwnProperty(key)) {
-                data.append(key, body[key]);
+                // Solo añadir si el valor no es null/undefined, y convertir a string
+                data.append(key, String(body[key])); 
             }
         }
         
     } catch (e) {
-        // 3. Fallback: Si no es JSON, asumir URL-encoded (el código original)
+        // 3. Fallback: Si no es JSON, asumir URL-encoded
         console.warn("TRAZA 2.2: Fallo al parsear JSON. Asumiendo URL-encoded.");
         data = new URLSearchParams(rawBody);
         for (const [key, value] of data.entries()) {
@@ -74,23 +75,22 @@ exports.handler = async (event, context) => {
     }
     // Fin FIX CRÍTICO
 
-    // --- OBTENCIÓN DE DATOS CRÍTICOS (Usando el objeto 'body' parseado) ---
-    const receivedHash = body.secret; 
+    // --- OBTENCIÓN DE DATOS CRÍTICOS (CORREGIDO) ---
+    const receivedHash = body.secret || body.api_key; // <--- USAR API_KEY COMO FALLBACK PARA EL HASH
     const invoiceID = body.txn_id; 
     const status = body.status;
 
-    console.log(`TRAZA 3: Variables de Plisio obtenidas: ID=${invoiceID}, Status=${status}, Hash=${receivedHash ? receivedHash.substring(0, 5) + '...' : 'N/A'}`);
+    console.log(`TRAZA 3: Variables de Plisio obtenidas: ID=${invoiceID}, Status=${status}, Hash recibido=${receivedHash ? receivedHash.substring(0, 5) + '...' : 'N/A'}`);
     
     // --- 1. VERIFICACIÓN DE SEGURIDAD (Hash de Plisio) ---
     const keys = Array.from(data.keys())
-        // Filtrar 'secret' (el hash que recibimos) y 'api_key'
+        // Filtrar 'secret' y 'api_key' ya que NINGUNO de los dos debe estar en el hashString
         .filter(key => key !== 'secret' && key !== 'api_key') 
         .sort();
         
     let hashString = '';
     keys.forEach(key => {
-        // 💡 Importante: Usamos el objeto 'data' (URLSearchParams) para obtener los valores 
-        // porque garantiza que el cálculo sea idéntico a la especificación de Plisio.
+        // Obtenemos el valor del URLSearchParams (data)
         hashString += data.get(key); 
     });
     hashString += PLISIO_API_KEY; 
@@ -105,9 +105,15 @@ exports.handler = async (event, context) => {
         console.error("TRAZA 5.1: ERROR: No se pudo obtener el ID de Transacción (txn_id) de Plisio. Deteniendo.");
         return { statusCode: 200, body: "Missing Plisio txn_id." };
     }
+    
+    // 🚨 AÑADIDO: Si el hash no se pudo obtener, forzamos un fallo.
+    if (!receivedHash) {
+         console.error(`TRAZA 5.2: ERROR: No se recibió ningún hash de seguridad (secret o api_key) para ID: ${invoiceID}.`);
+         return { statusCode: 200, body: `Missing Plisio Security Hash.` };
+    }
 
     if (generatedHash !== receivedHash) {
-        console.error(`TRAZA 6: ERROR: Firma de Webhook de Plisio INVÁLIDA para ID: ${invoiceID}.`);
+        console.error(`TRAZA 6: ERROR: Firma de Webhook de Plisio INVÁLIDA para ID: ${invoiceID}. Generated Hash: ${generatedHash}. Received Hash: ${receivedHash}.`);
         return { statusCode: 200, body: `Invalid Plisio Hash.` }; 
     }
     
@@ -124,7 +130,6 @@ exports.handler = async (event, context) => {
         if (status === 'mismatch' || status === 'expired' || status === 'error') {
              updateData.status = `FALLO: ${status.toUpperCase()} (PLISIO)`;
         } else {
-             // Ignoramos estados como 'waiting', 'pending'
              console.log("TRAZA 8.1: Estado intermedio o irrelevante. Fin.");
              return { statusCode: 200, body: "Webhook processed, no action needed for this status." };
         }
