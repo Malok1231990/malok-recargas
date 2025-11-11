@@ -39,7 +39,7 @@ exports.handler = async (event, context) => {
             const transactionId = callbackData.replace(transactionPrefix, '');
             const NEW_STATUS = 'REALIZADA'; // El estado final de la recarga completada
             
-            console.log(`Callback recibido: Intentando marcar transacción ${transactionId} como ${NEW_STATUS}.`);
+            console.log(`LOG: Callback recibido: Intentando marcar transacción ${transactionId} como ${NEW_STATUS}.`);
 
             try {
                 
@@ -76,25 +76,34 @@ exports.handler = async (event, context) => {
                     console.log(`LOG: Intentando inyectar $${amountToInject.toFixed(2)} a 'user_id' ${google_id} en tabla 'saldos'.`);
 
                     // 🚨 VERIFICACIÓN: El valor que causó error fue 'saldo_usd + 64000'. El método RAW/SQL es el único que debería funcionar.
-                    const updateExpression = `saldo_usd + ${amountToInject}`;
-                    console.log(`LOG: Expresión de actualización SQL a usar: ${updateExpression}`);
-
-
-                    const { error: balanceUpdateError } = await supabase
-                        .from('saldos')
-                        // Incrementa el saldo_usd actual con el monto de la transacción
-                        .update({ 
-                            // 🔑 VOLVEMOS A RAW: Esta es la sintaxis correcta. Si falla, el problema es la versión de la librería.
-                            saldo_usd: supabase.raw('saldo_usd + ??', [amountToInject])
-                        })
-                        // Usamos 'user_id' que es la clave en la tabla 'saldos'
-                        .eq('user_id', google_id); 
+                    // Si RAW/SQL fallan, la forma más limpia es usar la función de base de datos.
+                    // Probaremos la sintaxis de función `increment` que suele estar disponible.
+                    
+                    try {
+                        console.log(`LOG: Intentando llamar a función de PostgREST para incremento de saldo.`);
                         
-                    if (balanceUpdateError) {
-                        console.error(`ERROR DB: Fallo al inyectar saldo a ${google_id}. Mensaje: ${balanceUpdateError.message}.`);
-                        injectionMessage = `\n\n❌ **ERROR CRÍTICO AL INYECTAR SALDO:** No se pudo actualizar la billetera del cliente (${google_id}). \n\n${balanceUpdateError.message}`;
-                        // Si la inyección falla, lanzamos un error para que el 'catch' lo maneje y alerte al operador.
-                        throw new Error("Fallo en la inyección de saldo.");
+                        const { error: balanceUpdateError } = await supabase
+                            .from('saldos')
+                            // Incrementa el saldo_usd actual con el monto de la transacción
+                            .update({ 
+                                // 🔑 CORRECCIÓN FINAL: Usamos la función de 'set' para asegurar que la expresión se evalúe.
+                                // Requerimos que `amountToInject` sea una cadena con signo.
+                                saldo_usd: supabase.fn('increment', 'saldo_usd', amountToInject)
+                            })
+                            // Usamos 'user_id' que es la clave en la tabla 'saldos'
+                            .eq('user_id', google_id); 
+                            
+                        if (balanceUpdateError) {
+                            console.error(`ERROR DB: Fallo al inyectar saldo a ${google_id}. Mensaje: ${balanceUpdateError.message}.`);
+                            injectionMessage = `\n\n❌ **ERROR CRÍTICO AL INYECTAR SALDO:** No se pudo actualizar la billetera del cliente (${google_id}). \n\n${balanceUpdateError.message}`;
+                            // Si la inyección falla, lanzamos un error para que el 'catch' lo maneje y alerte al operador.
+                            throw new Error("Fallo en la inyección de saldo.");
+                        }
+                        
+                    } catch (e) {
+                         // Si la función `fn` no existe, esto también fallará. Capturamos y lanzamos un error detallado.
+                         console.error("ERROR CRITICO: La función supabase.fn falló o no existe.", e.message);
+                         throw new Error(`Falló la inyección atómica. Intente la solución RPC en base de datos. Error: ${e.message}`);
                     }
                     
                     console.log(`LOG: Inyección de saldo exitosa para ${google_id}.`);
