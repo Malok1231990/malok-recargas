@@ -4,6 +4,7 @@ const axios = require('axios');
 
 exports.handler = async (event, context) => {
     if (event.httpMethod !== "POST") {
+        console.log("Method Not Allowed: Expected POST.");
         return { statusCode: 405, body: "Method Not Allowed" };
     }
 
@@ -13,7 +14,7 @@ exports.handler = async (event, context) => {
     const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 
     if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY || !TELEGRAM_BOT_TOKEN) {
-        console.error("Faltan variables de entorno esenciales.");
+        console.error("FATAL ERROR: Faltan variables de entorno esenciales.");
         return { statusCode: 500, body: "Error de configuración." };
     }
 
@@ -43,22 +44,24 @@ exports.handler = async (event, context) => {
             try {
                 
                 // 2. BUSCAR LA TRANSACCIÓN para obtener datos clave (google_id, finalPrice y status)
+                console.log(`LOG: Buscando datos para transacción ${transactionId} en tabla 'transactions'.`);
                 const { data: transactionData, error: fetchError } = await supabase
                     .from('transactions')
-                    // 🎯 CORRECCIÓN 1: Usamos "finalPrice" que es la columna de monto
                     .select('status, google_id, "finalPrice"') 
                     .eq('id_transaccion', transactionId)
                     .maybeSingle();
 
                 if (fetchError || !transactionData) {
-                    console.error(`Error al buscar transacción: ${transactionId}`, fetchError ? fetchError.message : 'No encontrada');
+                    console.error(`ERROR DB: Fallo al buscar la transacción ${transactionId}.`, fetchError ? fetchError.message : 'No encontrada');
                     await sendTelegramAlert(TELEGRAM_BOT_TOKEN, chatId, `❌ Error: No se encontró la transacción ${transactionId}.`, messageId);
                     return { statusCode: 200, body: "Processed" };
                 }
 
-                // 🎯 CORRECCIÓN 2: Usamos 'finalPrice' en la desestructuración de datos
+                // Usamos 'finalPrice' en la desestructuración de datos
                 const { status: currentStatus, google_id, "finalPrice": finalPrice } = transactionData;
                 const amountToInject = parseFloat(finalPrice);
+
+                console.log(`LOG: Datos de transacción obtenidos: Cliente ID ${google_id}, Monto $${amountToInject.toFixed(2)}, Estado actual ${currentStatus}.`);
                 
                 let injectionMessage = ""; // Para el mensaje final de Telegram
                 
@@ -68,34 +71,40 @@ exports.handler = async (event, context) => {
                 } else if (!google_id || isNaN(amountToInject) || amountToInject <= 0) {
                     // Validaciones básicas para inyección
                     injectionMessage = `\n\n❌ **ERROR DE INYECCIÓN DE SALDO:** Datos incompletos (Google ID: ${google_id}, Monto: ${finalPrice}). **¡REVISIÓN MANUAL REQUERIDA!**`;
-                    // Aunque la inyección falló, continuamos a marcar la transacción como REALIZADA para no perder el registro del trabajo del operador.
                 } else {
                     // 4. INYECTAR SALDO AL CLIENTE (Actualización atómica en la tabla 'saldos')
-                    console.log(`Intentando inyectar $${amountToInject.toFixed(2)} a la billetera de ${google_id}.`);
+                    console.log(`LOG: Intentando inyectar $${amountToInject.toFixed(2)} a 'user_id' ${google_id} en tabla 'saldos'.`);
+
+                    // 🚨 VERIFICACIÓN: El valor que causó error fue 'saldo_usd + 64000'. El método RAW/SQL es el único que debería funcionar.
+                    const updateExpression = `saldo_usd + ${amountToInject}`;
+                    console.log(`LOG: Expresión de actualización SQL a usar: ${updateExpression}`);
+
 
                     const { error: balanceUpdateError } = await supabase
                         .from('saldos')
                         // Incrementa el saldo_usd actual con el monto de la transacción
                         .update({ 
-                            // Usamos supabase.raw para una actualización atómica segura (saldo_usd = saldo_usd + monto)
-                            saldo_usd: `saldo_usd + ${amountToInject}`
+                            // 🔑 VOLVEMOS A RAW: Esta es la sintaxis correcta. Si falla, el problema es la versión de la librería.
+                            saldo_usd: supabase.raw('saldo_usd + ??', [amountToInject])
                         })
-                        // 🔑 CORRECCIÓN 3: Usamos 'user_id' que es la clave en la tabla 'saldos'
+                        // Usamos 'user_id' que es la clave en la tabla 'saldos'
                         .eq('user_id', google_id); 
                         
                     if (balanceUpdateError) {
-                        console.error(`Error al inyectar saldo a ${google_id}:`, balanceUpdateError.message);
+                        console.error(`ERROR DB: Fallo al inyectar saldo a ${google_id}. Mensaje: ${balanceUpdateError.message}.`);
                         injectionMessage = `\n\n❌ **ERROR CRÍTICO AL INYECTAR SALDO:** No se pudo actualizar la billetera del cliente (${google_id}). \n\n${balanceUpdateError.message}`;
                         // Si la inyección falla, lanzamos un error para que el 'catch' lo maneje y alerte al operador.
                         throw new Error("Fallo en la inyección de saldo.");
                     }
                     
+                    console.log(`LOG: Inyección de saldo exitosa para ${google_id}.`);
                     injectionMessage = `\n\n💰 **INYECCIÓN DE SALDO EXITOSA:** Se inyectaron **$${amountToInject.toFixed(2)} USD** a la billetera del cliente (\`${google_id}\`).`;
                 }
 
 
                 // 5. ACTUALIZACIÓN DEL ESTADO (Solo si no estaba ya en REALIZADA, y si la inyección fue exitosa o no aplicaba)
                 if (currentStatus !== NEW_STATUS) {
+                    console.log(`LOG: Actualizando estado de transacción ${transactionId} a ${NEW_STATUS}.`);
                     const { error: updateError } = await supabase
                         .from('transactions')
                         .update({ 
@@ -106,13 +115,14 @@ exports.handler = async (event, context) => {
                         .in('status', ['pendiente', 'CONFIRMADO']); 
                     
                     if (updateError) {
-                        console.error(`Error al actualizar el estado a ${NEW_STATUS}:`, updateError.message);
+                        console.error(`ERROR DB: Fallo al actualizar el estado a ${NEW_STATUS}.`, updateError.message);
                         // Añadimos la advertencia al mensaje de inyección
                         injectionMessage += `\n\n⚠️ **ADVERTENCIA:** Fallo al actualizar el estado de la transacción: ${updateError.message}`;
                     }
                 }
 
                 // 6. CONFIRMACIÓN Y EDICIÓN DEL MENSAJE DE TELEGRAM
+                console.log("LOG: Editando mensaje de Telegram.");
                 
                 // Creamos el marcador de estado final para añadir al final del texto original
                 const statusMarker = `\n\n------------------------------------------------\n` +
@@ -132,7 +142,7 @@ exports.handler = async (event, context) => {
                 
             } catch (e) {
                 // Error capturado del fallo de inyección de saldo o cualquier otro error fatal
-                console.error("Error FATAL en callback_query handler:", e.message);
+                console.error("ERROR FATAL en callback_query handler (Catch block):", e.message);
                 // Enviamos una alerta crítica y editamos el mensaje original para indicar el fallo
                 await editTelegramMessage(
                     TELEGRAM_BOT_TOKEN, chatId, messageId, 
@@ -161,9 +171,9 @@ async function editTelegramMessage(token, chatId, messageId, text, replyMarkup) 
             parse_mode: 'Markdown',
             reply_markup: replyMarkup // Si es {}, elimina el botón
         });
-        console.log("Mensaje de Telegram editado exitosamente.");
+        //console.log("Mensaje de Telegram editado exitosamente."); // Log de éxito
     } catch (error) {
-        console.error("Fallo al editar mensaje de Telegram.", error.response ? error.response.data : error.message);
+        console.error("ERROR TELEGRAM: Fallo al editar mensaje de Telegram.", error.response ? error.response.data : error.message);
     }
 }
 
@@ -177,6 +187,6 @@ async function sendTelegramAlert(token, chatId, text, replyToMessageId = null) {
             reply_to_message_id: replyToMessageId 
         });
     } catch (error) {
-        console.error("Fallo al enviar alerta de Telegram.", error.response ? error.response.data : error.message);
+        console.error("ERROR TELEGRAM: Fallo al enviar alerta de Telegram.", error.response ? error.response.data : error.message);
     }
 }
