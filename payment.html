@@ -624,10 +624,19 @@
         // 🟢 NUEVA LÓGICA: DETECCIÓN DE REDIRECCIÓN DE PLISIO (FLUSO AUTOMÁTICO)
         const urlParams = new URLSearchParams(window.location.search);
         const status = urlParams.get('status');
+        
+        // 🛑 ELEMENTOS A OCULTAR
+        const h2Title = document.querySelector('.form-container h2');
+        const transactionSummary = document.getElementById('transaction-summary');
 
         if (status === 'success' || status === 'processing') { // Añadido 'processing' como estado de redirección
             console.log('Detectada redirección de Plisio exitosa. Activando mensaje de procesamiento.');
             
+            // 🛑 NUEVAS LÍNEAS AÑADIDAS PARA OCULTAR ELEMENTOS
+            if (h2Title) h2Title.style.display = 'none';
+            if (transactionSummary) transactionSummary.style.display = 'none';
+            // 🛑 FIN NUEVAS LÍNEAS
+
             // 1. Ocultar el formulario de comprobante de pago
             if (paymentForm) paymentForm.style.display = 'none';
             
@@ -717,6 +726,14 @@
         
         // Lógica especial para recargas asistidas (no se envían al backend)
         if (isAssistedFlow()) { 
+            
+            // 🛑 NUEVAS LÍNEAS AÑADIDAS PARA OCULTAR ELEMENTOS
+            const h2Title = document.querySelector('.form-container h2');
+            const transactionSummary = document.getElementById('transaction-summary');
+            if (h2Title) h2Title.style.display = 'none';
+            if (transactionSummary) transactionSummary.style.display = 'none';
+            // 🛑 FIN NUEVAS LÍNEAS
+
             // Simplemente oculta el formulario y muestra el mensaje de éxito temporal.
             paymentForm.style.display = 'none';
             whatsappMessageContainer.style.display = 'none';
@@ -828,6 +845,13 @@
             });
 
             if (response.ok) {
+                // 🛑 NUEVAS LÍNEAS AÑADIDAS PARA OCULTAR ELEMENTOS
+                const h2Title = document.querySelector('.form-container h2');
+                const transactionSummary = document.getElementById('transaction-summary');
+                if (h2Title) h2Title.style.display = 'none';
+                if (transactionSummary) transactionSummary.style.display = 'none';
+                // 🛑 FIN NUEVAS LÍNEAS
+
                 paymentForm.style.display = 'none';
                 whatsappMessageContainer.style.display = 'none';
                 successMessageDisplay.style.display = 'block';
