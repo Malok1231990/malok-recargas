@@ -54,7 +54,9 @@
             color: var(--text-color);
         }
         .input-group input[type="email"],
-        .input-group input[type="tel"] {
+        .input-group input[type="tel"],
+        .input-group input[type="text"], /* Añadido para Binance ID */
+        .input-group input[type="password"] { /* Añadido para Wallet */
             width: 100%;
             padding: 10px;
             border: 1px solid var(--border-color);
@@ -221,7 +223,7 @@
                 <input type="file" id="payment-receipt" name="paymentReceipt" accept="image/*,application/pdf" required>
             </div>
         `,
-        // 🛑 MODIFICACIÓN CLAVE: Plantilla para Plisio (Método Binance)
+        // Plantilla para Plisio (Redirección de pago)
         'binance': `
             <div class="payment-fields-container">
                 <p><strong>Paso 1:</strong> Serás redirigido a la pasarela segura de **Plisio** para completar tu pago con criptomonedas (incluyendo Binance Pay si está disponible).</p>
@@ -229,6 +231,7 @@
                 <input type="hidden" id="payment-receipt" name="paymentReceipt" value="Plisio_Managed_Payment" required> 
             </div>
         `,
+        // Plantilla para Zinli (Comprobante requerido)
         'zinli': `
             <p><strong>Paso 1:</strong> Transfiere el monto exacto a nuestra cuenta Zinli.</p>
             <ul>
@@ -243,6 +246,38 @@
                 <label for="payment-receipt">Subir Comprobante de Pago:</label>
                 <input type="file" id="payment-receipt" name="paymentReceipt" accept="image/*,application/pdf" required>
             </div>
+        `,
+        // 🆕 NUEVA PLANTILLA: Binance Pay (Transferencia por ID)
+        'binance-id': `
+            <p><strong>Paso 1:</strong> Transfiere el monto exacto por Binance Pay a la siguiente ID:</p>
+            <ul>
+                <li class="copy-container">
+                    <strong>Binance Pay ID (MUID):</strong> <span id="binance-muid">123456789</span>
+                    <button type="button" class="copy-button" data-copy-target="binance-muid"><i class="fas fa-copy"></i></button>
+                    <span id="binance-muid-copy-feedback" class="copy-feedback"></span>
+                </li>
+            </ul>
+            <div class="payment-fields-container">
+                <p><strong>Paso 2:</strong> Ingresa tu Binance Pay ID de origen para rastrear la transacción y sube el comprobante.</p>
+                <div class="input-group">
+                    <label for="binance-origin-id">Tu Binance Pay ID (Origen):</label>
+                    <input type="text" id="binance-origin-id" name="binanceOriginId" placeholder="Ingresa tu ID de Binance" required>
+                </div>
+                <label for="payment-receipt">Subir Comprobante de Pago (Opcional, pero recomendado):</label>
+                <input type="file" id="payment-receipt" name="paymentReceipt" accept="image/*,application/pdf">
+            </div>
+        `,
+        // 🆕 NUEVA PLANTILLA: Wallet de la Página (Deducción)
+        'wallet': `
+            <div class="payment-fields-container">
+                <p><strong>Paso 1:</strong> Confirma la deducción de <span id="wallet-final-price" style="font-weight: bold;"></span> de tu Wallet de la página.</p>
+                <p style="font-size: 0.9em; color: #ff9800;">(Asegúrate de tener saldo suficiente antes de continuar)</p>
+                <div class="input-group">
+                    <label for="wallet-password">Tu Contraseña de la Cuenta:</label>
+                    <input type="password" id="wallet-password" name="walletPassword" placeholder="Ingresa tu contraseña" required>
+                </div>
+                <input type="hidden" id="payment-receipt" name="paymentReceipt" value="Wallet_Deduction_Flow" required>
+            </div>
         `
     };
 
@@ -252,7 +287,9 @@
 
     const paymentMethodsUSD = [
         { id: 'binance', name: 'Binance (Plisio)', type: 'usd', icon: 'fab fa-bitcoin' },
-        { id: 'zinli', name: 'Zinli', type: 'usd', icon: 'fas fa-wallet' }
+        { id: 'binance-id', name: 'Binance Pay (ID)', type: 'usd', icon: 'fas fa-money-check-alt' }, // 🆕 NUEVO
+        { id: 'zinli', name: 'Zinli', type: 'usd', icon: 'fas fa-wallet' },
+        { id: 'wallet', name: 'Wallet (Saldo en Página)', type: 'usd', icon: 'fas fa-coins' } // 🆕 NUEVO
     ];
 
     // 2. VARIABLES GLOBALES DE LA PAGINA
@@ -521,15 +558,48 @@
 
         if (methodHtml) {
             paymentDetailsFormDiv.innerHTML = methodHtml;
+            
+            // 🆕 Lógica especial para el método Wallet
+            if (methodId === 'wallet') {
+                const finalPriceElement = document.getElementById('wallet-final-price');
+                const finalPriceUSD = transactionDetails.totalUSD || transactionDetails.priceUSD; 
+                if (finalPriceElement) {
+                    finalPriceElement.textContent = `$ ${finalPriceUSD}`;
+                }
+            }
+
+
             const fileInput = document.getElementById('payment-receipt');
             
             // 🛑 MODIFICACIÓN: Solo agregar listener 'change' si es un input de tipo 'file'
+            // También ajustar la propiedad 'required' según el método
             if (fileInput) {
-                fileInput.required = true; // Sigue siendo requerido para validación
+                // Métodos que requieren subir archivo (por defecto)
+                if (methodId === 'pago-movil' || methodId === 'zinli') {
+                    fileInput.required = true;
+                } 
+                // Métodos que NO requieren subir archivo o usan hidden input
+                else {
+                    fileInput.required = false; 
+                }
+
+                // Si es un input de tipo 'file', agregamos el listener
                 if (fileInput.type === 'file') {
                     fileInput.addEventListener('change', checkFormValidity);
                 }
             }
+            
+            // 🆕 Lógica para Binance ID: Validar el campo de ID de Origen
+            const binanceOriginIdInput = document.getElementById('binance-origin-id');
+            if(binanceOriginIdInput) {
+                binanceOriginIdInput.addEventListener('input', checkFormValidity);
+            }
+            // 🆕 Lógica para Wallet: Validar el campo de Contraseña
+            const walletPasswordInput = document.getElementById('wallet-password');
+            if(walletPasswordInput) {
+                walletPasswordInput.addEventListener('input', checkFormValidity);
+            }
+
 
             // 🛠️ CORRECCIÓN: Usar querySelectorAll para adjuntar evento a *todos* los botones de copiar
             const copyButtons = paymentDetailsFormDiv.querySelectorAll('.copy-button'); 
@@ -577,7 +647,7 @@
 
     /**
      * @MODIFICADO: Verifica la validez del formulario y habilita/deshabilita los botones.
-     * Ahora incluye la excepción para 'binance'.
+     * Ahora incluye la excepción para 'binance', 'binance-id' y 'wallet'.
      */
     function checkFormValidity() {
         const selectedRadio = document.querySelector('input[name="paymentMethod"]:checked');
@@ -596,11 +666,18 @@
 
         if (isAssistedFlow()) { // Flujo asistido
             areDetailsFilled = true; 
-        } else if (selectedMethodId === 'binance') { // 🛑 MODIFICACIÓN: Si es Binance (Plisio), no se necesita archivo
+        } else if (selectedMethodId === 'binance') { // Plisio (Redirección automática)
             areDetailsFilled = true;
-        } else if (isMethodSelected) {
+        } else if (selectedMethodId === 'wallet') { // 🆕 Wallet (Requiere solo contraseña)
+            const passwordInput = document.getElementById('wallet-password');
+            areDetailsFilled = passwordInput && passwordInput.value.trim() !== '';
+        } else if (selectedMethodId === 'binance-id') { // 🆕 Binance ID (Requiere ID de Origen)
+            const binanceOriginIdInput = document.getElementById('binance-origin-id');
+            areDetailsFilled = binanceOriginIdInput && binanceOriginIdInput.value.trim() !== '';
+            // El comprobante es opcional en esta plantilla, por lo que solo se requiere el ID.
+        } else if (isMethodSelected) { 
+            // Otros métodos (Pago Movil/Zinli): Requieren archivo
             const fileInput = document.getElementById('payment-receipt');
-            // Si es otro método (Pago Movil/Zinli), debe haber un archivo subido
             if (fileInput && fileInput.files.length === 0) {
                 areDetailsFilled = false;
             }
@@ -632,7 +709,7 @@
         if (status === 'success' || status === 'processing') { // Añadido 'processing' como estado de redirección
             console.log('Detectada redirección de Plisio exitosa. Activando mensaje de procesamiento.');
             
-            // 🛑 NUEVAS LÍNEAS AÑADIDAS PARA OCULTAR ELEMENTOS
+            // 🛑 LÍNEAS AÑADIDAS PARA OCULTAR ELEMENTOS
             if (h2Title) h2Title.style.display = 'none';
             if (transactionSummary) transactionSummary.style.display = 'none';
             // 🛑 FIN NUEVAS LÍNEAS
@@ -727,7 +804,7 @@
         // Lógica especial para recargas asistidas (no se envían al backend)
         if (isAssistedFlow()) { 
             
-            // 🛑 NUEVAS LÍNEAS AÑADIDAS PARA OCULTAR ELEMENTOS
+            // 🛑 LÍNEAS AÑADIDAS PARA OCULTAR ELEMENTOS
             const h2Title = document.querySelector('.form-container h2');
             const transactionSummary = document.getElementById('transaction-summary');
             if (h2Title) h2Title.style.display = 'none';
@@ -746,12 +823,73 @@
             }, 5000);
             return;
         }
+        
+        // Usar totalUSD. Si es un array, se usa 'totalUSD', si es singular se usa 'priceUSD'.
+        const finalPriceUSD = transactionDetails.totalUSD || transactionDetails.priceUSD; 
 
-        // 🛑 MODIFICACIÓN CLAVE: Lógica para el flujo de pago con Plisio (Método Binance)
+        // 🛑 Lógica para el flujo de pago con Wallet (Deducción de la base de datos)
+        if (selectedPaymentMethod === 'wallet') {
+            const walletPassword = document.getElementById('wallet-password')?.value.trim();
+
+            if (!walletPassword) {
+                alert('Por favor, ingresa tu contraseña para confirmar el pago con Wallet.');
+                return;
+            }
+
+            finalizeBtn.disabled = true;
+            finalizeBtn.textContent = 'Deduciendo Saldo...';
+
+            try {
+                // ❗ ESTE ES EL SCRIPT QUE DEBERÁS CREAR ❗
+                const walletResponse = await fetch('/.netlify/functions/deduct-wallet-balance', { 
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        email: emailInput.value.trim(),
+                        whatsapp: whatsappInput.value.trim(),
+                        password: walletPassword,
+                        amountUSD: finalPriceUSD, 
+                        cartDetails: JSON.stringify(Array.isArray(transactionDetails) ? transactionDetails : [transactionDetails]), 
+                    })
+                });
+
+                if (walletResponse.ok) {
+                    // Si la deducción es exitosa, mostrar mensaje de éxito
+                    // 🛑 LÍNEAS AÑADIDAS PARA OCULTAR ELEMENTOS
+                    const h2Title = document.querySelector('.form-container h2');
+                    const transactionSummary = document.getElementById('transaction-summary');
+                    if (h2Title) h2Title.style.display = 'none';
+                    if (transactionSummary) transactionSummary.style.display = 'none';
+                    // 🛑 FIN NUEVAS LÍNEAS
+
+                    paymentForm.style.display = 'none';
+                    whatsappMessageContainer.style.display = 'none';
+                    successMessageDisplay.style.display = 'block';
+                    localStorage.removeItem('transactionDetails');
+                    localStorage.removeItem('cartItems'); 
+
+                    setTimeout(() => {
+                        window.location.href = 'index.html';
+                    }, 5000);
+                } else {
+                    const errorData = await walletResponse.json();
+                    alert(`Error en el pago con Wallet: ${errorData.message || 'Error desconocido'}. Verifica tu saldo y contraseña.`);
+                    console.error('Wallet deduction error:', errorData);
+                    finalizeBtn.disabled = false;
+                    finalizeBtn.textContent = 'Finalizar Recarga';
+                }
+            } catch (error) {
+                alert('Hubo un problema de conexión al intentar pagar con Wallet.');
+                console.error('Wallet network error:', error);
+                finalizeBtn.disabled = false;
+                finalizeBtn.textContent = 'Finalizar Recarga';
+            }
+            return;
+        }
+
+        // 🛑 Lógica para el flujo de pago con Plisio (Método Binance de redirección)
         if (selectedPaymentMethod === 'binance') {
-            // Usar totalUSD. Si es un array, se usa 'totalUSD', si es singular se usa 'priceUSD'.
-            const finalPriceUSD = transactionDetails.totalUSD || transactionDetails.priceUSD; 
-
+            // ... (El código anterior de Plisio se mantiene sin cambios)
             if (!finalPriceUSD || parseFloat(finalPriceUSD) <= 0) {
                 alert('Error: El monto de la transacción es inválido. Por favor, revisa tu carrito.');
                 return;
@@ -768,11 +906,9 @@
                         'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({
-                        // Datos necesarios para crear la factura en Plisio
-                        amount: finalPriceUSD, // El monto debe ser en USD
+                        amount: finalPriceUSD, 
                         email: emailInput.value.trim(),
                         whatsapp: whatsappInput.value.trim(),
-                        // Metadatos para rastrear la orden. Incluye todos los detalles de los productos.
                         cartDetails: JSON.stringify(Array.isArray(transactionDetails) ? transactionDetails : [transactionDetails]), 
                     })
                 });
@@ -782,7 +918,6 @@
                     
                     if (data.chargeUrl) {
                         console.log('Redirigiendo a Plisio:', data.chargeUrl);
-                        // No limpiar el localStorage aquí. La limpieza se hace en el webhook.
                         window.location.href = data.chargeUrl;
                     } else {
                         alert('Error: No se pudo obtener la URL de pago de Plisio.');
@@ -799,21 +934,37 @@
                 finalizeBtn.disabled = false;
                 finalizeBtn.textContent = 'Finalizar Recarga';
             }
-            return; // Salir de la función submit para no ejecutar el flujo de pago normal
-        }
-        
-        // Lógica para flujo de pago normal (requiere comprobante - Pago Móvil/Zinli)
-        const paymentReceipt = document.getElementById('payment-receipt');
-        if (!paymentReceipt || paymentReceipt.files.length === 0) {
-            alert('Por favor, sube tu comprobante de pago.');
             return;
         }
         
-        // Agregamos todos los datos de transacción (incluyendo el array y los totales calculados)
-        // Convertimos el array a JSON string para enviarlo al backend en un solo campo (e.g., 'cartDetails')
+        // Lógica para flujo de pago normal (requiere comprobante o ID - Pago Móvil/Zinli/Binance ID)
+        
+        let requiresReceipt = (selectedPaymentMethod === 'pago-movil' || selectedPaymentMethod === 'zinli');
+        let requiresBinanceId = (selectedPaymentMethod === 'binance-id');
+        let receiptIsOptional = (selectedPaymentMethod === 'binance-id');
+
+        if (requiresReceipt) {
+            const paymentReceipt = document.getElementById('payment-receipt');
+            if (!paymentReceipt || paymentReceipt.files.length === 0) {
+                alert('Por favor, sube tu comprobante de pago.');
+                return;
+            }
+        }
+        
+        // Si es Binance ID, añadir el campo de ID al FormData
+        if (requiresBinanceId) {
+            const binanceOriginId = document.getElementById('binance-origin-id');
+            if (!binanceOriginId || binanceOriginId.value.trim() === '') {
+                alert('Por favor, ingresa tu Binance Pay ID de origen.');
+                return;
+            }
+            formData.append('binanceOriginId', binanceOriginId.value.trim());
+        }
+
+
+        // Agregamos todos los datos de transacción
         formData.append('cartDetails', JSON.stringify(Array.isArray(transactionDetails) ? transactionDetails : [transactionDetails]));
         
-        // Agregamos los totales y la moneda (para compatibilidad o simplicidad del backend)
         if (transactionDetails.finalPrice) {
             formData.append('finalPrice', transactionDetails.finalPrice);
             formData.append('currency', transactionDetails.currency);
@@ -823,11 +974,9 @@
 
         console.log('Datos a enviar (FormData):');
         for (let pair of formData.entries()) {
-            // Ocultar el contenido del archivo subido en la consola para no saturar
             if (pair[0] === 'paymentReceipt') {
                 console.log(pair[0]+ ': [Archivo subido]');
             } else if (pair[0] === 'cartDetails') {
-                // Mostrar los detalles del carrito para depuración
                 console.log(pair[0]+ ': ' + pair[1]);
             } else {
                 console.log(pair[0]+ ': ' + pair[1]);
@@ -845,7 +994,7 @@
             });
 
             if (response.ok) {
-                // 🛑 NUEVAS LÍNEAS AÑADIDAS PARA OCULTAR ELEMENTOS
+                // 🛑 LÍNEAS AÑADIDAS PARA OCULTAR ELEMENTOS
                 const h2Title = document.querySelector('.form-container h2');
                 const transactionSummary = document.getElementById('transaction-summary');
                 if (h2Title) h2Title.style.display = 'none';
