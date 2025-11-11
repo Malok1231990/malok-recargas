@@ -42,10 +42,11 @@ exports.handler = async (event, context) => {
 
             try {
                 
-                // 2. BUSCAR LA TRANSACCIÓN para obtener datos clave (google_id, monto_usd y status)
+                // 2. BUSCAR LA TRANSACCIÓN para obtener datos clave (google_id, finalPrice y status)
                 const { data: transactionData, error: fetchError } = await supabase
                     .from('transactions')
-                    .select('status, google_id, monto_usd') // 🎯 CLAVE: Añadir google_id y monto_usd
+                    // 🎯 CORRECCIÓN 1: Usamos "finalPrice" que es la columna de monto
+                    .select('status, google_id, "finalPrice"') 
                     .eq('id_transaccion', transactionId)
                     .maybeSingle();
 
@@ -55,8 +56,9 @@ exports.handler = async (event, context) => {
                     return { statusCode: 200, body: "Processed" };
                 }
 
-                const { status: currentStatus, google_id, monto_usd } = transactionData;
-                const amountToInject = parseFloat(monto_usd);
+                // 🎯 CORRECCIÓN 2: Usamos 'finalPrice' en la desestructuración de datos
+                const { status: currentStatus, google_id, "finalPrice": finalPrice } = transactionData;
+                const amountToInject = parseFloat(finalPrice);
                 
                 let injectionMessage = ""; // Para el mensaje final de Telegram
                 
@@ -65,9 +67,8 @@ exports.handler = async (event, context) => {
                     injectionMessage = "\n\n⚠️ **NOTA:** La transacción ya estaba en estado 'REALIZADA'. El saldo no fue inyectado de nuevo.";
                 } else if (!google_id || isNaN(amountToInject) || amountToInject <= 0) {
                     // Validaciones básicas para inyección
-                    injectionMessage = `\n\n❌ **ERROR DE INYECCIÓN DE SALDO:** Datos incompletos (Google ID: ${google_id}, Monto: ${monto_usd}). **¡REVISIÓN MANUAL REQUERIDA!**`;
+                    injectionMessage = `\n\n❌ **ERROR DE INYECCIÓN DE SALDO:** Datos incompletos (Google ID: ${google_id}, Monto: ${finalPrice}). **¡REVISIÓN MANUAL REQUERIDA!**`;
                     // Aunque la inyección falló, continuamos a marcar la transacción como REALIZADA para no perder el registro del trabajo del operador.
-                    // Idealmente esto debería crear una alerta crítica en otro sistema.
                 } else {
                     // 4. INYECTAR SALDO AL CLIENTE (Actualización atómica en la tabla 'saldos')
                     console.log(`Intentando inyectar $${amountToInject.toFixed(2)} a la billetera de ${google_id}.`);
@@ -79,7 +80,7 @@ exports.handler = async (event, context) => {
                             // Usamos supabase.raw para una actualización atómica segura (saldo_usd = saldo_usd + monto)
                             saldo_usd: supabase.raw('saldo_usd + ??', [amountToInject])
                         })
-                        // 🔑 CORRECCIÓN APLICADA: Usamos 'user_id' que es la columna de la tabla saldos
+                        // 🔑 CORRECCIÓN 3: Usamos 'user_id' que es la clave en la tabla 'saldos'
                         .eq('user_id', google_id); 
                         
                     if (balanceUpdateError) {
