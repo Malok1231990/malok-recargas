@@ -295,7 +295,7 @@
                 <input type="file" id="payment-receipt" name="paymentReceipt" accept="image/*,application/pdf" required>
             </div>
         `,
-        // 🆕 NUEVA PLANTILLA: Binance Pay (Transferencia por ID)
+        // 🆕 NUEVA PLANTILLA: Binance Pay (Transferencia por ID) - **CORREGIDO: Se eliminó el campo ID de Origen**
         'binance-id': `
             <p><strong>Paso 1:</strong> Transfiere el monto exacto por Binance Pay a la siguiente ID:</p>
             <ul>
@@ -306,22 +306,18 @@
                 </li>
             </ul>
             <div class="payment-fields-container">
-                <p><strong>Paso 2:</strong> Ingresa tu Binance Pay ID de origen para rastrear la transacción y sube el comprobante.</p>
-                <div class="input-group">
-                    <label for="binance-origin-id">Tu Binance Pay ID (Origen):</label>
-                    <input type="text" id="binance-origin-id" name="binanceOriginId" placeholder="Ingresa tu ID de Binance" required>
-                </div>
+                <p><strong>Paso 2:</strong> Sube el comprobante de pago (Opcional, pero recomendado) para rastrear la transacción.</p>
                 <label for="payment-receipt">Subir Comprobante de Pago (Opcional, pero recomendado):</label>
                 <input type="file" id="payment-receipt" name="paymentReceipt" accept="image/*,application/pdf">
-            </div>
+                </div>
         `,
-        // 🆕 NUEVA PLANTILLA: Wallet de la Página (Deducción)
+        // 🆕 NUEVA PLANTILLA: Wallet de la Página (Deducción) - **CORREGIDO: Se eliminó el campo de la contraseña**
         'wallet': `
             <div class="payment-fields-container">
                 <p><strong>Paso 1:</strong> Confirma la deducción de <span id="wallet-final-price" style="font-weight: bold;"></span> de tu Wallet de la página.</p>
-                <p style="font-size: 0.9em; color: #ff9800;">(Asegúrate de tener saldo suficiente antes de continuar)</p>
+                <p style="font-size: 0.9em; color: #ff9800;">(Asegúrate de tener saldo suficiente antes de continuar. La deducción se hará al presionar "Finalizar Recarga")</p>
                 <input type="hidden" id="payment-receipt" name="paymentReceipt" value="Wallet_Deduction_Flow" required>
-            </div>
+                </div>
         `
     };
 
@@ -622,7 +618,7 @@
                 if (methodId === 'pago-movil' || methodId === 'zinli') {
                     fileInput.required = true;
                 } 
-                // Métodos que NO requieren subir archivo o usan hidden input
+                // Métodos que NO requieren subir archivo o usan hidden input (binance, binance-id, wallet)
                 else {
                     fileInput.required = false; 
                 }
@@ -633,16 +629,16 @@
                 }
             }
             
-            // 🆕 Lógica para Binance ID: Validar el campo de ID de Origen
-            const binanceOriginIdInput = document.getElementById('binance-origin-id');
-            if(binanceOriginIdInput) {
-                binanceOriginIdInput.addEventListener('input', checkFormValidity);
-            }
-            // 🆕 Lógica para Wallet: Validar el campo de Contraseña
-            const walletPasswordInput = document.getElementById('wallet-password');
-            if(walletPasswordInput) {
-                walletPasswordInput.addEventListener('input', checkFormValidity);
-            }
+            // 🆕 Lógica para Binance ID: Validar el campo de ID de Origen **(ELIMINADO)**
+            // const binanceOriginIdInput = document.getElementById('binance-origin-id');
+            // if(binanceOriginIdInput) {
+            //     binanceOriginIdInput.addEventListener('input', checkFormValidity);
+            // }
+            // 🆕 Lógica para Wallet: Validar el campo de Contraseña **(ELIMINADO)**
+            // const walletPasswordInput = document.getElementById('wallet-password');
+            // if(walletPasswordInput) {
+            //     walletPasswordInput.addEventListener('input', checkFormValidity);
+            // }
 
 
             // 🛠️ CORRECCIÓN: Usar querySelectorAll para adjuntar evento a *todos* los botones de copiar
@@ -692,6 +688,8 @@
     /**
      * @MODIFICADO: Verifica la validez del formulario y habilita/deshabilita los botones.
      * Ahora incluye la excepción para 'binance', 'binance-id' y 'wallet'.
+     * **CORRECCIÓN DE WALLET:** No requiere campos adicionales, solo selección y contacto.
+     * **CORRECCIÓN DE BINANCE ID:** No requiere ID de origen.
      */
     function checkFormValidity() {
         const selectedRadio = document.querySelector('input[name="paymentMethod"]:checked');
@@ -712,13 +710,10 @@
             areDetailsFilled = true; 
         } else if (selectedMethodId === 'binance') { // Plisio (Redirección automática)
             areDetailsFilled = true;
-        } else if (selectedMethodId === 'wallet') { // 🆕 Wallet (Requiere solo contraseña)
-            const passwordInput = document.getElementById('wallet-password');
-            areDetailsFilled = passwordInput && passwordInput.value.trim() !== '';
-        } else if (selectedMethodId === 'binance-id') { // 🆕 Binance ID (Requiere ID de Origen)
-            const binanceOriginIdInput = document.getElementById('binance-origin-id');
-            areDetailsFilled = binanceOriginIdInput && binanceOriginIdInput.value.trim() !== '';
-            // El comprobante es opcional en esta plantilla, por lo que solo se requiere el ID.
+        } else if (selectedMethodId === 'wallet') { // 🆕 Wallet (CORREGIDO: No requiere contraseña en el formulario)
+            areDetailsFilled = true;
+        } else if (selectedMethodId === 'binance-id') { // 🆕 Binance ID (CORREGIDO: No requiere ID de Origen. Comprobante opcional)
+            areDetailsFilled = true;
         } else if (isMethodSelected) { 
             // Otros métodos (Pago Movil/Zinli): Requieren archivo
             const fileInput = document.getElementById('payment-receipt');
@@ -731,6 +726,7 @@
         
         // Lógica para el botón de FINALIZAR RECARGA (flujo normal)
         if (!isAssistedFlow()) { 
+            // Se habilita si: hay método, detalles OK, email lleno/válido, y whatsapp lleno
             finalizeBtn.disabled = !(isMethodSelected && areDetailsFilled && isEmailFilled && isEmailValid && isWhatsappFilled);
         } else {
             // Lógica para el botón de WHATSAPP (flujo asistido)
@@ -873,10 +869,10 @@
 
         // 🛑 Lógica para el flujo de pago con Wallet (Deducción de la base de datos)
         if (selectedPaymentMethod === 'wallet') {
-            const walletPassword = document.getElementById('wallet-password')?.value.trim();
-
-            if (!walletPassword) {
-                alert('Por favor, ingresa tu contraseña para confirmar el pago con Wallet.');
+            // **CORRECCIÓN DE WALLET: Ya no se pide la contraseña en el frontend, se espera que el backend lo maneje.**
+            
+            if (!finalPriceUSD || parseFloat(finalPriceUSD) <= 0) {
+                alert('Error: El monto de la transacción es inválido. Por favor, revisa tu carrito.');
                 return;
             }
 
@@ -891,7 +887,7 @@
                     body: JSON.stringify({
                         email: emailInput.value.trim(),
                         whatsapp: whatsappInput.value.trim(),
-                        password: walletPassword,
+                        // Se omite la contraseña ya que fue eliminada de la plantilla.
                         amountUSD: finalPriceUSD, 
                         cartDetails: JSON.stringify(Array.isArray(transactionDetails) ? transactionDetails : [transactionDetails]), 
                     })
@@ -917,7 +913,16 @@
                     }, 5000);
                 } else {
                     const errorData = await walletResponse.json();
-                    alert(`Error en el pago con Wallet: ${errorData.message || 'Error desconocido'}. Verifica tu saldo y contraseña.`);
+                    
+                    // **CORRECCIÓN DE WALLET: Mensaje de error personalizado para saldo insuficiente.**
+                    const errorMessage = errorData.message || 'Error desconocido';
+                    
+                    if (errorMessage.toLowerCase().includes('saldo insuficiente') || errorMessage.toLowerCase().includes('monto supera los limites de fondos')) {
+                         alert('El monto de la recarga supera el saldo disponible en tu Wallet. Por favor, recarga tu billetera o selecciona otro método de pago.');
+                    } else {
+                         alert(`Error en el pago con Wallet: ${errorMessage}.`);
+                    }
+                    
                     console.error('Wallet deduction error:', errorData);
                     finalizeBtn.disabled = false;
                     finalizeBtn.textContent = 'Finalizar Recarga';
@@ -995,15 +1000,15 @@
             }
         }
         
-        // Si es Binance ID, añadir el campo de ID al FormData
-        if (requiresBinanceId) {
-            const binanceOriginId = document.getElementById('binance-origin-id');
-            if (!binanceOriginId || binanceOriginId.value.trim() === '') {
-                alert('Por favor, ingresa tu Binance Pay ID de origen.');
-                return;
-            }
-            formData.append('binanceOriginId', binanceOriginId.value.trim());
-        }
+        // Si es Binance ID, añadir el campo de ID al FormData **(ELIMINADO: Ya no se pide ID de Origen)**
+        // if (requiresBinanceId) {
+        //     const binanceOriginId = document.getElementById('binance-origin-id');
+        //     if (!binanceOriginId || binanceOriginId.value.trim() === '') {
+        //         alert('Por favor, ingresa tu Binance Pay ID de origen.');
+        //         return;
+        //     }
+        //     formData.append('binanceOriginId', binanceOriginId.value.trim());
+        // }
 
 
         // Agregamos todos los datos de transacción
