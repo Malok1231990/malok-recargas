@@ -143,6 +143,9 @@ exports.handler = async function(event, context) {
             telegram_chat_id: TELEGRAM_CHAT_ID,
             receipt_url: paymentReceiptFile ? paymentReceiptFile.filepath : null,
             
+            // ⭐️ MODIFICACIÓN CLAVE: Campo para el Google ID de la billetera ⭐️
+            google_id: firstItem.google_id || null, 
+            
             // Campos de compatibilidad usando el primer producto del carrito
             game: firstItem.game || 'Carrito Múltiple',
             packageName: firstItem.packageName || 'Múltiples Paquetes',
@@ -160,7 +163,6 @@ exports.handler = async function(event, context) {
             .select();
 
         if (insertError) {
-            // Este error ya NO DEBERÍA ocurrir si el esquema de la BD está bien
             throw insertError; 
         }
         newTransactionData = insertedData[0];
@@ -175,10 +177,23 @@ exports.handler = async function(event, context) {
     }
 
     // --- Generar Notificación para Telegram (Por Producto) ---
-    // Esta sección funciona correctamente y cumple el requisito del carrito
-    let messageText = `✨ Nueva Recarga (CARRITO) Malok Recargas ✨\n\n`;
+    
+    // ⭐️ Lógica para identificar la recarga de billetera ⭐️
+    const firstItem = cartItems[0] || {};
+    const isWalletRecharge = cartItems.length === 1 && firstItem.game === 'Recarga de Saldo';
+
+    let messageText = isWalletRecharge 
+        ? `💸 Nueva Recarga de Billetera Malok Recargas 💸\n\n`
+        : `✨ Nueva Recarga (CARRITO) Malok Recargas ✨\n\n`;
+    
     messageText += `*ID de Transacción:* \`${id_transaccion_generado || 'N/A'}\`\n`;
     messageText += `*Estado:* \`PENDIENTE\`\n`;
+    
+    if (isWalletRecharge && firstItem.google_id) {
+        messageText += `🔗 *Google ID (Billetera):* \`${firstItem.google_id}\`\n`;
+        messageText += `💵 *Monto Recargado (Paquete):* *${firstItem.packageName || 'N/A'}*\n`;
+    }
+    
     messageText += `------------------------------------------------\n`;
 
     // Iterar sobre los productos del carrito para el detalle
@@ -251,7 +266,6 @@ exports.handler = async function(event, context) {
         // --- Enviar comprobante de pago a Telegram si existe ---
         if (paymentReceiptFile && paymentReceiptFile.filepath) {
             console.log("DEBUG: Intentando enviar comprobante a Telegram.");
-            // ... (Lógica de envío de archivo a Telegram se mantiene igual)
             try {
                 const fileBuffer = fs.readFileSync(paymentReceiptFile.filepath);
                 console.log("DEBUG: Tamaño del archivo (bytes):", fileBuffer.length);
@@ -347,6 +361,12 @@ exports.handler = async function(event, context) {
                     <li><strong>Correo de CODM:</strong> ${item.codmEmail || 'N/A'}</li>
                     <li><strong>Contraseña de CODM:</strong> ${item.codmPassword || 'N/A'}</li>
                     <li><strong>Vinculación de CODM:</strong> ${item.codmVinculation || 'N/A'}</li>
+                `;
+            } else if (game === 'Recarga de Saldo' && item.google_id) { 
+                // ⭐️ MODIFICACIÓN CLAVE: Agregar Google ID y Monto de recarga ⭐️
+                playerInfoEmail = `
+                    <li><strong>ID de Google (Billetera):</strong> ${item.google_id}</li>
+                    <li><strong>Monto de Recarga (Paquete):</strong> ${packageName}</li>
                 `;
             } else {
                 playerInfoEmail = item.playerId ? `<li><strong>ID de Jugador:</strong> ${item.playerId}</li>` : '';
