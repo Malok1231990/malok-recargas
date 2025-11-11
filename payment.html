@@ -368,6 +368,25 @@
     // 3. FUNCIONES DE LÓGICA
     
     /**
+     * @NUEVA_FUNCIÓN_CLAVE: Busca y retorna el google_id de la transacción.
+     * Esto es CRÍTICO para las recargas de saldo.
+     * @returns {string|null} El Google ID si se encuentra un ítem de 'Recarga de Saldo', de lo contrario null.
+     */
+    function getGoogleIdFromTransaction() {
+        // Aseguramos que transactionDetails sea un array
+        const cartItems = Array.isArray(transactionDetails) ? transactionDetails : (transactionDetails ? [transactionDetails] : []);
+        
+        for (const item of cartItems) {
+            // Buscamos específicamente el item de 'Recarga de Saldo' que debería contener el google_id
+            if (item.game === 'Recarga de Saldo' && item.google_id) { 
+                return item.google_id;
+            }
+        }
+        return null; 
+    }
+
+
+    /**
      * @NUEVA_FUNCIÓN: Verifica si algún ítem en la transacción requiere flujo asistido (TikTok/Telegram).
      * @returns {boolean}
      */
@@ -977,6 +996,17 @@
             finalizeBtn.disabled = true;
             finalizeBtn.textContent = 'Creando Factura en Plisio...';
             
+            // 🔑 INICIO DEL CAMBIO PARA INCLUIR GOOGLE ID 🔑
+            const googleIdToSend = getGoogleIdFromTransaction(); // Obtiene el google_id
+
+            if (!googleIdToSend) {
+                 alert('Error: No se encontró el ID de usuario (googleId) necesario para procesar esta recarga de saldo. Por favor, asegúrate de que el item en tu carrito sea "Recarga de Saldo" y contenga tu Google ID.');
+                 finalizeBtn.disabled = false;
+                 finalizeBtn.textContent = 'Finalizar Recarga';
+                 return;
+            }
+            // 🔑 FIN DEL CAMBIO 🔑
+
             try {
                 // Llamada a la función de Netlify para crear la factura de Plisio
                 const response = await fetch('/.netlify/functions/create-plisio-invoice', {
@@ -989,6 +1019,8 @@
                         email: emailInput.value.trim(),
                         whatsapp: whatsappInput.value.trim(),
                         cartDetails: JSON.stringify(Array.isArray(transactionDetails) ? transactionDetails : [transactionDetails]), 
+                        // 🔑 SOLUCIÓN: AGREGAR EL GOOGLE ID AQUÍ 🔑
+                        googleId: googleIdToSend, 
                     })
                 });
 
