@@ -1,4 +1,4 @@
-// script.js COMPLETO Y MODIFICADO (Versión Final con Corrección de Race Condition)
+// script.js COMPLETO Y MODIFICADO (Versión Final con Corrección de Saldo)
 
 // 🎯 FUNCIÓN PARA CARGAR Y APLICAR LA CONFIGURACIÓN DE COLORES
 async function applySiteConfig() {
@@ -85,8 +85,8 @@ function checkUserSessionAndRenderUI() {
         
         // 5. Lógica de la Billetera (NUEVO)
         if (walletContainer && virtualBalanceElement) {
-            // ✅ CORRECCIÓN: Usamos '0.00' como valor por defecto si no viene en userData.balance
-            // Esto asume que el backend ahora enviará el saldo real (ej. "125.50" o "0.00").
+            // ⭐ MODIFICADO: Usamos '0.00' como fallback, NO '50.00' ⭐
+            // userData.balance ahora viene del servidor con el saldo real de Supabase.
             const balance = userData.balance ? parseFloat(userData.balance).toFixed(2) : '0.00'; 
             virtualBalanceElement.textContent = `$. ${balance}`;
             walletContainer.style.display = 'flex'; // Mostrar la billetera
@@ -150,7 +150,7 @@ window.handleCredentialResponse = async (response) => {
             alert(`¡Bienvenido(a), ${data.user.name || 'Usuario'}!`);
             // Redireccionar, o recargar si es necesario
             if (window.location.pathname.includes('index.html') === false) {
-                 window.location.href = 'index.html'; 
+                window.location.href = 'index.html'; 
             } else {
                 // Si ya está en index, solo recargar para asegurar que todos los scripts inicien con sesión activa
                 window.location.reload(); 
@@ -163,7 +163,7 @@ window.handleCredentialResponse = async (response) => {
             console.error("Error del servidor en el login:", errorData);
             
             if (window.google && window.google.accounts && window.google.accounts.id) {
-                 initGoogleSignIn(); // Re-inicializar para mostrar el botón de nuevo
+                initGoogleSignIn(); // Re-inicializar para mostrar el botón de nuevo
             }
         }
 
@@ -235,7 +235,7 @@ document.addEventListener('DOMContentLoaded', () => {
         
         // Dispatch custom event solo si la moneda realmente cambió
         if (prevCurrency !== value) {
-             window.dispatchEvent(new CustomEvent('currencyChanged', { detail: { currency: value } }));
+            window.dispatchEvent(new CustomEvent('currencyChanged', { detail: { currency: value } }));
         }
     }
 
@@ -457,10 +457,10 @@ document.addEventListener('DOMContentLoaded', () => {
             
             // 4. Redirigir a index si no estamos allí
             if (window.location.pathname.includes('index.html') === false) {
-                 window.location.href = 'index.html'; 
+                window.location.href = 'index.html'; 
             } else {
-                 // Si estamos en index, recargar para resetear el estado de la página
-                 window.location.reload(); 
+                // Si estamos en index, recargar para resetear el estado de la página
+                window.location.reload(); 
             }
         });
     }

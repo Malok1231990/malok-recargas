@@ -75,8 +75,8 @@ exports.handler = async function(event, context) {
             .maybeSingle();
 
         if (selectError && selectError.code !== 'PGRST116') { // PGRST116 = no rows found
-             console.error("Error al buscar usuario en Supabase:", selectError);
-             throw new Error("Error en la base de datos al verificar usuario.");
+            console.error("Error al buscar usuario en Supabase:", selectError);
+            throw new Error("Error en la base de datos al verificar usuario.");
         }
         
         let dbResponse;
@@ -119,6 +119,7 @@ exports.handler = async function(event, context) {
             console.log("Nuevo usuario creado.");
             
             // ⭐️ AÑADIDO CLAVE: Insertar saldo inicial (0.00) ⭐️
+            // Esto asegura que cada usuario nuevo tenga un registro en la tabla saldos.
             const { error: saldoError } = await supabase
                 .from('saldos')
                 .insert({ user_id: googleId, saldo_usd: 0.00 });
@@ -137,7 +138,7 @@ exports.handler = async function(event, context) {
         }
         
         // ⭐️ MODIFICACIÓN CLAVE: Obtener los datos del usuario *junto con* el saldo ⭐️
-        // Necesitamos esta consulta para asegurar que el saldo siempre se obtiene correctamente.
+        // Usamos la relación para obtener saldo_usd de la tabla saldos
         const { data: finalUserData, error: finalSelectError } = await supabase
             .from('usuarios')
             .select(`
@@ -157,12 +158,12 @@ exports.handler = async function(event, context) {
         }
         
         const finalUser = finalUserData;
-        // Acceder al saldo usando la relación 1:1. El .saldos es el nombre de la tabla
-        const userBalance = (finalUser.saldos && finalUser.saldos.saldo_usd) 
+        // Acceder al saldo: saldos es el nombre de la tabla relacionada
+        const userBalance = (finalUser.saldos && finalUser.saldos.saldo_usd !== null) 
                             ? parseFloat(finalUser.saldos.saldo_usd).toFixed(2) // Formatear a 2 decimales
                             : '0.00'; 
 
-        // 4. Éxitoa: Devolver el token de sesión y los datos del usuario
+        // 4. Éxito: Devolver el token de sesión y los datos del usuario
         return {
             statusCode: 200,
             headers: { "Content-Type": "application/json" },
@@ -174,7 +175,7 @@ exports.handler = async function(event, context) {
                     name: finalUser.nombre,
                     email: finalUser.email,
                     picture: finalUser.foto_url,
-                    // ⭐️ CLAVE: Devolver el saldo al frontend ⭐️
+                    // ⭐️ CLAVE: Devolver el saldo real al frontend ⭐️
                     balance: userBalance 
                 }
             }),
