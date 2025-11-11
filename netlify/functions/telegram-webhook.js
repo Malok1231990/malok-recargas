@@ -78,7 +78,7 @@ exports.handler = async (event, context) => {
                         // Incrementa el saldo_usd actual con el monto de la transacción
                         .update({ 
                             // Usamos supabase.raw para una actualización atómica segura (saldo_usd = saldo_usd + monto)
-                            saldo_usd: supabase.raw('saldo_usd + ??', [amountToInject])
+                            saldo_usd: supabase.sql('saldo_usd + ??', [amountToInject])
                         })
                         // 🔑 CORRECCIÓN 3: Usamos 'user_id' que es la clave en la tabla 'saldos'
                         .eq('user_id', google_id); 
