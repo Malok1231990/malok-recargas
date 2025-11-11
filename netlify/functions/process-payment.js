@@ -120,35 +120,6 @@ exports.handler = async function(event, context) {
         methodSpecificDetails.reference = data.reference;
     }
 
-    // --- LÓGICA CLAVE: Obtener el ID interno del usuario para el vínculo ---
-    const firstItem = cartItems[0] || {};
-    const google_id = firstItem.google_id || null; // google_id viene del carrito si es recarga
-    let internal_user_id = null; // ID interno de la tabla 'usuarios'
-    
-    if (google_id) {
-        try {
-            // Buscar el ID interno del usuario en la tabla 'usuarios'
-            const { data: userData, error: userError } = await supabase
-                .from('usuarios')
-                .select('id')
-                .eq('google_id', google_id)
-                .maybeSingle();
-
-            if (userError) throw userError;
-
-            if (userData) {
-                internal_user_id = userData.id;
-                console.log(`Usuario interno encontrado (ID: ${internal_user_id}) para google_id: ${google_id}`);
-            } else {
-                console.warn(`Advertencia: No se encontró un usuario en 'usuarios' con google_id: ${google_id}`);
-            }
-
-        } catch (userLookupError) {
-            console.error("Error al buscar usuario en Supabase (tabla usuarios):", userLookupError.message);
-            // Continúa el flujo, la transacción se guardará sin user_id.
-        }
-    }
-
     // --- Guardar Transacción Inicial en Supabase ---
     let newTransactionData;
     let id_transaccion_generado;
@@ -158,6 +129,7 @@ exports.handler = async function(event, context) {
 
         // Usamos los detalles del primer ítem para rellenar los campos de una sola transacción
         // y mantener la compatibilidad con el esquema de Supabase existente.
+        const firstItem = cartItems[0] || {};
         
         const transactionToInsert = {
             id_transaccion: id_transaccion_generado,
@@ -172,11 +144,8 @@ exports.handler = async function(event, context) {
             receipt_url: paymentReceiptFile ? paymentReceiptFile.filepath : null,
             
             // ⭐️ MODIFICACIÓN CLAVE: Campo para el Google ID de la billetera ⭐️
-            google_id: google_id, 
+            google_id: firstItem.google_id || null, 
             
-            // ⭐️ CAMBIO CLAVE: Nuevo campo para el ID interno del usuario ⭐️
-            user_id: internal_user_id,
-
             // Campos de compatibilidad usando el primer producto del carrito
             game: firstItem.game || 'Carrito Múltiple',
             packageName: firstItem.packageName || 'Múltiples Paquetes',
@@ -210,7 +179,7 @@ exports.handler = async function(event, context) {
     // --- Generar Notificación para Telegram (Por Producto) ---
     
     // ⭐️ Lógica para identificar la recarga de billetera ⭐️
-    // Se reutiliza 'firstItem' de la sección anterior
+    const firstItem = cartItems[0] || {};
     const isWalletRecharge = cartItems.length === 1 && firstItem.game === 'Recarga de Saldo';
 
     let messageText = isWalletRecharge 
@@ -218,14 +187,10 @@ exports.handler = async function(event, context) {
         : `✨ Nueva Recarga (CARRITO) Malok Recargas ✨\n\n`;
     
     messageText += `*ID de Transacción:* \`${id_transaccion_generado || 'N/A'}\`\n`;
-    // ⭐️ Se añade el ID interno del usuario al mensaje de Telegram si está disponible ⭐️
-    if (internal_user_id) {
-        messageText += `*👤 ID Interno Cliente:* \`${internal_user_id}\`\n`;
-    }
     messageText += `*Estado:* \`PENDIENTE\`\n`;
     
-    if (isWalletRecharge && google_id) {
-        messageText += `🔗 *Google ID (Billetera):* \`${google_id}\`\n`;
+    if (isWalletRecharge && firstItem.google_id) {
+        messageText += `🔗 *Google ID (Billetera):* \`${firstItem.google_id}\`\n`;
         messageText += `💵 *Monto Recargado (Paquete):* *${firstItem.packageName || 'N/A'}*\n`;
     }
     
