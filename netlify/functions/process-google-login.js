@@ -75,8 +75,8 @@ exports.handler = async function(event, context) {
             .maybeSingle();
 
         if (selectError && selectError.code !== 'PGRST116') { // PGRST116 = no rows found
-            console.error("Error al buscar usuario en Supabase:", selectError);
-            throw new Error("Error en la base de datos al verificar usuario.");
+             console.error("Error al buscar usuario en Supabase:", selectError);
+             throw new Error("Error en la base de datos al verificar usuario.");
         }
         
         let dbResponse;
@@ -118,15 +118,14 @@ exports.handler = async function(event, context) {
 
             console.log("Nuevo usuario creado.");
             
-            // ⭐️ AÑADIDO CLAVE: Insertar saldo inicial (0.00) ⭐️
-            // Esto asegura que cada usuario nuevo tenga un registro en la tabla saldos.
+            // ⭐️ CLAVE: Insertar saldo inicial (0.00) ⭐️
             const { error: saldoError } = await supabase
                 .from('saldos')
                 .insert({ user_id: googleId, saldo_usd: 0.00 });
                 
             if (saldoError) {
                 console.error("Error al insertar saldo inicial para:", googleId, saldoError);
-                // No lanzamos error fatal, ya que el usuario ya está creado en la tabla principal
+                // No lanzamos error fatal
             } else {
                 console.log("Saldo inicial (0.00) insertado en saldos para:", googleId);
             }
@@ -137,8 +136,7 @@ exports.handler = async function(event, context) {
             throw new Error(dbResponse.error.message || "Error al registrar/actualizar usuario.");
         }
         
-        // ⭐️ MODIFICACIÓN CLAVE: Obtener los datos del usuario *junto con* el saldo ⭐️
-        // Usamos la relación para obtener saldo_usd de la tabla saldos
+        // ⭐️ CLAVE: Obtener los datos del usuario *junto con* el saldo ⭐️
         const { data: finalUserData, error: finalSelectError } = await supabase
             .from('usuarios')
             .select(`
@@ -158,12 +156,12 @@ exports.handler = async function(event, context) {
         }
         
         const finalUser = finalUserData;
-        // Acceder al saldo: saldos es el nombre de la tabla relacionada
-        const userBalance = (finalUser.saldos && finalUser.saldos.saldo_usd !== null) 
+        // Acceder al saldo usando la relación 1:1. El .saldos es el nombre de la tabla
+        const userBalance = (finalUser.saldos && finalUser.saldos.saldo_usd !== null) // Verificamos explícitamente que no sea null
                             ? parseFloat(finalUser.saldos.saldo_usd).toFixed(2) // Formatear a 2 decimales
                             : '0.00'; 
 
-        // 4. Éxito: Devolver el token de sesión y los datos del usuario
+        // 4. Éxitoa: Devolver el token de sesión y los datos del usuario
         return {
             statusCode: 200,
             headers: { "Content-Type": "application/json" },
@@ -175,7 +173,7 @@ exports.handler = async function(event, context) {
                     name: finalUser.nombre,
                     email: finalUser.email,
                     picture: finalUser.foto_url,
-                    // ⭐️ CLAVE: Devolver el saldo real al frontend ⭐️
+                    // ⭐️ CLAVE: Devolver el saldo al frontend ⭐️
                     balance: userBalance 
                 }
             }),

@@ -1,4 +1,4 @@
-// script.js COMPLETO Y MODIFICADO (Versión Final con Corrección de Saldo)
+// script.js COMPLETO Y MODIFICADO (Versión Final con Corrección de Race Condition)
 
 // 🎯 FUNCIÓN PARA CARGAR Y APLICAR LA CONFIGURACIÓN DE COLORES
 async function applySiteConfig() {
@@ -39,10 +39,12 @@ const GOOGLE_CLIENT_ID = '321583559900-b5kvkoleqdrpsup60n00ugls9ujg9jak.apps.goo
 
 /**
  * Función CLAVE para verificar la sesión en localStorage y actualizar la UI.
+ * @returns {boolean} True si hay una sesión activa.
  */
 function checkUserSessionAndRenderUI() {
     const sessionToken = localStorage.getItem('userSessionToken');
     const userDataJson = localStorage.getItem('userData');
+    const isLoggedIn = sessionToken && userDataJson;
     
     // Elementos del DOM de la Billetera (NUEVOS)
     const walletContainer = document.getElementById('wallet-container'); 
@@ -55,10 +57,10 @@ function checkUserSessionAndRenderUI() {
     const googleLoginBtnContainer = document.getElementById('google-login-btn');
     const logoutBtn = document.getElementById('logout-btn');
 
-    // **CORRECCIÓN CLAVE:** Selector para el ícono genérico
+    // Selector para el ícono genérico
     const genericIcon = toggleLoginBtn ? toggleLoginBtn.querySelector('.fas.fa-user-circle') : null;
     
-    if (sessionToken && userDataJson) {
+    if (isLoggedIn) {
         // SESIÓN ACTIVA
         const userData = JSON.parse(userDataJson);
         const userName = userData.name || userData.email || 'Mi Cuenta'; 
@@ -78,16 +80,15 @@ function checkUserSessionAndRenderUI() {
                 authDisplayName.textContent = userName;
             }
             
-            // 4. Mostrar el botón de Cerrar Sesión y ocultar el botón de Google
+            // 4. Mostrar el botón de Cerrar Sesión y ocultar el contenedor de Google (si existe)
             if (logoutBtn) logoutBtn.style.display = 'block';
             if (googleLoginBtnContainer) googleLoginBtnContainer.style.display = 'none';
         }
         
         // 5. Lógica de la Billetera (NUEVO)
         if (walletContainer && virtualBalanceElement) {
-            // ⭐ MODIFICADO: Usamos '0.00' como fallback, NO '50.00' ⭐
-            // userData.balance ahora viene del servidor con el saldo real de Supabase.
-            const balance = userData.balance ? parseFloat(userData.balance).toFixed(2) : '0.00'; 
+            // Usamos el saldo real del usuario. El backend garantiza que siempre es un string de 2 decimales
+            const balance = userData.balance || '0.00'; 
             virtualBalanceElement.textContent = `$. ${balance}`;
             walletContainer.style.display = 'flex'; // Mostrar la billetera
         }
@@ -108,15 +109,16 @@ function checkUserSessionAndRenderUI() {
         // 3. Restaurar el texto del dropdown a "Iniciar Sesión"
         if (authDisplayName) authDisplayName.textContent = 'Iniciar Sesión';
         
-        // 4. Mostrar el botón de Google y ocultar el botón de Cerrar Sesión
+        // 4. Ocultar el botón de Cerrar Sesión. El botón de Google se manejará en initGoogleSignIn
         if (logoutBtn) logoutBtn.style.display = 'none';
-        if (googleLoginBtnContainer) googleLoginBtnContainer.style.display = 'block';
 
         // 5. Ocultar la Billetera (NUEVO)
         if (walletContainer) {
             walletContainer.style.display = 'none';
         }
     }
+    
+    return isLoggedIn;
 }
 
 /**
@@ -143,18 +145,12 @@ window.handleCredentialResponse = async (response) => {
             
             // Login Exitoso: Guardar la sesión
             localStorage.setItem('userSessionToken', data.sessionToken);
+            // El backend ya garantiza que 'balance' existe
             localStorage.setItem('userData', JSON.stringify(data.user)); 
             
-            checkUserSessionAndRenderUI(); // Actualizar la UI inmediatamente
-            
-            alert(`¡Bienvenido(a), ${data.user.name || 'Usuario'}!`);
-            // Redireccionar, o recargar si es necesario
-            if (window.location.pathname.includes('index.html') === false) {
-                window.location.href = 'index.html'; 
-            } else {
-                // Si ya está en index, solo recargar para asegurar que todos los scripts inicien con sesión activa
-                window.location.reload(); 
-            }
+            // Usar reload() para asegurar que todos los scripts (incluyendo load-products)
+            // se ejecuten con la sesión activa y el saldo disponible.
+            window.location.reload(); 
 
 
         } else {
@@ -162,8 +158,9 @@ window.handleCredentialResponse = async (response) => {
             alert(`Error al iniciar sesión: ${errorData.message || 'Token inválido o error del servidor.'}`);
             console.error("Error del servidor en el login:", errorData);
             
+            // 🚨 CORRECCIÓN CLAVE: Si falla, re-inicializar el botón
             if (window.google && window.google.accounts && window.google.accounts.id) {
-                initGoogleSignIn(); // Re-inicializar para mostrar el botón de nuevo
+                 initGoogleSignIn(true); // Forzar la renderización del botón
             }
         }
 
@@ -175,14 +172,22 @@ window.handleCredentialResponse = async (response) => {
 
 /**
  * Inicializa el SDK de Google y dibuja el botón.
+ * @param {boolean} forceRender Si es true, fuerza la renderización aunque haya sesión.
  */
-function initGoogleSignIn() {
+function initGoogleSignIn(forceRender = false) {
     const loginButtonElement = document.getElementById('google-login-btn');
+    
+    // Si ya hay sesión activa Y no estamos forzando la renderización (ej. después de un error), salir.
+    if (!forceRender && checkUserSessionAndRenderUI()) {
+        if (loginButtonElement) loginButtonElement.style.display = 'none';
+        return;
+    }
     
     if (loginButtonElement && typeof window.google !== 'undefined') { 
         
         if (GOOGLE_CLIENT_ID === 'TU_GOOGLE_CLIENT_ID_AQUÍ') {
             loginButtonElement.innerHTML = '<p style="color:red; text-align:center;">❌ CONFIGURACIÓN PENDIENTE: Reemplaza el ID de Google en script.js.</p>';
+            loginButtonElement.style.display = 'block';
             return;
         }
 
@@ -203,13 +208,12 @@ function initGoogleSignIn() {
                 width: 300 
             } 
         );
+        loginButtonElement.style.display = 'block';
     }
 }
 
 
-// 💡 CORRECCIÓN CLAVE: Función global para obtener la moneda guardada.
-// Esta función es vital para que 'load-recharge-packages.js' sepa qué precios (VES o USD)
-// debe cargar al iniciar la página, ya que usa 'window.getCurrentCurrency()'.
+// 💡 Función global para obtener la moneda guardada.
 window.getCurrentCurrency = function() {
     // Retorna la moneda guardada ('USD' o 'VES'), o 'VES' como valor por defecto.
     return localStorage.getItem('selectedCurrency') || 'VES'; 
@@ -235,7 +239,7 @@ document.addEventListener('DOMContentLoaded', () => {
         
         // Dispatch custom event solo si la moneda realmente cambió
         if (prevCurrency !== value) {
-            window.dispatchEvent(new CustomEvent('currencyChanged', { detail: { currency: value } }));
+             window.dispatchEvent(new CustomEvent('currencyChanged', { detail: { currency: value } }));
         }
     }
 
@@ -455,17 +459,17 @@ document.addEventListener('DOMContentLoaded', () => {
             
             alert('¡Sesión cerrada con éxito!');
             
-            // 4. Redirigir a index si no estamos allí
+            // 4. Redirigir a index si no estamos allí o recargar para resetear el estado
             if (window.location.pathname.includes('index.html') === false) {
-                window.location.href = 'index.html'; 
+                 window.location.href = 'index.html'; 
             } else {
-                // Si estamos en index, recargar para resetear el estado de la página
-                window.location.reload(); 
+                 // Si estamos en index, recargar para resetear el estado de la página
+                 window.location.reload(); 
             }
         });
     }
     
-    // 3. Lógica del Enlace "Mi Cuenta" / "Iniciar Sesión" (MODIFICACIÓN CLAVE)
+    // 3. Lógica del Enlace "Mi Cuenta" / "Iniciar Sesión" 
     if (authDisplayLink) {
         authDisplayLink.addEventListener('click', (e) => {
             e.preventDefault(); 
@@ -509,7 +513,23 @@ document.addEventListener('DOMContentLoaded', () => {
     // 7. Tareas de Inicialización al cargar el DOM
     renderCart();
     applySiteConfig();
-    checkUserSessionAndRenderUI(); // ⬅️ CLAVE: Ejecutar la detección de sesión
+    
+    // 🚨 CORRECCIÓN CLAVE: Inicializar Google Sign-In DESPUÉS de comprobar la sesión
+    // Esto previene que el botón de Google se renderice brevemente si el usuario ya está logueado.
+    const isUserLoggedIn = checkUserSessionAndRenderUI(); 
+    
+    if (!isUserLoggedIn) {
+        // Lógica para asegurar que initGoogleSignIn se llame después de que el SDK cargue
+        if (document.getElementById('google-login-btn')) {
+            const checkGoogleLoad = setInterval(() => {
+                if (typeof window.google !== 'undefined') {
+                    clearInterval(checkGoogleLoad);
+                    initGoogleSignIn();
+                }
+            }, 100);
+        }
+    }
+
 
     // =========================================================================
     // === MÓDULO: OCULTAR/MOSTRAR HEADER AL HACER SCROLL (SOLO MÓVIL) 📱 ===
@@ -553,13 +573,4 @@ document.addEventListener('DOMContentLoaded', () => {
         }, { passive: true }); 
     }
 
-    // Lógica para asegurar que initGoogleSignIn se llame después de que el SDK cargue
-    if (document.getElementById('google-login-btn')) {
-        const checkGoogleLoad = setInterval(() => {
-            if (typeof window.google !== 'undefined') {
-                clearInterval(checkGoogleLoad);
-                initGoogleSignIn();
-            }
-        }, 100);
-    }
 });
