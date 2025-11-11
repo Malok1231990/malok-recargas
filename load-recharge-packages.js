@@ -1,28 +1,48 @@
-// load-recharge-packages.js (FINAL: Incluye Google ID y Lógica de Tasa de Cambio)
+// load-recharge-packages.js (MODIFICADO: Google ID desde Supabase)
 
 // =========================================================================
-// === UTILITY: Obtener Google ID ===
+// === SUPABASE UTILITY: Obtener Google ID ===
 // =========================================================================
 
 /**
- * Utilidad para obtener el google_id del usuario desde localStorage.
- * Asume que el objeto 'userData' guardado en localStorage contiene la propiedad 'google_id'.
- * @returns {string|null} El google_id si existe, o null.
+ * 🎯 NUEVO: Obtiene el google_id del usuario consultando Supabase.
+ * Asume que el cliente Supabase está disponible globalmente como 'supabase'.
+ * @returns {Promise<string|null>} El google_id si existe, o null en caso de error o no logueado.
  */
-function getUserId() {
-    const userDataJson = localStorage.getItem('userData');
-    if (userDataJson) {
-        try {
-            const userData = JSON.parse(userDataJson);
-            // 🎯 CLAVE: Acceder a la propiedad google_id
-            return userData.google_id || null; 
-        } catch (e) {
-            console.error("Error parsing userData from localStorage:", e);
-            return null;
-        }
+async function fetchGoogleId() {
+    // 1. Obtener la sesión actual de Supabase Auth
+    // Nota: Se asume que la librería de Supabase ya está cargada y disponible.
+    if (typeof supabase === 'undefined') {
+        console.error("Error: Cliente de Supabase no encontrado. Asegúrate de que está inicializado.");
+        return null;
     }
-    return null;
+    
+    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+
+    if (sessionError || !session) {
+        // Usuario no logueado
+        return null;
+    }
+
+    const userId = session.user.id; // ID de autenticación de Supabase
+
+    // 2. Consultar la tabla 'usuarios'
+    // Se asume que el ID de Supabase (userId) se usa para identificar al usuario en la tabla 'usuarios'.
+    const { data: userData, error: userError } = await supabase
+        .from('usuarios')
+        .select('google_id')
+        .eq('id', userId) 
+        .single(); 
+
+    if (userError || !userData) {
+        console.error("Error al buscar el google_id en Supabase:", userError);
+        return null;
+    }
+
+    // 3. Devolver el google_id
+    return userData.google_id || null;
 }
+
 
 // =========================================================================
 // === LÓGICA PRINCIPAL DE PAQUETES ===
@@ -34,7 +54,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const selectButton = document.getElementById('select-package-btn');
     let selectedPackageData = null;
 
-    // Paquetes de saldo (Hardcodeados para el ejemplo)
+    // Paquetes de saldo (Hardcodeados para el ejemplo, idealmente desde Supabase)
     const RECHARGE_PACKAGES = [
         { name: 'Saldo $5 USD', usd: '5.00' },
         { name: 'Saldo $10 USD', usd: '10.00' }, 
@@ -51,7 +71,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function getExchangeRate() {
         const rootStyle = getComputedStyle(document.documentElement);
         // Lee la variable CSS, elimina comillas si existen, y convierte a float.
-        let rate = rootStyle.getPropertyValue('--tasa-dolar').trim().replace(/['"]/g, '');
+        let rate = rootStyle.getPropertyValue('--tasa-dolar')?.trim().replace(/['"]/g, ''); // Uso de optional chaining por seguridad
         // Usamos 38.00 como fallback si no se puede leer la variable
         return parseFloat(rate) || 38.00; 
     }
@@ -66,6 +86,7 @@ document.addEventListener('DOMContentLoaded', () => {
         
         // La función getCurrentCurrency() se asume que existe en script.js
         const currentCurrency = window.getCurrentCurrency ? window.getCurrentCurrency() : 'USD'; 
+        // 🎯 OBTENER: Obtener la tasa de cambio
         const exchangeRate = getExchangeRate(); 
         
         RECHARGE_PACKAGES.forEach((pkg) => {
@@ -85,7 +106,7 @@ document.addEventListener('DOMContentLoaded', () => {
             // Guardar los datos en el HTML
             packageHtml.dataset.packageName = pkg.name;
             packageHtml.dataset.priceUsd = pkg.usd;
-            // El precio VES guardado AHORA es el calculado
+            // 🎯 IMPORTANTE: El precio VES guardado AHORA es el calculado, no el hardcodeado.
             packageHtml.dataset.priceVes = calculatedVesPrice; 
 
             packageHtml.innerHTML = `
@@ -110,6 +131,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 selectButton.textContent = `Pagar Recarga de ${selectedPackageData.name}`;
             }
         } else {
+             // Si no hay selección, el botón debe estar deshabilitado y con el texto por defecto
              selectButton.disabled = true;
              selectButton.textContent = 'Continuar al Pago';
         }
@@ -146,11 +168,12 @@ document.addEventListener('DOMContentLoaded', () => {
     // 💡 CLAVE 1: Escuchar el evento global de cambio de moneda (para actualizar si el usuario cambia)
     window.addEventListener('currencyChanged', renderPackages); 
     
-    // 🎯 CLAVE 2 (SOLUCIÓN): Ejecutar renderPackages SOLO cuando la configuración esté cargada
+    // 🎯 CLAVE 2 (SOLUCIÓN): Ejecutar renderPackages SOLO cuando la configuración (incluida la tasa) esté cargada
+    // Esto previene el race condition, asumiendo que script.js dispara 'siteConfigLoaded'.
     document.addEventListener('siteConfigLoaded', renderPackages, { once: true });
     
     // 🎯 Lógica de Pago Directo al enviar el formulario
-    rechargeForm.addEventListener('submit', (e) => {
+    rechargeForm.addEventListener('submit', async (e) => { // 🚨 HACER LA FUNCIÓN ASÍNCRONA
         e.preventDefault();
 
         if (!selectedPackageData) {
@@ -158,10 +181,20 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
         
-        // 🟢 PASO 1: Obtener el ID del usuario
-        const googleId = getUserId();
+        // 🟢 PASO 1: Obtener el ID del usuario desde Supabase
+        // Deshabilitar el botón para evitar múltiples clics
+        selectButton.disabled = true;
+        selectButton.textContent = 'Verificando sesión...';
+
+        const googleId = await fetchGoogleId();
+        
         if (!googleId) {
-            alert('Error: No se encontró la sesión. Por favor, inicia sesión para recargar.');
+            // Revertir el estado del botón
+            selectButton.disabled = false;
+            selectButton.textContent = `Pagar Recarga de ${selectedPackageData.name}`;
+            
+            // Mostrar error si no se encuentra el ID o la sesión
+            alert('Error: No se encontró la sesión o el ID de usuario. Por favor, inicia sesión para recargar y verifica tu conexión.');
             // Opcional: Redirigir a login.html si no está logueado.
             // window.location.href = 'login.html'; 
             return;
@@ -170,13 +203,13 @@ document.addEventListener('DOMContentLoaded', () => {
         // 🟢 PASO 2: Crear el objeto de transacción (simulando un único item de carrito)
         const transactionItem = {
             id: 'WALLET_RECHARGE_' + Date.now(), 
-            game: 'Recarga de Saldo',
+            game: 'Recarga de Saldo', // Identificador especial para el backend
             playerId: 'N/A', 
             packageName: selectedPackageData.name,
             priceUSD: selectedPackageData.usd, 
             priceVES: selectedPackageData.ves, 
             requiresAssistance: false,
-            // 🎯 CORRECCIÓN: Usar la clave 'google_id' como en la tabla
+            // 🎯 CLAVE: Añadir el google_id obtenido de Supabase
             google_id: googleId 
         };
 
@@ -186,5 +219,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // 🟢 PASO 4: Redirigir inmediatamente a payment.html para procesar el pago.
         window.location.href = 'payment.html';
+        
+        // Restablecer el botón después de redirigir (aunque la página se recarga, es buena práctica)
+        selectButton.disabled = false;
+        selectButton.textContent = `Pagar Recarga de ${selectedPackageData.name}`;
     });
 });
