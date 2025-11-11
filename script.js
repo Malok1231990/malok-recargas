@@ -148,15 +148,15 @@ window.handleCredentialResponse = async (response) => {
             // El backend ya garantiza que 'balance' existe
             localStorage.setItem('userData', JSON.stringify(data.user)); 
             
-            // 🟢 CORRECCIÓN APLICADA: Mostrar el alert antes de la recarga
+            // Mostrar el mensaje de bienvenida
             const userName = data.user.name || 'Usuario';
             
             // Usamos un pequeño timeout para asegurarnos de que el alert se muestre antes de la recarga
             setTimeout(() => {
                  alert(`¡Bienvenido(a), ${userName}! Has iniciado sesión correctamente.`);
                  
-                 // Usar reload() para asegurar que todos los scripts se ejecuten con la sesión activa.
-                 window.location.reload(); 
+                 // 🎯 CORRECCIÓN: Redirigir explícitamente a index.html
+                 window.location.href = 'index.html'; 
             }, 50);
 
         } else {
@@ -164,7 +164,7 @@ window.handleCredentialResponse = async (response) => {
             alert(`Error al iniciar sesión: ${errorData.message || 'Token inválido o error del servidor.'}`);
             console.error("Error del servidor en el login:", errorData);
             
-            // 🚨 CORRECCIÓN CLAVE: Si falla, re-inicializar el botón
+            // Si falla, re-inicializar el botón
             if (window.google && window.google.accounts && window.google.accounts.id) {
                  initGoogleSignIn(true); // Forzar la renderización del botón
             }
@@ -520,8 +520,7 @@ document.addEventListener('DOMContentLoaded', () => {
     renderCart();
     applySiteConfig();
     
-    // 🚨 CORRECCIÓN CLAVE: Inicializar Google Sign-In DESPUÉS de comprobar la sesión
-    // Esto previene que el botón de Google se renderice brevemente si el usuario ya está logueado.
+    // 🚨 Inicializar Google Sign-In DESPUÉS de comprobar la sesión
     const isUserLoggedIn = checkUserSessionAndRenderUI(); 
     
     if (!isUserLoggedIn) {
@@ -552,7 +551,7 @@ document.addEventListener('DOMContentLoaded', () => {
         window.addEventListener('scroll', () => {
             const currentScroll = window.pageYOffset || document.documentElement.scrollTop;
             
-            // 🚨 CLAVE: El comportamiento SÓLO se aplica si el ancho de la ventana es menor o igual al breakpoint.
+            // CLAVE: El comportamiento SÓLO se aplica si el ancho de la ventana es menor o igual al breakpoint.
             if (window.innerWidth <= mobileBreakpoint) {
                 
                 // Ocultar si hace scroll hacia abajo
@@ -570,7 +569,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     header.classList.remove('header-hide');
                 }
             } else {
-                // 💡 En Desktop: Aseguramos que la clase 'header-hide' NUNCA esté activa.
+                // En Desktop: Aseguramos que la clase 'header-hide' NUNCA esté activa.
                 header.classList.remove('header-hide');
             }
             
