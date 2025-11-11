@@ -19,13 +19,7 @@ exports.handler = async (event, context) => {
     }
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
-    let body;
-    try {
-        body = JSON.parse(event.body);
-    } catch (e) {
-        console.error("ERROR: No se pudo parsear el cuerpo de la solicitud JSON.", e.message);
-        return { statusCode: 400, body: "Invalid JSON body" };
-    }
+    const body = JSON.parse(event.body);
 
     // ----------------------------------------------------------------------
     // 🔑 PASO 1: OBTENER LA TASA DE CAMBIO DINÁMICA
@@ -67,12 +61,11 @@ exports.handler = async (event, context) => {
             console.log(`LOG: Callback recibido: Intentando marcar transacción ${transactionId} como ${NEW_STATUS}.`);
 
             try {
-                // 2. BUSCAR LA TRANSACCIÓN
-                // 🔑 MODIFICADO: AÑADIDA COLUMNA 'base_amount'
+                // 2. BUSCAR LA TRANSACCIÓN (¡Ahora incluye 'currency' y 'game'!)
                 console.log(`LOG: Buscando datos para transacción ${transactionId} en tabla 'transactions'.`);
                 const { data: transactionData, error: fetchError } = await supabase
                     .from('transactions')
-                    .select('status, google_id, "finalPrice", currency, game, base_amount') 
+                    .select('status, google_id, "finalPrice", currency, game') // <-- ¡MODIFICADO: AÑADIDA COLUMNA 'game'!
                     .eq('id_transaccion', transactionId)
                     .maybeSingle();
 
@@ -87,17 +80,14 @@ exports.handler = async (event, context) => {
                     google_id, 
                     "finalPrice": finalPrice, 
                     currency,
-                    game,
-                    base_amount // ⬅️ OBTENEMOS EL MONTO BASE
+                    game // Obtenemos el campo 'game'
                 } = transactionData;
                 
                 // 🔑 CLAVE: Determinar si la transacción es una recarga de saldo
                 const IS_WALLET_RECHARGE = game === 'Recarga de Saldo';
 
                 const amountInTransactionCurrency = parseFloat(finalPrice);
-                
-                // 🔑 PRIORIDAD: Usar base_amount si existe. Si no, usar finalPrice.
-                let amountToInject = base_amount ? parseFloat(base_amount) : amountInTransactionCurrency; 
+                let amountToInject = amountInTransactionCurrency; // Por defecto es el mismo si es USD
                 let injectionMessage = ""; 
 
                 // -------------------------------------------------------------
@@ -111,18 +101,17 @@ exports.handler = async (event, context) => {
                     
                     if (IS_WALLET_RECHARGE) { // SOLO si es 'Recarga de Saldo'
 
-                        // PASO 3.1: LÓGICA CONDICIONAL DE CONVERSIÓN (Solo si es recarga manual VES)
-                        // Esta conversión solo es necesaria si *no* había base_amount y la moneda es VES
-                        if (!base_amount && (currency === 'VES' || currency === 'BS')) { 
+                        // PASO 3.1: LÓGICA CONDICIONAL DE CONVERSIÓN (Solo si es recarga)
+                        if (currency === 'VES' || currency === 'BS') { 
                             if (EXCHANGE_RATE > 0) {
                                 amountToInject = amountInTransactionCurrency / EXCHANGE_RATE;
-                                console.log(`LOG: Moneda VES detectada sin base_amount. Convirtiendo ${amountInTransactionCurrency.toFixed(2)} VES a USD con tasa ${EXCHANGE_RATE}. Resultado: $${amountToInject.toFixed(2)} USD.`);
+                                console.log(`LOG: Moneda VES detectada. Convirtiendo ${amountInTransactionCurrency.toFixed(2)} VES a USD con tasa ${EXCHANGE_RATE}. Resultado: $${amountToInject.toFixed(2)} USD.`);
                             } else {
                                 // Error crítico si la tasa es 0 o no se pudo obtener
                                 throw new Error("ERROR FATAL: El tipo de cambio (tasa_dolar) no es válido o es cero. No se puede convertir VES a USD.");
                             }
-                        } else if (currency !== 'USD' && !base_amount) {
-                            console.warn(`WARN: Moneda desconocida '${currency}' y sin base_amount. Inyectando monto final sin conversión: $${amountToInject.toFixed(2)}.`);
+                        } else if (currency !== 'USD') {
+                            console.warn(`WARN: Moneda desconocida '${currency}'. Inyectando monto sin conversión: $${amountToInject.toFixed(2)}.`);
                         }
 
                         // PASO 3.2: INYECCIÓN DE SALDO
@@ -147,9 +136,7 @@ exports.handler = async (event, context) => {
                                 }
                                 
                                 console.log(`LOG: Inyección de saldo exitosa para ${google_id}.`);
-                                // 🔑 MENSAJE MEJORADO: Indica que el monto es el base si es Plisio
-                                const montoReportado = base_amount ? `$${amountToInject.toFixed(2)} USD (Monto Base, excluyendo comisión)` : `${finalPrice} ${currency}`;
-                                injectionMessage = `\n\n💰 **INYECCIÓN DE SALDO EXITOSA:** Se inyectaron **$${amountToInject.toFixed(2)} USD** a la billetera del cliente (\`${google_id}\`).\n\n*(Monto del pago: ${montoReportado})*`;
+                                injectionMessage = `\n\n💰 **INYECCIÓN DE SALDO EXITOSA:** Se inyectaron **$${amountToInject.toFixed(2)} USD** a la billetera del cliente (\`${google_id}\`).`;
                             } catch (e) {
                                 console.error("ERROR CRITICO: Falló la llamada RPC para inyección de saldo.", e.message);
                                 throw new Error(`Falló la inyección atómica (RPC). Error: ${e.message}`);
@@ -157,12 +144,12 @@ exports.handler = async (event, context) => {
                         }
                     } else {
                         // Si NO es 'Recarga de Saldo' (es un producto)
-                        injectionMessage = `\n\n🛒 **PRODUCTO ENTREGADO ✅:** No se requería inyección de saldo.`;
+                        injectionMessage = `\n\n🛒 **PRODUCTO ENTREGADO ✅: No se requería inyección de saldo.`;
                     }
                 } // Fin del bloque 'else' si no estaba REALIZADA
 
 
-                // 5. ACTUALIZACIÓN DEL ESTADO... 
+                // 5. ACTUALIZACIÓN DEL ESTADO... (Mismo código)
                 if (currentStatus !== NEW_STATUS) {
                     console.log(`LOG: Actualizando estado de transacción ${transactionId} a ${NEW_STATUS}.`);
                     const { error: updateError } = await supabase
@@ -171,7 +158,7 @@ exports.handler = async (event, context) => {
                             status: NEW_STATUS
                         })
                         .eq('id_transaccion', transactionId)
-                        .in('status', ['pendiente', 'CONFIRMADO', 'CONFIRMADO (ERROR SALDO)']); // Incluimos estados de fallo en la inyección
+                        .in('status', ['pendiente', 'CONFIRMADO']); 
                     
                     if (updateError) {
                         console.error(`ERROR DB: Fallo al actualizar el estado a ${NEW_STATUS}.`, updateError.message);
@@ -179,7 +166,7 @@ exports.handler = async (event, context) => {
                     }
                 }
 
-                // 6. CONFIRMACIÓN Y EDICIÓN DEL MENSAJE DE TELEGRAM...
+                // 6. CONFIRMACIÓN Y EDICIÓN DEL MENSAJE DE TELEGRAM... (Mismo código)
                 console.log("LOG: Editando mensaje de Telegram.");
                 
                 const statusMarker = `\n\n------------------------------------------------\n` +

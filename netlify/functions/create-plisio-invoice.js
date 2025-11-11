@@ -1,391 +1,232 @@
-// netlify/functions/plisio-webhook.js (MODIFICADO PARA USAR base_amount)
-const crypto = require('crypto');
-const { createClient } = require('@supabase/supabase-js');
+// netlify/functions/create-plisio-invoice.js
 const axios = require('axios');
-const nodemailer = require('nodemailer'); 
+const { URLSearchParams } = require('url'); 
+const { createClient } = require('@supabase/supabase-js');
 
 exports.handler = async (event, context) => {
-    // 🚨 TRAZA 0: Verificamos si la función empieza a ejecutarse.
-    console.log("TRAZA 0: Webhook recibido. Verificando método..."); 
-    
-    if (event.httpMethod !== "POST") {
-        console.log(`TRAZA 0.1: Método incorrecto: ${event.httpMethod}. Retornando 405.`);
-        return { statusCode: 405, body: "Method Not Allowed" };
-    }
+    console.log("--- INICIO DE EJECUCIÓN DE FUNCIÓN PLISIO (CREACIÓN DE FACTURA) ---");
 
-    // --- Variables de Entorno ---
-    const PLISIO_API_KEY = process.env.PLISIO_API_KEY; 
+    if (event.httpMethod !== 'POST') {
+        return { statusCode: 405, body: 'Method Not Allowed' };
+    }
+    
+    // 🔑 1. OBTENER Y LIMPIAR VARIABLES DE ENTORNO
+    const apiKey = process.env.PLISIO_API_KEY; 
+    const siteUrl = process.env.NETLIFY_SITE_URL;
+    
+    // 🚨 VARIABLES DE SUPABASE
     const SUPABASE_URL = process.env.SUPABASE_URL;
     const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
-    const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID;
-    const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
-    const SMTP_HOST = process.env.SMTP_HOST;
-    const SMTP_PORT = process.env.SMTP_PORT;
-    const SMTP_USER = process.env.SMTP_USER;
-    const SMTP_PASS = process.env.SMTP_PASS;
-    const SENDER_EMAIL = process.env.SENDER_EMAIL || SMTP_USER;
 
-    if (!PLISIO_API_KEY || !SUPABASE_URL || !SUPABASE_SERVICE_KEY || !TELEGRAM_BOT_TOKEN || !TELEGRAM_CHAT_ID) {
-        console.error("TRAZA 0.2: Faltan variables de entorno esenciales.");
-        return { statusCode: 500, body: "Error de configuración." };
+    const siteUrlClean = siteUrl.endsWith('/') ? siteUrl.slice(0, -1) : siteUrl;
+
+    const callbackUrl = `${siteUrlClean}/.netlify/functions/plisio-webhook?json=true`;
+    
+    console.log(`TRAZA 2: API Key cargada: ${!!apiKey} | Callback URL: ${callbackUrl}`);
+
+    if (!apiKey || !siteUrl || !SUPABASE_URL || !SUPABASE_SERVICE_KEY) {
+        return { 
+            statusCode: 500, 
+            body: JSON.stringify({ message: "Error de configuración. Faltan credenciales esenciales (Plisio/Supabase)." }) 
+        };
     }
     
-    // --- Parseo del Body (SOPORTE JSON) ---
-    let rawBody = event.body;
-    
-    if (event.isBase64Encoded) {
-        try {
-            rawBody = Buffer.from(event.body, 'base64').toString('utf8');
-        } catch (e) {
-            console.error("TRAZA 1.2: ERROR FATAL al decodificar Base64.", e);
-            return { statusCode: 500, body: "Failed to decode body." };
-        }
+    let data;
+    try {
+        data = JSON.parse(event.body);
+    } catch (parseError) {
+        return { statusCode: 400, body: JSON.stringify({ message: 'Formato de cuerpo de solicitud inválido.' }) };
     }
     
-    let body = {};
+    let finalAmountUSD = '0.00'; 
+    let finalAmountFloat = 0; 
+    const orderNumber = `MALOK-${Date.now()}`; // Número único de orden inicial (ID_TRANSACCION)
+    
+    const successUrl = `${siteUrlClean}/payment.html?status=processing&order_number=${orderNumber}`; 
+    console.log(`TRAZA 2.5: Success URL con Order Number: ${successUrl}`);
 
     try {
-        body = JSON.parse(rawBody);
-    } catch (e) {
-        console.error("TRAZA 2.2: ERROR: Fallo al parsear JSON. Deteniendo.");
-        return { statusCode: 400, body: "Invalid JSON body. Expected JSON due to ?json=true." };
-    }
-    // Fin Parseo
+        // OBTENCIÓN DE DATOS
+        // 🎯 MODIFICADO: Añadido googleId
+        const { amount, email, whatsapp, cartDetails, googleId } = data; 
 
-    // --- OBTENCIÓN DE DATOS CRÍTICOS ---
-    const receivedHash = body.verify_hash; 
-    const invoiceID = body.order_number; 
-    const plisioTxnId = body.txn_id; 
-    const status = body.status;
-
-    console.log(`TRAZA 3: Variables de Plisio obtenidas: OrderID=${invoiceID}, Status=${status}, Hash recibido=${receivedHash ? receivedHash.substring(0, 5) + '...' : 'N/A'}`);
-    
-    // --- 1. VERIFICACIÓN DE SEGURIDAD (HMAC-SHA1 de Plisio) ---
-    
-    if (!invoiceID) {
-        console.error("TRAZA 5.1: ERROR: No se pudo obtener el Número de Orden (order_number) de Plisio. Deteniendo.");
-        return { statusCode: 200, body: "Missing Plisio order_number." }; 
-    }
-    
-    if (!receivedHash) {
-         console.error(`TRAZA 5.2: ERROR: No se recibió verify_hash para OrderID: ${invoiceID}.`); 
-         return { statusCode: 200, body: `Missing Plisio Security Hash (verify_hash).` };
-    }
-    
-    // 🔑 IMPLEMENTACIÓN DEL MÉTODO DE VERIFICACIÓN DE PLISIO
-    const ordered = { ...body };
-    delete ordered.verify_hash; 
-    
-    const stringToHash = JSON.stringify(ordered);
-    
-    const hmac = crypto.createHmac('sha1', PLISIO_API_KEY);
-    hmac.update(stringToHash);
-    const generatedHash = hmac.digest('hex');
-
-    if (generatedHash !== receivedHash) {
-        console.error(`TRAZA 6: ERROR: Firma de Webhook de Plisio INVÁLIDA para OrderID: ${invoiceID}.`);
-        console.error(`TRAZA 6.1: Generated Hash (Full): ${generatedHash}. Received Hash (Full): ${receivedHash}.`); 
-        return { statusCode: 200, body: `Invalid Plisio Hash.` }; 
-    }
-    
-    console.log(`TRAZA 7: Webhook de Plisio verificado exitosamente para OrderID: ${invoiceID}, Estado: ${status}`);
-    
-    // ----------------------------------------------------------------------
-    // --- 2. PROCESAMIENTO DEL PAGO (COMPLETED/PENDING/FALLO) ---
-    // ----------------------------------------------------------------------
-
-    if (status !== 'completed' && status !== 'amount_check') {
-        
-        let updateData = {};
-        let needsDbUpdate = false;
-        
-        if (status === 'pending') {
-             updateData.status = 'PENDIENTE DE CONFIRMACIÓN'; 
-             needsDbUpdate = true;
-        } else if (status === 'mismatch' || status === 'expired' || status === 'error' || status === 'cancelled') {
-             updateData.status = `FALLO: ${status.toUpperCase()} (PLISIO)`;
-             needsDbUpdate = true;
-        } else {
-             console.log("TRAZA 8.1: Estado intermedio (new, pending internal, cancelled duplicate). Fin.");
-             return { statusCode: 200, body: "Webhook processed, no action needed for this status." };
+        // Validaciones básicas
+        if (!amount || isNaN(parseFloat(amount)) || parseFloat(amount) <= 0 || !email) {
+            return { statusCode: 400, body: JSON.stringify({ message: 'Datos de transacción incompletos o inválidos (monto o email).' }) };
         }
         
-        if (needsDbUpdate) { 
+        // ** Validamos googleId, ya que es CRÍTICO para la inyección automática
+        if (!googleId) {
+             return { statusCode: 400, body: JSON.stringify({ message: 'Falta el ID del cliente (googleId) necesario para la acreditación automática.' }) };
+        }
+
+        // Procesar los detalles del producto anidados en cartDetails
+        let productDetails = {};
+        if (cartDetails) {
             try {
-                console.log(`TRAZA 8.2: Actualizando estado de fallo/intermedio en Supabase a: ${updateData.status}`);
-                const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
-                await supabase.from('transactions').update(updateData).eq('id_transaccion', invoiceID);
+                const cartArray = JSON.parse(cartDetails);
+                productDetails = cartArray.length > 0 ? cartArray[0] : {};
             } catch (e) {
-                console.error("TRAZA 8.3: Error al actualizar estado intermedio:", e.message);
+                console.error("TRAZA 11.5: Error al parsear cartDetails, usando objeto vacío.", e.message);
             }
         }
         
-        return { statusCode: 200, body: "Webhook processed, non-completion event" };
-    }
-    
-    // --- 2b. Manejo del estado COMPLETED/AMOUNT_CHECK ---
-    console.log(`TRAZA 9: Pago CONFIRMADO para la orden: ${invoiceID}. Iniciando proceso de BD/Telegram.`);
-    
-    let transactionData;
-    let injectionMessage = "";
-    
-    try {
-        const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY, {
-            auth: { persistSession: false },
-        });
-
-        // 🔑 PASO A0: OBTENER LA TASA DE CAMBIO DINÁMICA
-        let EXCHANGE_RATE = 1.0; 
-        try {
-            const { data: configData } = await supabase
-                .from('configuracion_sitio')
-                .select('tasa_dolar')
-                .eq('id', 1)
-                .maybeSingle();
-
-            if (configData && configData.tasa_dolar > 0) {
-                EXCHANGE_RATE = configData.tasa_dolar;
-                console.log(`TRAZA 9.1: Tasa de dólar obtenida de DB: ${EXCHANGE_RATE}`);
-            }
-        } catch (e) {
-            console.error("TRAZA 9.2: ERROR CRITICO al obtener configuración de DB:", e.message);
-        }
-
+        // Mapeo de datos para la base de datos:
+        const game = productDetails.game || 'Carrito Múltiple';
+        const playerId = productDetails.playerId || null;
+        const packageName = productDetails.packageName || 'Múltiples Paquetes';
+        const whatsappNumber = whatsapp || null;
         
-        // a) BUSCAR LA TRANSACCIÓN EN SUPABASE (Incluir base_amount)
-        console.log(`TRAZA 10: Buscando transacción ${invoiceID} en Supabase.`);
-        const { data: transactions, error: fetchError } = await supabase
-            // 🔑 MODIFICADO: Incluimos base_amount para la inyección sin comisión
+        // Mapeo de credenciales:
+        const roblox_email = productDetails.robloxEmail || productDetails.roblox_email || null;
+        const roblox_password = productDetails.robloxPassword || productDetails.roblox_password || null;
+        const codm_email = productDetails.codmEmail || productDetails.codm_email || null;
+        const codm_password = productDetails.codmPassword || productDetails.codm_password || null;
+        const codm_vinculation = productDetails.codmVinculation || productDetails.codm_vinculation || null;
+        
+        // Cálculo del monto (misma lógica)
+        const feePercentage = 0.03; 
+        const amountValue = parseFloat(amount);
+        const amountWithFee = amountValue * (1 + feePercentage); 
+        
+        finalAmountFloat = amountWithFee;
+        finalAmountUSD = amountWithFee.toFixed(2);
+        
+        console.log(`TRAZA 12: Monto final con comisión (3%): ${finalAmountUSD} USD`);
+        
+        // 🚨 2. INSERCIÓN EN SUPABASE (PENDIENTE)
+        const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
+        
+        console.log(`TRAZA 13: Iniciando inserción de orden PENDIENTE a Supabase... Order_Number: ${orderNumber}`);
+        
+        const { data: insertedData, error: insertError } = await supabase
             .from('transactions')
-            .select('*, google_id, game, "finalPrice", currency, base_amount') 
-            .eq('id_transaccion', invoiceID)
-            .maybeSingle(); 
-
-        if (fetchError || !transactions) {
-            console.error(`TRAZA 10.1: ERROR al buscar transacción en Supabase:`, fetchError ? fetchError.message : 'No encontrada');
-            return { statusCode: 200, body: "DB Fetch Error/Transaction not found." };
+            .insert([
+                {
+                    id_transaccion: orderNumber, 
+                    "finalPrice": finalAmountFloat,
+                    currency: 'USD', 
+                    status: 'pendiente', 
+                    email: email,
+                    "whatsappNumber": whatsappNumber,
+                    "google_id": googleId, // ⬅️ ¡SOLUCIÓN: Insertamos el google_id aquí!
+                    
+                    paymentMethod: 'plisio', 
+                    methodDetails: {}, 
+                    
+                    "cartDetails": cartDetails, 
+                    
+                    // Campos de compatibilidad 
+                    game: game,
+                    "playerId": playerId,
+                    "packageName": packageName,
+                    roblox_email: roblox_email,
+                    roblox_password: roblox_password,
+                    codm_email: codm_email,
+                    codm_password: codm_password,
+                    codm_vinculation: codm_vinculation,
+                }
+            ])
+            .select();
+        
+        if (insertError) {
+            console.error("TRAZA 13.5: ERROR CRÍTICO al insertar a Supabase:", insertError.message);
+            throw new Error(`Fallo al iniciar transacción en Supabase: ${insertError.message}`);
         }
         
-        transactionData = transactions;
-        // 🔑 MODIFICADO: Desestructuramos base_amount
-        const { google_id, game, "finalPrice": finalPrice, currency, base_amount } = transactionData;
-        
-        // 🔑 PASO A1: LÓGICA DE INYECCIÓN AUTOMÁTICA
-        const IS_WALLET_RECHARGE = game === 'Recarga de Saldo';
-        
-        // 🔑 CAMBIO CRÍTICO: Usar base_amount si existe, si no, fallback a finalPrice (para evitar errores si el campo es nuevo).
-        const amountToInject = base_amount ? parseFloat(base_amount) : parseFloat(finalPrice); 
-        
-        console.log(`TRAZA 11: Transacción encontrada. Game: ${game}, Google ID: ${google_id}, Monto Base a Inyectar: $${amountToInject.toFixed(2)} USD.`);
-        
-        let newStatus = 'CONFIRMADO';
+        console.log("TRAZA 14: Inserción exitosa en Supabase. Continuando con Plisio...");
 
-        if (IS_WALLET_RECHARGE) {
+        // --- PAYLOAD FINAL PLISIO (Lógica de API) ---
+        const payloadData = {
+            api_key: apiKey,
+            source_currency: 'USD', 
+            source_amount: finalAmountUSD, 
+            order_name: "Recarga de Servicios Malok",
+            order_number: orderNumber, 
+            allowed_psys_cids: 'USDT_TRX,USDT_BSC', 
+            email: email, 
+            callback_url: callbackUrl, 
+            success_invoice_url: successUrl, 
+        };
+        
+        const PLISIO_INVOICES_URL = 'https://api.plisio.net/api/v1/invoices/new'; 
+        const queryString = new URLSearchParams(payloadData).toString();
+        const PLISIO_FINAL_URL = `${PLISIO_INVOICES_URL}?${queryString}`;
+
+        console.log("TRAZA 16: Iniciando solicitud GET a Plisio...");
+        
+        const response = await axios.get(PLISIO_FINAL_URL);
+        const plisioData = response.data;
+        console.log(`TRAZA 18: Respuesta de Plisio recibida. Status general: ${plisioData.status}`);
+
+        if (plisioData.status === 'success' && plisioData.data && plisioData.data.invoice_url) {
             
-            if (!google_id || isNaN(amountToInject) || amountToInject <= 0) {
-                 injectionMessage = `\n\n❌ **ERROR DE INYECCIÓN DE SALDO:** Datos incompletos (Google ID: ${google_id}, Monto: ${amountToInject}). **¡REVISIÓN MANUAL REQUERIDA!**`;
-                 newStatus = 'CONFIRMADO (ERROR SALDO)'; 
-
-            } else {
-                 // Intenta la inyección atómica del saldo
-                 try {
-                     const { error: balanceUpdateError } = await supabase
-                         .rpc('incrementar_saldo', { 
-                             p_user_id: google_id, 
-                             p_monto: amountToInject.toFixed(2) // ⬅️ Usamos amountToInject (BASE)
-                         }); 
-                         
-                     if (balanceUpdateError) {
-                         console.error(`TRAZA 11.1: Fallo al inyectar saldo a ${google_id}. Msg: ${balanceUpdateError.message}.`);
-                         injectionMessage = `\n\n❌ **ERROR CRÍTICO AL INYECTAR SALDO:** No se pudo actualizar la billetera del cliente. \n\n${balanceUpdateError.message}`;
-                         newStatus = 'CONFIRMADO (ERROR SALDO)'; 
-                     } else {
-                         console.log(`TRAZA 11.2: Inyección de saldo exitosa: $${amountToInject.toFixed(2)} USD para ${google_id}.`);
-                         injectionMessage = `\n\n💰 **INYECCIÓN DE SALDO EXITOSA:** Se inyectaron **$${amountToInject.toFixed(2)} USD** a la billetera del cliente (\`${google_id}\`).\n\n*(El cliente pagó $${parseFloat(finalPrice).toFixed(2)} USD, incluyendo comisión.)*`;
-                         newStatus = 'REALIZADA'; 
-                     }
-                 } catch (e) {
-                     console.error("TRAZA 11.3: Falló la llamada RPC para inyección de saldo.", e.message);
-                     injectionMessage = `\n\n❌ **ERROR CRÍTICO AL INYECTAR SALDO:** Falló la RPC. Msg: ${e.message}`;
-                     newStatus = 'CONFIRMADO (ERROR SALDO)'; 
-                 }
-            }
+            // 🚨 3. ACTUALIZAR DETALLES:
+            console.log(`TRAZA 19: Actualizando detalles de Plisio (TXN_ID: ${plisioData.data.txn_id})`);
+            
+            await supabase
+                .from('transactions')
+                .update({ 
+                    currency: 'USD',
+                    "finalPrice": finalAmountFloat,
+                    methodDetails: {
+                        plisio_txn_id: plisioData.data.txn_id, 
+                        invoice_id: plisioData.data.invoice_id,
+                        address: plisioData.data.wallet_hash,
+                        expected_amount: plisioData.data.expected_amount,
+                        currency: plisioData.data.currency,
+                        psys_cid: plisioData.data.psys_cid
+                    }
+                })
+                .eq('id_transaccion', orderNumber); 
+                
+            console.log("--- FINALIZACIÓN EXITOSA DE FUNCIÓN (Factura Creada y BD Actualizada) ---");
+            
+            return {
+                statusCode: 200,
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    chargeUrl: plisioData.data.invoice_url, 
+                    chargeId: orderNumber, 
+                }),
+            };
         } else {
-            // Si NO es recarga de saldo
-            injectionMessage = `\n\n🛒 **PRODUCTO PENDIENTE DE ENTREGA:** Transacción de **${game}**. El operador debe procesar el pedido.`;
-            newStatus = 'CONFIRMADO';
-        }
-        
-        // b) ACTUALIZAR EL ESTADO DE LA TRANSACCIÓN (FINAL)
-        console.log(`TRAZA 12: Actualizando estado final a '${newStatus}' en Supabase.`);
-        const { error: updateError } = await supabase
-            .from('transactions')
-            .update({ 
-                status: newStatus, 
-                "paymentMethod": `PLISIO (${body.currency || 'N/A'})`, 
-                "completed_at": new Date().toISOString(),
-                "methodDetails": { 
-                    plisio_txn_id: plisioTxnId,
-                    plisio_currency_paid: body.currency,
-                    plisio_amount: body.amount,
-                    plisio_hash: receivedHash
-                }
-            })
-            .eq('id_transaccion', invoiceID);
-
-        if (updateError) {
-             console.error("TRAZA 12.1: Error al actualizar el estado de la transacción:", updateError.message);
-             injectionMessage += `\n\n⚠️ **ADVERTENCIA:** Fallo al actualizar estado final en DB: ${updateError.message}`;
-             newStatus = 'CONFIRMADO (ERROR DB)';
+            // Manejo de error de la API de Plisio
+            const errorMessage = plisioData.data && plisioData.data.message ? `Plisio API Error: ${plisioData.data.message}` : 'Error desconocido de la API de Plisio';
+            console.error(`TRAZA 20: ERROR: Fallo al crear factura de Plisio. Respuesta de la API no "success": ${errorMessage}`);
+            throw new Error(errorMessage);
         }
 
-        // c) PREPARAR Y ENVIAR LA NOTIFICACIÓN DETALLADA A TELEGRAM
-        console.log("TRAZA 13: Preparando mensaje para Telegram.");
+    } catch (error) {
+        // Diagnóstico y limpieza de la fila PENDIENTE en caso de fallo
         
-        let cartItems = [];
-        if (transactionData.cartDetails && typeof transactionData.cartDetails === 'string') {
-             try {
-                 cartItems = JSON.parse(transactionData.cartDetails); 
-             } catch (e) {
-                 console.error("TRAZA 13.2: Error al parsear cartDetails de la BD:", e);
-             }
-        } 
+        console.error(`TRAZA 21: ERROR DE CONEXIÓN O EJECUCIÓN: ${error.message}`);
         
-        if (!Array.isArray(cartItems) || cartItems.length === 0) {
-             cartItems = [{
-                 game: transactionData.game,
-                 packageName: transactionData.packageName,
-                 playerId: transactionData.playerId,
-                 finalPrice: transactionData.finalPrice,
-                 currency: transactionData.currency
-             }];
-        }
-        
-        // 💡 CAMBIO CLAVE: Usamos newStatus en el título
-        const emoji = newStatus === 'REALIZADA' ? '✅' : '🔔';
-        let messageText = `${emoji} *¡PAGO Y PROCESAMIENTO COMPLETADO!* (Plisio) ${emoji}\n\n`;
-        messageText += `*ID de Transacción:* \`${invoiceID || 'N/A'}\`\n`;
-        messageText += `*Estado Final:* \`${newStatus}\`\n`; 
-        messageText += `------------------------------------------------\n`;
-
-        cartItems.forEach((item, index) => {
-            if (item.game || item.packageName || item.playerId) {
-                messageText += `*📦 Producto ${cartItems.length > 1 ? index + 1 : ''}:*\n`;
-                
-                const game = item.game || 'N/A';
-                const packageName = item.packageName || 'N/A';
-                const playerId = item.playerId || 'N/A';
-                
-                messageText += `🎮 Juego/Servicio: *${game}*\n`;
-                messageText += `📦 Paquete: *${packageName}*\n`;
-                
-                const robloxEmail = item.roblox_email || transactionData.roblox_email;
-                const robloxPassword = item.roblox_password || transactionData.roblox_password;
-                const codmEmail = item.codm_email || transactionData.codm_email;
-                const codmPassword = item.codm_password || transactionData.codm_password;
-                const codmVinculation = item.codm_vinculation || transactionData.codm_vinculation;
-
-                if (game && game.toLowerCase().includes('roblox') && robloxEmail && robloxPassword) {
-                     messageText += `📧 Correo Roblox: \`${robloxEmail}\`\n`;
-                     messageText += `🔑 Contraseña Roblox: \`${robloxPassword}\`\n`;
-                } else if (game && game.toLowerCase().includes('duty mobile') && codmEmail && codmPassword) {
-                     messageText += `📧 Correo CODM: \`${codmEmail}\`\n`;
-                     messageText += `🔑 Contraseña CODM: \`${codmPassword}\`\n`;
-                     messageText += `🔗 Vinculación CODM: ${codmVinculation || 'N/A'}\n`;
-                } else if (playerId && playerId !== 'N/A') {
-                     messageText += `👤 ID de Jugador: *${playerId}*\n`;
-                }
-                
-                const itemPrice = item.priceUSD || item.finalPrice || 'N/A'; 
-                const itemCurrency = item.currency || transactionData.currency || 'USD';
-
-                if (itemPrice !== 'N/A' && itemCurrency !== 'N/A') {
-                     messageText += `💲 Precio (Est.): ${parseFloat(itemPrice).toFixed(2)} ${itemCurrency}\n`;
-                }
-                
-                messageText += `------------------------------------------------\n`;
-            }
-        });
-
-        // Información de Pago y Contacto (Global)
-        messageText += `\n*RESUMEN DE PAGO (Plisio)*\n`;
-        messageText += `💰 *Monto Recibido (Cripto):* *${body.amount || 'N/A'} ${body.currency || 'N/A'}*\n`; 
-        messageText += `💵 *Monto de Orden (USD):* *${body.source_amount || 'N/A'} ${body.source_currency || 'N/A'}*\n`;
-        messageText += `💳 Método de Pago: *PLISIO (${body.psys_cid || 'Cripto'})*\n`;
-        messageText += `🆔 TXID Plisio: \`${plisioTxnId || 'N/A'}\`\n`;
-        
-        messageText += `\n*DETALLE DE PROCESAMIENTO*\n`;
-        messageText += injectionMessage; 
-        
-        messageText += `\n*DATOS DEL CLIENTE*\n`;
-        messageText += `📧 Correo Cliente: ${transactionData.email || 'N/A'}\n`;
-        if (transactionData.whatsappNumber) { 
-             messageText += `📱 WhatsApp Cliente: ${transactionData.whatsappNumber}\n`;
-        }
-
-
-        // 💡 NO se incluyen botones inline
-        const telegramApiUrl = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`;
-        let telegramMessageResponse;
-        
-        console.log("TRAZA 14: Enviando mensaje final a Telegram.");
-        
-        try {
-            telegramMessageResponse = await axios.post(telegramApiUrl, {
-                chat_id: TELEGRAM_CHAT_ID,
-                text: messageText,
-                parse_mode: 'Markdown',
+        if(supabase && orderNumber) {
+            console.warn(`TRAZA 22: Limpieza: Intentando eliminar la fila ${orderNumber} de Supabase debido a un fallo.`);
+            supabase.from('transactions').delete().eq('id_transaccion', orderNumber).then(() => {
+                console.log(`TRAZA 22.5: Fila ${orderNumber} eliminada correctamente.`);
+            }).catch(cleanError => {
+                console.error(`TRAZA 22.6: Fallo al eliminar fila de limpieza: ${cleanError.message}`);
             });
-            console.log("TRAZA 14.1: Mensaje de Telegram final enviado con éxito.");
-            
-            // d) ACTUALIZAR EL message_id en Supabase
-            if (telegramMessageResponse && telegramMessageResponse.data && telegramMessageResponse.data.result) {
-                console.log("TRAZA 15: Actualizando Supabase con telegram_message_id.");
-                await supabase
-                    .from('transactions')
-                    .update({ telegram_message_id: telegramMessageResponse.data.result.message_id })
-                    .eq('id_transaccion', invoiceID);
-                console.log("TRAZA 15.1: Transaction actualizada con telegram_message_id.");
-            }
-
-        } catch (telegramError) {
-            console.error("TRAZA 14.2: ERROR: Fallo al enviar mensaje de Telegram.", telegramError.response ? telegramError.response.data : telegramError.message);
         }
-
-        // e) Enviar Correo de Confirmación al Cliente (Si está configurado)
-        if (transactionData.email && SMTP_HOST) {
-             console.log("TRAZA 16: Enviando correo de confirmación al cliente.");
-             const transporter = nodemailer.createTransport({
-                 host: SMTP_HOST,
-                 port: parseInt(SMTP_PORT, 10),
-                 secure: parseInt(SMTP_PORT, 10) === 465,
-                 auth: { user: SMTP_USER, pass: SMTP_PASS },
-                 tls: { rejectUnauthorized: false }
-             });
-             
-             const emailSubject = newStatus === 'REALIZADA' 
-                 ? `✅ ¡Recarga ACREDITADA! Tu pedido #${invoiceID} está listo.`
-                 : `✅ ¡Pago CONFIRMADO! Tu pedido #${invoiceID} está en proceso.`;
-             
-             const emailHtml = newStatus === 'REALIZADA'
-                 ? `<p>Hola,</p><p>Tu pago de ${body.source_amount || 'N/A'} ${body.source_currency || 'USD'} ha sido confirmado y el saldo de **$${amountToInject.toFixed(2)} USD** ha sido **acreditado automáticamente** a tu cuenta.</p><p>Gracias por tu compra.</p>`
-                 : `<p>Hola,</p><p>Tu pago de ${body.source_amount || 'N/A'} ${body.source_currency || 'USD'} ha sido confirmado por la pasarela de Plisio. Tu pedido está siendo procesado por nuestro equipo.</p><p>Gracias por tu compra.</p>`;
-             
-             const mailOptions = {
-                 from: SENDER_EMAIL,
-                 to: transactionData.email,
-                 subject: emailSubject,
-                 html: emailHtml,
-             };
-             
-             await transporter.sendMail(mailOptions).catch(err => console.error("TRAZA 16.1: Error al enviar el correo de confirmación de Plisio:", err.message));
-             console.log("TRAZA 17: Correo enviado/intento de envío completado.");
+        
+        let errorDetails = error.message;
+        
+        if (error.response) {
+            console.error(`TRAZA 23: El error es una respuesta de Axios. Status HTTP: ${error.response.status}`);
+            errorDetails = `Error HTTP ${error.response.status}. Ver logs de Netlify para más detalles.`;
         }
+        
+        console.error(`DETALLE DE ERROR FINAL: ${errorDetails}`); 
 
-    } catch (procError) {
-        console.error("TRAZA 18: ERROR CRÍTICO durante el procesamiento de la orden de Plisio:", procError.message);
+        return {
+            statusCode: 500,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+                message: `Error al crear la factura de pago.`,
+                details: errorDetails
+            }),
+        };
     }
-
-    console.log("TRAZA FINAL: Webhook procesado. Retornando 200.");
-    return { statusCode: 200, body: "Webhook processed" };
 };
