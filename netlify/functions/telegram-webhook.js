@@ -59,7 +59,7 @@ exports.handler = async (event, context) => {
 
                 // Usamos 'finalPrice' en la desestructuración de datos
                 const { status: currentStatus, google_id, "finalPrice": finalPrice } = transactionData;
-                const amountToInject = parseFloat(finalPrice);
+                const amountToInject = parseFloat(finalPrice); // Usamos parseFloat para obtener el monto numérico
 
                 console.log(`LOG: Datos de transacción obtenidos: Cliente ID ${google_id}, Monto $${amountToInject.toFixed(2)}, Estado actual ${currentStatus}.`);
                 
@@ -72,26 +72,16 @@ exports.handler = async (event, context) => {
                     // Validaciones básicas para inyección
                     injectionMessage = `\n\n❌ **ERROR DE INYECCIÓN DE SALDO:** Datos incompletos (Google ID: ${google_id}, Monto: ${finalPrice}). **¡REVISIÓN MANUAL REQUERIDA!**`;
                 } else {
-                    // 4. INYECTAR SALDO AL CLIENTE (Actualización atómica en la tabla 'saldos')
-                    console.log(`LOG: Intentando inyectar $${amountToInject.toFixed(2)} a 'user_id' ${google_id} en tabla 'saldos'.`);
-
-                    // 🚨 VERIFICACIÓN: El valor que causó error fue 'saldo_usd + 64000'. El método RAW/SQL es el único que debería funcionar.
-                    // Si RAW/SQL fallan, la forma más limpia es usar la función de base de datos.
-                    // Probaremos la sintaxis de función `increment` que suele estar disponible.
+                    // 4. INYECTAR SALDO AL CLIENTE (Usando la función RPC)
+                    console.log(`LOG: Intentando inyectar $${amountToInject.toFixed(2)} a 'user_id' ${google_id} usando RPC.`);
                     
                     try {
-                        console.log(`LOG: Intentando llamar a función de PostgREST para incremento de saldo.`);
-                        
+                        // 💡 CORRECCIÓN CRÍTICA: Se reemplaza .update({ saldo_usd: supabase.fn(...) }) por .rpc()
                         const { error: balanceUpdateError } = await supabase
-                            .from('saldos')
-                            // Incrementa el saldo_usd actual con el monto de la transacción
-                            .update({ 
-                                // 🔑 CORRECCIÓN FINAL: Usamos la función de 'set' para asegurar que la expresión se evalúe.
-                                // Requerimos que `amountToInject` sea una cadena con signo.
-                                saldo_usd: supabase.fn('increment', 'saldo_usd', amountToInject)
-                            })
-                            // Usamos 'user_id' que es la clave en la tabla 'saldos'
-                            .eq('user_id', google_id); 
+                            .rpc('incrementar_saldo', { 
+                                p_user_id: google_id, 
+                                p_monto: amountToInject
+                            }); 
                             
                         if (balanceUpdateError) {
                             console.error(`ERROR DB: Fallo al inyectar saldo a ${google_id}. Mensaje: ${balanceUpdateError.message}.`);
@@ -101,9 +91,9 @@ exports.handler = async (event, context) => {
                         }
                         
                     } catch (e) {
-                         // Si la función `fn` no existe, esto también fallará. Capturamos y lanzamos un error detallado.
-                         console.error("ERROR CRITICO: La función supabase.fn falló o no existe.", e.message);
-                         throw new Error(`Falló la inyección atómica. Intente la solución RPC en base de datos. Error: ${e.message}`);
+                        // Error capturado del fallo de RPC
+                        console.error("ERROR CRITICO: Falló la llamada RPC para inyección de saldo.", e.message);
+                        throw new Error(`Falló la inyección atómica (RPC). Error: ${e.message}`);
                     }
                     
                     console.log(`LOG: Inyección de saldo exitosa para ${google_id}.`);
