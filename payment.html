@@ -272,7 +272,7 @@
 
 <script src="script.js"></script>
 <script>
-    // 1. PLANTILLAS Y DATOS ESTATICOS
+// 1. PLANTILLAS Y DATOS ESTATICOS
     const paymentDetailsTemplates = {
         'pago-movil': `
             <p><strong>Paso 1:</strong> Realiza el Pago Móvil a los siguientes datos:</p>
@@ -452,8 +452,9 @@
     }
 
     /**
-     * @REESCRITO: Genera y actualiza el resumen de la transacción en la UI, ahora manejando un array de productos (el carrito).
+     * @MODIFICADO: Genera y actualiza el resumen de la transacción en la UI, ahora manejando un array de productos (el carrito).
      * Calcula el total de todos los productos y muestra los detalles individuales.
+     * 🎯 CAMBIO CLAVE AQUÍ: Lógica para mostrar google_id si item.game es 'Recarga de Saldo'.
      */
     function updateTransactionSummary() {
         const summaryDiv = document.getElementById('transaction-summary');
@@ -508,6 +509,11 @@
                 }
                 const gameVinculationHtml = item.codmVinculation ? `<p><strong>Vinculación:</strong> ${item.codmVinculation}</p>` : '';
                 playerInfoHtml = `${gameEmailHtml}${gameVinculationHtml}`;
+            } else if (game === 'Recarga de Saldo' && item.google_id) { 
+                // 🎯 INICIO DEL CAMBIO: Lógica para Recarga de Saldo/Wallet
+                gameOrServiceLabel = 'Servicio';
+                playerInfoHtml = `<p><strong>ID de Usuario (Google ID):</strong> ${item.google_id}</p>`;
+                // 🎯 FIN DEL CAMBIO
             } else {
                 // Para otros juegos, mostramos el ID de Jugador (playerId)
                 const playerIdHtml = item.playerId ? `<p><strong>ID/Usuario:</strong> ${item.playerId}</p>` : '';

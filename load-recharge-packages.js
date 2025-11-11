@@ -1,4 +1,32 @@
-// load-recharge-packages.js (CORREGIDO: Espera la Carga de Configuración de Tasa de Cambio)
+// load-recharge-packages.js (FINAL: Incluye Google ID y Lógica de Tasa de Cambio)
+
+// =========================================================================
+// === UTILITY: Obtener Google ID ===
+// =========================================================================
+
+/**
+ * Utilidad para obtener el google_id del usuario desde localStorage.
+ * Asume que el objeto 'userData' guardado en localStorage contiene la propiedad 'google_id'.
+ * @returns {string|null} El google_id si existe, o null.
+ */
+function getUserId() {
+    const userDataJson = localStorage.getItem('userData');
+    if (userDataJson) {
+        try {
+            const userData = JSON.parse(userDataJson);
+            // 🎯 CLAVE: Acceder a la propiedad google_id
+            return userData.google_id || null; 
+        } catch (e) {
+            console.error("Error parsing userData from localStorage:", e);
+            return null;
+        }
+    }
+    return null;
+}
+
+// =========================================================================
+// === LÓGICA PRINCIPAL DE PAQUETES ===
+// =========================================================================
 
 document.addEventListener('DOMContentLoaded', () => {
     const packageGrid = document.getElementById('recharge-package-options-grid');
@@ -6,14 +34,14 @@ document.addEventListener('DOMContentLoaded', () => {
     const selectButton = document.getElementById('select-package-btn');
     let selectedPackageData = null;
 
-    // Paquetes de saldo (Hardcodeados para el ejemplo, idealmente desde Supabase)
+    // Paquetes de saldo (Hardcodeados para el ejemplo)
     const RECHARGE_PACKAGES = [
-        { name: 'Saldo $5 USD', usd: '5.00', ves: '380.00' },
-        { name: 'Saldo $10 USD', usd: '10.00', ves: '380.00' }, 
-        { name: 'Saldo $20 USD', usd: '20.00', ves: '950.00' },
-        { name: 'Saldo $50 USD', usd: '50.00', ves: '1900.00' },
-        { name: 'Saldo $100 USD', usd: '100.00', ves: '1900.00' },
-        { name: 'Saldo $200 USD', usd: '200.00', ves: '3800.00' }
+        { name: 'Saldo $5 USD', usd: '5.00' },
+        { name: 'Saldo $10 USD', usd: '10.00' }, 
+        { name: 'Saldo $20 USD', usd: '20.00' },
+        { name: 'Saldo $50 USD', usd: '50.00' },
+        { name: 'Saldo $100 USD', usd: '100.00' },
+        { name: 'Saldo $200 USD', usd: '200.00' }
     ];
 
     /**
@@ -38,10 +66,9 @@ document.addEventListener('DOMContentLoaded', () => {
         
         // La función getCurrentCurrency() se asume que existe en script.js
         const currentCurrency = window.getCurrentCurrency ? window.getCurrentCurrency() : 'USD'; 
-        // 🎯 OBTENER: Obtener la tasa de cambio
         const exchangeRate = getExchangeRate(); 
         
-        RECHARGE_PACKAGES.forEach((pkg, index) => {
+        RECHARGE_PACKAGES.forEach((pkg) => {
             
             const usdPrice = parseFloat(pkg.usd);
             
@@ -58,7 +85,7 @@ document.addEventListener('DOMContentLoaded', () => {
             // Guardar los datos en el HTML
             packageHtml.dataset.packageName = pkg.name;
             packageHtml.dataset.priceUsd = pkg.usd;
-            // 🎯 IMPORTANTE: El precio VES guardado AHORA es el calculado, no el hardcodeado.
+            // El precio VES guardado AHORA es el calculado
             packageHtml.dataset.priceVes = calculatedVesPrice; 
 
             packageHtml.innerHTML = `
@@ -83,7 +110,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 selectButton.textContent = `Pagar Recarga de ${selectedPackageData.name}`;
             }
         } else {
-             // Si no hay selección, el botón debe estar deshabilitado y con el texto por defecto
              selectButton.disabled = true;
              selectButton.textContent = 'Continuar al Pago';
         }
@@ -120,11 +146,8 @@ document.addEventListener('DOMContentLoaded', () => {
     // 💡 CLAVE 1: Escuchar el evento global de cambio de moneda (para actualizar si el usuario cambia)
     window.addEventListener('currencyChanged', renderPackages); 
     
-    // 🎯 CLAVE 2 (SOLUCIÓN): Ejecutar renderPackages SOLO cuando la configuración (incluida la tasa) esté cargada
-    // Esto previene el race condition, asumiendo que script.js dispara 'siteConfigLoaded'.
+    // 🎯 CLAVE 2 (SOLUCIÓN): Ejecutar renderPackages SOLO cuando la configuración esté cargada
     document.addEventListener('siteConfigLoaded', renderPackages, { once: true });
-    
-    // 🛑 La llamada directa a renderPackages() ha sido eliminada.
     
     // 🎯 Lógica de Pago Directo al enviar el formulario
     rechargeForm.addEventListener('submit', (e) => {
@@ -134,23 +157,34 @@ document.addEventListener('DOMContentLoaded', () => {
             alert('Por favor, selecciona un paquete de saldo.');
             return;
         }
+        
+        // 🟢 PASO 1: Obtener el ID del usuario
+        const googleId = getUserId();
+        if (!googleId) {
+            alert('Error: No se encontró la sesión. Por favor, inicia sesión para recargar.');
+            // Opcional: Redirigir a login.html si no está logueado.
+            // window.location.href = 'login.html'; 
+            return;
+        }
 
-        // 1. Crear el objeto de transacción (simulando un único item de carrito)
+        // 🟢 PASO 2: Crear el objeto de transacción (simulando un único item de carrito)
         const transactionItem = {
             id: 'WALLET_RECHARGE_' + Date.now(), 
-            game: 'Recarga de Saldo', // Identificador especial para el backend
+            game: 'Recarga de Saldo',
             playerId: 'N/A', 
             packageName: selectedPackageData.name,
             priceUSD: selectedPackageData.usd, 
             priceVES: selectedPackageData.ves, 
-            requiresAssistance: false // Es un producto directo
+            requiresAssistance: false,
+            // 🎯 CORRECCIÓN: Usar la clave 'google_id' como en la tabla
+            google_id: googleId 
         };
 
-        // 2. Guardar la transacción directamente, **saltando el carrito** de compras.
-        //    La página payment.html espera un array en 'transactionDetails'.
+        // 🟢 PASO 3: Guardar el array de transacción en localStorage
+        // La página payment.html espera un array en 'transactionDetails'.
         localStorage.setItem('transactionDetails', JSON.stringify([transactionItem]));
 
-        // 3. Redirigir inmediatamente a payment.html para procesar el pago.
+        // 🟢 PASO 4: Redirigir inmediatamente a payment.html para procesar el pago.
         window.location.href = 'payment.html';
     });
 });
