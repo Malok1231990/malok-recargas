@@ -12,7 +12,8 @@ document.addEventListener('DOMContentLoaded', () => {
         { name: 'Saldo $10 USD', usd: '10.00', ves: '380.00' }, 
         { name: 'Saldo $20 USD', usd: '20.00', ves: '950.00' },
         { name: 'Saldo $50 USD', usd: '50.00', ves: '1900.00' },
-        { name: 'Saldo $100 USD', usd: '100.00', ves: '3800.00' }
+        { name: 'Saldo $100 USD', usd: '100.00', ves: '1900.00' },
+        { name: 'Saldo $200 USD', usd: '200.00', ves: '3800.00' }
     ];
 
     /**
