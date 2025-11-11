@@ -8,7 +8,7 @@ exports.handler = async (event, context) => {
         return { statusCode: 405, body: "Method Not Allowed" };
     }
 
-    // --- Variables de Entorno ---
+    // --- Variables de Entorno y Cliente Supabase ---
     const SUPABASE_URL = process.env.SUPABASE_URL;
     const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
     const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
@@ -22,32 +22,50 @@ exports.handler = async (event, context) => {
     const body = JSON.parse(event.body);
 
     // ----------------------------------------------------------------------
-    // 💡 LÓGICA CLAVE: Manejo de la consulta de Callback (Clic en el botón)
+    // 🔑 PASO 1: OBTENER LA TASA DE CAMBIO DINÁMICA
+    // ----------------------------------------------------------------------
+    let EXCHANGE_RATE = 1.0; // Valor por defecto (si es USD o si falla la DB)
+    
+    try {
+        const { data: configData, error: configError } = await supabase
+            .from('configuracion_sitio')
+            .select('tasa_dolar')
+            .eq('id', 1) // Asumimos que la configuración está en el ID 1
+            .maybeSingle();
+
+        if (configError) {
+            console.warn(`WARN DB: Fallo al obtener tasa de dólar. Usando tasa por defecto (1.0). Mensaje: ${configError.message}`);
+        } else if (configData && configData.tasa_dolar > 0) {
+            EXCHANGE_RATE = configData.tasa_dolar;
+            console.log(`LOG: Tasa de dólar obtenida de DB: ${EXCHANGE_RATE}`);
+        }
+    } catch (e) {
+        console.error("ERROR CRITICO al obtener configuración de DB:", e.message);
+    }
+
+
+    // ----------------------------------------------------------------------
+    // 💡 LÓGICA CLAVE: Manejo de la consulta de Callback
     // ----------------------------------------------------------------------
     if (body.callback_query) {
         const callbackData = body.callback_query.data;
         const chatId = body.callback_query.message.chat.id;
         const messageId = body.callback_query.message.message_id;
-        
-        // 🔑 Capturamos el texto original completo del mensaje
         const originalText = body.callback_query.message.text;
-
         const transactionPrefix = 'mark_done_';
         
-        // 1. Verificar si es el botón de "Marcar como Realizada"
         if (callbackData.startsWith(transactionPrefix)) {
             const transactionId = callbackData.replace(transactionPrefix, '');
-            const NEW_STATUS = 'REALIZADA'; // El estado final de la recarga completada
+            const NEW_STATUS = 'REALIZADA'; 
             
             console.log(`LOG: Callback recibido: Intentando marcar transacción ${transactionId} como ${NEW_STATUS}.`);
 
             try {
-                
-                // 2. BUSCAR LA TRANSACCIÓN para obtener datos clave (google_id, finalPrice y status)
+                // 2. BUSCAR LA TRANSACCIÓN (Ahora incluye 'currency')
                 console.log(`LOG: Buscando datos para transacción ${transactionId} en tabla 'transactions'.`);
                 const { data: transactionData, error: fetchError } = await supabase
                     .from('transactions')
-                    .select('status, google_id, "finalPrice"') 
+                    .select('status, google_id, "finalPrice", currency') // <-- ¡AÑADIDA COLUMNA 'currency'!
                     .eq('id_transaccion', transactionId)
                     .maybeSingle();
 
@@ -57,15 +75,31 @@ exports.handler = async (event, context) => {
                     return { statusCode: 200, body: "Processed" };
                 }
 
-                // Usamos 'finalPrice' en la desestructuración de datos
-                const { status: currentStatus, google_id, "finalPrice": finalPrice } = transactionData;
-                const amountToInject = parseFloat(finalPrice); // Usamos parseFloat para obtener el monto numérico
+                const { status: currentStatus, google_id, "finalPrice": finalPrice, currency } = transactionData;
+                
+                const amountInTransactionCurrency = parseFloat(finalPrice);
+                let amountToInject = amountInTransactionCurrency; // Por defecto es el mismo si es USD
 
-                console.log(`LOG: Datos de transacción obtenidos: Cliente ID ${google_id}, Monto $${amountToInject.toFixed(2)}, Estado actual ${currentStatus}.`);
+                // -------------------------------------------------------------
+                // 🔑 PASO 3: LÓGICA CONDICIONAL DE CONVERSIÓN
+                // -------------------------------------------------------------
+                if (currency === 'VES' || currency === 'BS') { // Ajusta el código de moneda si es necesario
+                    if (EXCHANGE_RATE > 0) {
+                        amountToInject = amountInTransactionCurrency / EXCHANGE_RATE;
+                        console.log(`LOG: Moneda VES detectada. Convirtiendo ${amountInTransactionCurrency.toFixed(2)} VES a USD con tasa ${EXCHANGE_RATE}. Resultado: $${amountToInject.toFixed(2)} USD.`);
+                    } else {
+                        // Error crítico si la tasa es 0 o no se pudo obtener
+                        throw new Error("ERROR FATAL: El tipo de cambio (tasa_dolar) no es válido o es cero. No se puede convertir VES a USD.");
+                    }
+                } else if (currency !== 'USD') {
+                     console.warn(`WARN: Moneda desconocida '${currency}'. Inyectando monto sin conversión: $${amountToInject.toFixed(2)}.`);
+                }
                 
-                let injectionMessage = ""; // Para el mensaje final de Telegram
+                console.log(`LOG: Datos de transacción obtenidos: Cliente ID ${google_id}, Monto FINAL $${amountToInject.toFixed(2)} USD, Estado actual ${currentStatus}.`);
                 
-                // 3. Verificar si ya fue realizada para evitar doble inyección
+                let injectionMessage = ""; 
+                
+                // 3. Verificar si ya fue realizada...
                 if (currentStatus === NEW_STATUS) {
                     injectionMessage = "\n\n⚠️ **NOTA:** La transacción ya estaba en estado 'REALIZADA'. El saldo no fue inyectado de nuevo.";
                 } else if (!google_id || isNaN(amountToInject) || amountToInject <= 0) {
@@ -76,22 +110,20 @@ exports.handler = async (event, context) => {
                     console.log(`LOG: Intentando inyectar $${amountToInject.toFixed(2)} a 'user_id' ${google_id} usando RPC.`);
                     
                     try {
-                        // 💡 CORRECCIÓN CRÍTICA: Se reemplaza .update({ saldo_usd: supabase.fn(...) }) por .rpc()
+                        // La RPC espera el monto a sumar, que ahora es $amountToInject (en USD)
                         const { error: balanceUpdateError } = await supabase
                             .rpc('incrementar_saldo', { 
                                 p_user_id: google_id, 
-                                p_monto: amountToInject
+                                p_monto: amountToInject.toFixed(2)
                             }); 
                             
                         if (balanceUpdateError) {
                             console.error(`ERROR DB: Fallo al inyectar saldo a ${google_id}. Mensaje: ${balanceUpdateError.message}.`);
                             injectionMessage = `\n\n❌ **ERROR CRÍTICO AL INYECTAR SALDO:** No se pudo actualizar la billetera del cliente (${google_id}). \n\n${balanceUpdateError.message}`;
-                            // Si la inyección falla, lanzamos un error para que el 'catch' lo maneje y alerte al operador.
                             throw new Error("Fallo en la inyección de saldo.");
                         }
                         
                     } catch (e) {
-                        // Error capturado del fallo de RPC
                         console.error("ERROR CRITICO: Falló la llamada RPC para inyección de saldo.", e.message);
                         throw new Error(`Falló la inyección atómica (RPC). Error: ${e.message}`);
                     }
@@ -101,7 +133,7 @@ exports.handler = async (event, context) => {
                 }
 
 
-                // 5. ACTUALIZACIÓN DEL ESTADO (Solo si no estaba ya en REALIZADA, y si la inyección fue exitosa o no aplicaba)
+                // 5. ACTUALIZACIÓN DEL ESTADO... (Mismo código)
                 if (currentStatus !== NEW_STATUS) {
                     console.log(`LOG: Actualizando estado de transacción ${transactionId} a ${NEW_STATUS}.`);
                     const { error: updateError } = await supabase
@@ -110,56 +142,48 @@ exports.handler = async (event, context) => {
                             status: NEW_STATUS
                         })
                         .eq('id_transaccion', transactionId)
-                        // ✅ ACEPTAMOS PENDIENTE (Manual) O CONFIRMADO (Plisio)
                         .in('status', ['pendiente', 'CONFIRMADO']); 
                     
                     if (updateError) {
                         console.error(`ERROR DB: Fallo al actualizar el estado a ${NEW_STATUS}.`, updateError.message);
-                        // Añadimos la advertencia al mensaje de inyección
                         injectionMessage += `\n\n⚠️ **ADVERTENCIA:** Fallo al actualizar el estado de la transacción: ${updateError.message}`;
                     }
                 }
 
-                // 6. CONFIRMACIÓN Y EDICIÓN DEL MENSAJE DE TELEGRAM
+                // 6. CONFIRMACIÓN Y EDICIÓN DEL MENSAJE DE TELEGRAM... (Mismo código)
                 console.log("LOG: Editando mensaje de Telegram.");
                 
-                // Creamos el marcador de estado final para añadir al final del texto original
                 const statusMarker = `\n\n------------------------------------------------\n` +
                                      `✅ **ESTADO FINAL: ${NEW_STATUS}**\n` +
                                      `*Marcada por operador a las:* ${new Date().toLocaleTimeString('es-VE')} \n` +
                                      `------------------------------------------------` +
-                                     injectionMessage; // 🎯 CLAVE: Añadir el mensaje de inyección
+                                     injectionMessage; 
 
-                // Combinamos el texto original capturado con el nuevo marcador
                 const newFullText = originalText + statusMarker;
                 
                 await editTelegramMessage(
                     TELEGRAM_BOT_TOKEN, chatId, messageId, 
-                    newFullText, // <-- Usamos el texto completo + el marcador
-                    {}          // Esto elimina el botón inline
+                    newFullText, 
+                    {}
                 );
                 
             } catch (e) {
-                // Error capturado del fallo de inyección de saldo o cualquier otro error fatal
+                // Error capturado
                 console.error("ERROR FATAL en callback_query handler (Catch block):", e.message);
-                // Enviamos una alerta crítica y editamos el mensaje original para indicar el fallo
                 await editTelegramMessage(
                     TELEGRAM_BOT_TOKEN, chatId, messageId, 
-                    `❌ **ERROR CRÍTICO EN PROCESO DE MARCADO** ❌\n\nTransacción: \`${transactionId}\`\nFallo: ${e.message}\n\n**¡REVISIÓN MANUAL URGENTE!** El saldo *podría no* haberse inyectado y el estado *podría no* haberse actualizado.`,
+                    `❌ **ERROR CRÍTICO EN PROCESO DE MARCADO** ❌\n\nTransacción: \`${transactionId}\`\nFallo: ${e.message}\n\n**¡REVISIÓN MANUAL URGENTE!**`,
                     {}
                 );
             }
         }
     } 
     
-    // ... (El resto del código para manejar otros webhooks) ...
-    
-    // Siempre devuelve 200 OK
+    // ... (Resto del código) ...
     return { statusCode: 200, body: "Webhook processed" };
 };
 
-// --- Funciones Auxiliares para Telegram ---
-
+// --- Funciones Auxiliares para Telegram (Sin cambios) ---
 async function editTelegramMessage(token, chatId, messageId, text, replyMarkup) {
     const telegramApiUrl = `https://api.telegram.org/bot${token}/editMessageText`;
     try {
@@ -168,9 +192,8 @@ async function editTelegramMessage(token, chatId, messageId, text, replyMarkup) 
             message_id: messageId,
             text: text,
             parse_mode: 'Markdown',
-            reply_markup: replyMarkup // Si es {}, elimina el botón
+            reply_markup: replyMarkup
         });
-        //console.log("Mensaje de Telegram editado exitosamente."); // Log de éxito
     } catch (error) {
         console.error("ERROR TELEGRAM: Fallo al editar mensaje de Telegram.", error.response ? error.response.data : error.message);
     }
