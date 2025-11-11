@@ -158,8 +158,8 @@ exports.handler = async function(event, context) {
         const finalUser = finalUserData;
         // Acceder al saldo usando la relación 1:1. El .saldos es el nombre de la tabla
         const userBalance = (finalUser.saldos && finalUser.saldos.saldo_usd !== null) // Verificamos explícitamente que no sea null
-                            ? parseFloat(finalUser.saldos.saldo_usd).toFixed(2) // Formatear a 2 decimales
-                            : '0.00'; 
+                                ? parseFloat(finalUser.saldos.saldo_usd).toFixed(2) // Formatear a 2 decimales
+                                : '0.00'; 
 
         // 4. Éxitoa: Devolver el token de sesión y los datos del usuario
         return {
@@ -170,6 +170,8 @@ exports.handler = async function(event, context) {
                 sessionToken: finalUser.session_token,
                 user: {
                     id: finalUser.id,
+                    // 🎯 CORRECCIÓN CLAVE: Devolver el google_id al frontend
+                    google_id: googleId, 
                     name: finalUser.nombre,
                     email: finalUser.email,
                     picture: finalUser.foto_url,
