@@ -155,11 +155,12 @@ exports.handler = async (event, context) => {
         }
 
         
-        // a) BUSCAR LA TRANSACCIÓN EN SUPABASE (Incluir 'game' y 'google_id')
+        // a) BUSCAR LA TRANSACCIÓN EN SUPABASE (Incluir 'game', 'google_id' y 'base_amount')
         console.log(`TRAZA 10: Buscando transacción ${invoiceID} en Supabase.`);
         const { data: transactions, error: fetchError } = await supabase
+            // MODIFICACIÓN CLAVE 1: Incluir 'base_amount' en la selección
             .from('transactions')
-            .select('*, google_id, game') // <--- Modificado: Incluimos google_id y game
+            .select('*, google_id, game, base_amount') // <--- Modificado: Incluimos base_amount
             .eq('id_transaccion', invoiceID)
             .maybeSingle(); 
 
@@ -169,24 +170,23 @@ exports.handler = async (event, context) => {
         }
         
         transactionData = transactions;
-        const { google_id, game, "finalPrice": finalPrice, currency } = transactionData;
+        // MODIFICACIÓN CLAVE 2: Extraer 'base_amount' y mantener 'finalPrice'
+        const { google_id, game, "finalPrice": finalPrice, "base_amount": baseAmount, currency } = transactionData;
         
-        // 🔑 PASO A1: LÓGICA DE INYECCIÓN AUTOMÁTICA
-        const IS_WALLET_RECHARGE = game === 'Recarga de Saldo';
-        const amountInTransactionCurrency = parseFloat(finalPrice); // Este es el monto en USD (finalPrice)
-        let amountToInject = amountInTransactionCurrency; 
+        // Utilizamos el baseAmount (monto SIN comisión) para la inyección de saldo. 
+        const amountToInject = parseFloat(baseAmount || finalPrice); // Fallback a finalPrice por seguridad
+        const amountInTransactionCurrency = parseFloat(finalPrice); // Este sigue siendo el monto total en USD (finalPrice)
         
-        console.log(`TRAZA 11: Transacción encontrada. Game: ${game}, Google ID: ${google_id}`);
+        console.log(`TRAZA 11: Transacción encontrada. Game: ${game}, Google ID: ${google_id}, Monto Base (a inyectar): ${amountToInject.toFixed(2)}`);
         
         let newStatus = 'CONFIRMADO'; // Estado por defecto
 
         if (IS_WALLET_RECHARGE) {
              
-            // 💡 Nota: El monto 'finalPrice' ya está en USD (con comisión), por lo que no necesita conversión VES -> USD aquí.
-            // Si el cliente pagó VES, el 'finalPrice' de la DB ya se calculó en USD.
+            // 💡 Nota: amountToInject ahora es el monto BASE sin comisión.
             
             if (!google_id || isNaN(amountToInject) || amountToInject <= 0) {
-                 injectionMessage = `\n\n❌ **ERROR DE INYECCIÓN DE SALDO:** Datos incompletos (Google ID: ${google_id}, Monto: ${finalPrice}). **¡REVISIÓN MANUAL REQUERIDA!**`;
+                 injectionMessage = `\n\n❌ **ERROR DE INYECCIÓN DE SALDO:** Datos incompletos (Google ID: ${google_id}, Monto Base: ${amountToInject.toFixed(2)}). **¡REVISIÓN MANUAL REQUERIDA!**`;
                  newStatus = 'CONFIRMADO (ERROR SALDO)'; // Marcar con advertencia
 
             } else {
@@ -195,7 +195,7 @@ exports.handler = async (event, context) => {
                      const { error: balanceUpdateError } = await supabase
                          .rpc('incrementar_saldo', { 
                              p_user_id: google_id, 
-                             p_monto: amountToInject.toFixed(2)
+                             p_monto: amountToInject.toFixed(2) // MODIFICACIÓN CLAVE 3: Usamos amountToInject (base_amount)
                          }); 
                          
                      if (balanceUpdateError) {
@@ -204,7 +204,7 @@ exports.handler = async (event, context) => {
                          newStatus = 'CONFIRMADO (ERROR SALDO)'; // Marcar con advertencia
                      } else {
                          console.log(`TRAZA 11.2: Inyección de saldo exitosa: $${amountToInject.toFixed(2)} USD para ${google_id}.`);
-                         injectionMessage = `\n\n💰 **INYECCIÓN DE SALDO EXITOSA:** Se inyectaron **$${amountToInject.toFixed(2)} USD** a la billetera del cliente (\`${google_id}\`).`;
+                         injectionMessage = `\n\n💰 **INYECCIÓN DE SALDO EXITOSA:** Se inyectaron **$${amountToInject.toFixed(2)} USD** a la billetera del cliente (\`${google_id}\`).`; // Mensaje actualizado con monto base
                          newStatus = 'REALIZADA'; // Completar automáticamente
                      }
                  } catch (e) {
@@ -316,7 +316,11 @@ exports.handler = async (event, context) => {
         // Información de Pago y Contacto (Global)
         messageText += `\n*RESUMEN DE PAGO (Plisio)*\n`;
         messageText += `💰 *Monto Recibido (Cripto):* *${body.amount || 'N/A'} ${body.currency || 'N/A'}*\n`; 
-        messageText += `💵 *Monto de Orden (USD):* *${body.source_amount || 'N/A'} ${body.source_currency || 'N/A'}*\n`;
+        messageText += `💵 *Monto de Orden (USD c/ Comisión):* *${body.source_amount || 'N/A'} ${body.source_currency || 'N/A'}*\n`;
+        
+        // MODIFICACIÓN CLAVE 4: Agregar Monto Base (a acreditar)
+        messageText += `✅ *Monto Base (A ACREDITAR):* *${amountToInject.toFixed(2)} USD*\n`; 
+
         messageText += `💳 Método de Pago: *PLISIO (${body.psys_cid || 'Cripto'})*\n`;
         messageText += `🆔 TXID Plisio: \`${plisioTxnId || 'N/A'}\`\n`;
         
@@ -374,9 +378,10 @@ exports.handler = async (event, context) => {
                  ? `✅ ¡Recarga ACREDITADA! Tu pedido #${invoiceID} está listo.`
                  : `✅ ¡Pago CONFIRMADO! Tu pedido #${invoiceID} está en proceso.`;
              
+             // MODIFICACIÓN CLAVE 5: Usar amountToInject (monto base) en el correo.
              const emailHtml = newStatus === 'REALIZADA'
-                 ? `<p>Hola,</p><p>Tu pago de ${body.source_amount || 'N/A'} ${body.source_currency || 'USD'} ha sido confirmado y el saldo ha sido **acreditado automáticamente** a tu cuenta.</p><p>Gracias por tu compra.</p>`
-                 : `<p>Hola,</p><p>Tu pago de ${body.source_amount || 'N/A'} ${body.source_currency || 'USD'} ha sido confirmado por la pasarela de Plisio. Tu pedido está siendo procesado por nuestro equipo.</p><p>Gracias por tu compra.</p>`;
+                 ? `<p>Hola,</p><p>Tu pago de ${amountToInject.toFixed(2)} ${body.source_currency || 'USD'} ha sido confirmado y el saldo ha sido **acreditado automáticamente** a tu cuenta.</p><p>Gracias por tu compra.</p>`
+                 : `<p>Hola,</p><p>Tu pago de ${amountToInject.toFixed(2)} ${body.source_currency || 'USD'} ha sido confirmado por la pasarela de Plisio. Tu pedido está siendo procesado por nuestro equipo.</p><p>Gracias por tu compra.</p>`;
              
              const mailOptions = {
                  from: SENDER_EMAIL,

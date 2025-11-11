@@ -40,6 +40,8 @@ exports.handler = async (event, context) => {
     
     let finalAmountUSD = '0.00'; 
     let finalAmountFloat = 0; 
+    // MODIFICACIÓN CLAVE 1: Declarar baseAmountFloat
+    let baseAmountFloat = 0; 
     const orderNumber = `MALOK-${Date.now()}`; // Número único de orden inicial (ID_TRANSACCION)
     
     const successUrl = `${siteUrlClean}/payment.html?status=processing&order_number=${orderNumber}`; 
@@ -84,15 +86,17 @@ exports.handler = async (event, context) => {
         const codm_password = productDetails.codmPassword || productDetails.codm_password || null;
         const codm_vinculation = productDetails.codmVinculation || productDetails.codm_vinculation || null;
         
-        // Cálculo del monto (misma lógica)
+        // Cálculo del monto
         const feePercentage = 0.03; 
         const amountValue = parseFloat(amount);
         const amountWithFee = amountValue * (1 + feePercentage); 
         
+        // MODIFICACIÓN CLAVE 2: Asignar el monto base
+        baseAmountFloat = amountValue; 
         finalAmountFloat = amountWithFee;
         finalAmountUSD = amountWithFee.toFixed(2);
         
-        console.log(`TRAZA 12: Monto final con comisión (3%): ${finalAmountUSD} USD`);
+        console.log(`TRAZA 12: Monto Base (a inyectar): ${baseAmountFloat.toFixed(2)} USD | Monto final con comisión (3%): ${finalAmountUSD} USD`);
         
         // 🚨 2. INSERCIÓN EN SUPABASE (PENDIENTE)
         const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
@@ -105,6 +109,8 @@ exports.handler = async (event, context) => {
                 {
                     id_transaccion: orderNumber, 
                     "finalPrice": finalAmountFloat,
+                    // MODIFICACIÓN CLAVE 3: Insertar el monto base
+                    "base_amount": baseAmountFloat, 
                     currency: 'USD', 
                     status: 'pendiente', 
                     email: email,
@@ -140,7 +146,7 @@ exports.handler = async (event, context) => {
         const payloadData = {
             api_key: apiKey,
             source_currency: 'USD', 
-            source_amount: finalAmountUSD, 
+            source_amount: finalAmountUSD, // Plisio siempre debe cobrar el monto CON comisión
             order_name: "Recarga de Servicios Malok",
             order_number: orderNumber, 
             allowed_psys_cids: 'USDT_TRX,USDT_BSC', 
@@ -169,6 +175,7 @@ exports.handler = async (event, context) => {
                 .update({ 
                     currency: 'USD',
                     "finalPrice": finalAmountFloat,
+                    // Ya tenemos base_amount insertado, no necesitamos actualizarlo aquí, a menos que quisiéramos ser redundantes.
                     methodDetails: {
                         plisio_txn_id: plisioData.data.txn_id, 
                         invoice_id: plisioData.data.invoice_id,
@@ -204,7 +211,9 @@ exports.handler = async (event, context) => {
         
         if(supabase && orderNumber) {
             console.warn(`TRAZA 22: Limpieza: Intentando eliminar la fila ${orderNumber} de Supabase debido a un fallo.`);
-            supabase.from('transactions').delete().eq('id_transaccion', orderNumber).then(() => {
+            // Aseguramos que la instancia de supabase esté disponible si falla la API de Plisio
+            const cleanupSupabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
+            cleanupSupabase.from('transactions').delete().eq('id_transaccion', orderNumber).then(() => {
                 console.log(`TRAZA 22.5: Fila ${orderNumber} eliminada correctamente.`);
             }).catch(cleanError => {
                 console.error(`TRAZA 22.6: Fallo al eliminar fila de limpieza: ${cleanError.message}`);
