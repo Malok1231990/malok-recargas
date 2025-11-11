@@ -144,7 +144,7 @@ exports.handler = async (event, context) => {
                         }
                     } else {
                         // Si NO es 'Recarga de Saldo' (es un producto)
-                        injectionMessage = `\n\n🛒 **PRODUCTO ENTREGADO:** Transacción de **${game}**. No se requería inyección de saldo.`;
+                        injectionMessage = `\n\n🛒 **PRODUCTO ENTREGADO ✅: No se requería inyección de saldo.`;
                     }
                 } // Fin del bloque 'else' si no estaba REALIZADA
 
