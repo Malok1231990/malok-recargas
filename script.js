@@ -1,4 +1,4 @@
-// script.js COMPLETO Y MODIFICADO (Versión Final con Corrección de Race Condition)
+// script.js COMPLETO Y MODIFICADO (Versión Final con Corrección de Race Condition y Alert)
 
 // 🎯 FUNCIÓN PARA CARGAR Y APLICAR LA CONFIGURACIÓN DE COLORES
 async function applySiteConfig() {
@@ -148,10 +148,16 @@ window.handleCredentialResponse = async (response) => {
             // El backend ya garantiza que 'balance' existe
             localStorage.setItem('userData', JSON.stringify(data.user)); 
             
-            // Usar reload() para asegurar que todos los scripts (incluyendo load-products)
-            // se ejecuten con la sesión activa y el saldo disponible.
-            window.location.reload(); 
-
+            // 🟢 CORRECCIÓN APLICADA: Mostrar el alert antes de la recarga
+            const userName = data.user.name || 'Usuario';
+            
+            // Usamos un pequeño timeout para asegurarnos de que el alert se muestre antes de la recarga
+            setTimeout(() => {
+                 alert(`¡Bienvenido(a), ${userName}! Has iniciado sesión correctamente.`);
+                 
+                 // Usar reload() para asegurar que todos los scripts se ejecuten con la sesión activa.
+                 window.location.reload(); 
+            }, 50);
 
         } else {
             const errorData = await serverResponse.json();
