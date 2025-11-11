@@ -85,8 +85,9 @@ function checkUserSessionAndRenderUI() {
         
         // 5. Lógica de la Billetera (NUEVO)
         if (walletContainer && virtualBalanceElement) {
-            // Usamos un saldo dummy (ej: 50.00) si no viene en userData
-            const balance = userData.balance ? parseFloat(userData.balance).toFixed(2) : '50.00'; 
+            // ✅ CORRECCIÓN: Usamos '0.00' como valor por defecto si no viene en userData.balance
+            // Esto asume que el backend ahora enviará el saldo real (ej. "125.50" o "0.00").
+            const balance = userData.balance ? parseFloat(userData.balance).toFixed(2) : '0.00'; 
             virtualBalanceElement.textContent = `$. ${balance}`;
             walletContainer.style.display = 'flex'; // Mostrar la billetera
         }
