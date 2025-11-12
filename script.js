@@ -236,19 +236,38 @@ window.getCurrentCurrency = function() {
  */
 async function refreshWalletBalance() {
     const userDataJson = localStorage.getItem('userData');
-    if (!userDataJson) return; // No hay usuario logueado.
+    const userSessionToken = localStorage.getItem('userSessionToken'); // Obtener el token de sesión
+    
+    if (!userDataJson || !userSessionToken) {
+        console.log("[Wallet] No hay usuario logueado o token. Cancelando refresh.");
+        return; // No hay usuario logueado.
+    }
 
     try {
-        // Llama a la función de Netlify para obtener el saldo
-        // Asume que la función se llama 'get-user-balance' (archivo .netlify/functions/get-user-balance.js)
-        const response = await fetch('/.netlify/functions/get-user-balance'); 
+        console.log("[Wallet] Enviando solicitud de saldo con token de sesión...");
+        
+        // 🔑 CORRECCIÓN CLAVE: Enviar el token en el encabezado Authorization
+        const response = await fetch('/.netlify/functions/get-user-balance', {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${userSessionToken}`, // Esto soluciona el 401 del servidor
+                'Content-Type': 'application/json' 
+            }
+        }); 
 
-        if (!response.ok) {
-            console.error("No se pudo obtener el saldo. Estado:", response.status);
+        if (response.status === 401) {
+            console.error("[Wallet] Error 401: El token de sesión fue rechazado por el servidor. Forzando cierre de sesión.");
+            // Si el servidor rechaza el token (inválido/expirado), forzamos logout para reautenticar.
+            window.logoutUser(); 
             return;
         }
 
+        if (!response.ok) {
+            throw new Error(`Error ${response.status}: No se pudo obtener el saldo.`);
+        }
+
         const data = await response.json();
+        
         // data.saldo es el campo que devuelve tu Netlify Function
         const newBalance = data.saldo || '0.00';
         
@@ -538,6 +557,18 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
     }
+
+    // 💡 Hacemos window.logoutUser global para que pueda ser llamada desde refreshWalletBalance en caso de 401
+    window.logoutUser = function() {
+        localStorage.removeItem('userSessionToken');
+        localStorage.removeItem('userData');
+        checkUserSessionAndRenderUI();
+        if (window.location.pathname.includes('index.html') === false) {
+            window.location.href = 'index.html'; 
+        } else {
+            window.location.reload(); 
+        }
+    };
     
     // 3. Lógica del Enlace "Mi Cuenta" / "Iniciar Sesión" 
     if (authDisplayLink) {
