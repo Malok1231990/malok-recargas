@@ -1,4 +1,4 @@
-// load-recharge-packages.js (FINAL: Lectura de ID desde localStorage)
+// load-recharge-packages.js (FINAL: Con persistencia garantizada en sessionStorage)
 
 // =========================================================================
 // === UTILITY: Obtener Google ID desde localStorage ===
@@ -29,11 +29,14 @@ function getUserId() {
 // =========================================================================
 
 document.addEventListener('DOMContentLoaded', () => {
-    const packageGrid = document.getElementById('recharge-package-options-grid');
-    const rechargeForm = document.getElementById('recharge-wallet-form');
-    // 🎯 NUEVO: Identificar el input de ID para guardar su estado.
+    // Buscamos ambos IDs de grid por si el nombre cambia entre archivos
+    const packageGrid = document.getElementById('package-options-grid') || document.getElementById('recharge-package-options-grid');
+    // Usamos el ID del formulario del HTML (product.html)
+    const rechargeForm = document.getElementById('recharge-form'); 
     const playerIdInput = document.getElementById('player-id-input'); 
-    const selectButton = document.getElementById('select-package-btn');
+    // Buscamos el botón de submit dentro del formulario
+    const selectButton = rechargeForm ? rechargeForm.querySelector('button[type="submit"]') : null; 
+    
     let selectedPackageData = null;
 
     // Paquetes de saldo (Hardcodeados para el ejemplo, idealmente desde Supabase)
@@ -47,7 +50,7 @@ document.addEventListener('DOMContentLoaded', () => {
     ];
     
     // =========================================================================
-    // === PERSISTENCIA DE ESTADO CON sessionStorage (NUEVO) ===
+    // === PERSISTENCIA DE ESTADO CON sessionStorage ===
     // =========================================================================
 
     /**
@@ -78,6 +81,7 @@ document.addEventListener('DOMContentLoaded', () => {
      */
     function saveFormState() {
         const currentState = {
+            // Aseguramos que guarde el valor actual del input
             playerId: playerIdInput ? playerIdInput.value : '',
             selectedPackageData: selectedPackageData
         };
@@ -87,7 +91,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // 1. Cargar el estado al inicio
     loadFormState();
     
-    // 2. Escuchar cambios en el input del ID para guardar el estado
+    // 2. Escuchar cambios en el input del ID para guardar el estado en tiempo real
     if (playerIdInput) {
         playerIdInput.addEventListener('input', saveFormState);
     }
@@ -96,25 +100,16 @@ document.addEventListener('DOMContentLoaded', () => {
     // === FUNCIONES EXISTENTES (MODIFICADAS) ===
     // =========================================================================
 
-    /**
-     * 🎯 OBTENER TASA: Obtiene la tasa de cambio del Dólar guardada en la configuración CSS.
-     * @returns {number} La tasa de VES/USD. Por defecto 38.00.
-     */
     function getExchangeRate() {
         const rootStyle = getComputedStyle(document.documentElement);
-        // Lee la variable CSS, elimina comillas si existen, y convierte a float.
         let rate = rootStyle.getPropertyValue('--tasa-dolar')?.trim().replace(/['"]/g, ''); 
-        // Usamos 38.00 como fallback si no se puede leer la variable
         return parseFloat(rate) || 38.00; 
     }
 
-    /**
-     * Renders the package options based on the current currency.
-     */
     function renderPackages() {
         if (!packageGrid) return;
         
-        packageGrid.innerHTML = ''; // Limpiar mensaje de carga
+        packageGrid.innerHTML = ''; 
         
         const currentCurrency = window.getCurrentCurrency ? window.getCurrentCurrency() : 'USD'; 
         const exchangeRate = getExchangeRate(); 
@@ -144,48 +139,42 @@ document.addEventListener('DOMContentLoaded', () => {
 
         attachPackageEventListeners();
 
-        // 🎯 MODIFICACIÓN: Aplicar la clase 'selected' si hay un paquete en selectedPackageData cargado de sessionStorage
-        if (selectedPackageData) {
+        // Aplicar la clase 'selected' si hay un paquete en selectedPackageData
+        if (selectedPackageData && selectButton) {
             const currentSelected = Array.from(packageGrid.children).find(
                 opt => opt.dataset.packageName === selectedPackageData.name
             );
             if (currentSelected) {
                 currentSelected.classList.add('selected');
                 selectButton.disabled = false;
-                selectButton.textContent = `Pagar Recarga de ${selectedPackageData.name}`;
+                selectButton.textContent = `Añadir Recarga de ${selectedPackageData.name.replace('Saldo ', '')} al Carrito`;
             }
-        } else {
+        } else if (selectButton) {
              selectButton.disabled = true;
-             selectButton.textContent = 'Continuar al Pago';
+             selectButton.textContent = 'Añadir al Carrito';
         }
     }
 
-    /**
-     * Attaches click listeners to the dynamically created package options.
-     */
     function attachPackageEventListeners() {
         const packageOptions = document.querySelectorAll('.package-option');
         
         packageOptions.forEach(opt => {
             opt.addEventListener('click', function() {
-                // 1. Deseleccionar todos
                 packageOptions.forEach(o => o.classList.remove('selected'));
-                
-                // 2. Seleccionar el actual
                 this.classList.add('selected');
                 
-                // 3. Actualizar datos seleccionados, incluyendo el precio VES calculado
                 selectedPackageData = {
                     name: this.dataset.packageName,
                     usd: this.dataset.priceUsd,
                     ves: this.dataset.priceVes 
                 };
                 
-                // 4. Habilitar y actualizar el botón
-                selectButton.disabled = false;
-                selectButton.textContent = `Pagar Recarga de ${selectedPackageData.name}`;
+                if (selectButton) {
+                    selectButton.disabled = false;
+                    selectButton.textContent = `Añadir Recarga de ${selectedPackageData.name.replace('Saldo ', '')} al Carrito`;
+                }
 
-                // 🎯 NUEVO: Guardar el estado después de seleccionar un paquete
+                // Guardar el estado después de seleccionar un paquete
                 saveFormState();
             });
         });
@@ -195,48 +184,48 @@ document.addEventListener('DOMContentLoaded', () => {
     window.addEventListener('currencyChanged', renderPackages); 
     document.addEventListener('siteConfigLoaded', renderPackages, { once: true });
     
-    // 🎯 Lógica de Pago Directo al enviar el formulario
-    rechargeForm.addEventListener('submit', (e) => { 
-        e.preventDefault();
+    // Lógica de Pago Directo al enviar el formulario
+    if (rechargeForm) {
+        rechargeForm.addEventListener('submit', (e) => { 
+            e.preventDefault();
 
-        // 🎯 NUEVO: Leer el valor actual del input del ID justo antes de enviar
-        const currentPlayerId = playerIdInput ? playerIdInput.value : 'N/A';
+            if (!selectedPackageData) {
+                alert('Por favor, selecciona un paquete de saldo.');
+                return;
+            }
+            
+            // 🚩 ¡SOLUCIÓN! 🚩
+            // 1. Aseguramos que el estado del formulario (incluyendo el ID final) se guarde en sessionStorage.
+            saveFormState(); 
+            
+            // 2. Leemos el valor final del ID (que está garantizado que está en sessionStorage si la página recarga)
+            const currentPlayerId = playerIdInput ? playerIdInput.value : 'N/A';
 
-        if (!selectedPackageData) {
-            alert('Por favor, selecciona un paquete de saldo.');
-            return;
-        }
-        
-        // 🟢 PASO 1: Obtener el ID del usuario desde localStorage
-        const googleId = getUserId();
-        
-        if (!googleId) {
-            // Mostrar error si no se encuentra el ID o la sesión (porque no se guardó o no se logueó)
-            alert('Error: No se encontró la sesión o el ID de usuario. Por favor, inicia sesión para recargar.');
-            return;
-        }
+            // 🟢 PASO 1: Obtener el ID del usuario desde localStorage
+            const googleId = getUserId();
+            
+            if (!googleId) {
+                alert('Error: No se encontró la sesión o el ID de usuario. Por favor, inicia sesión para recargar.');
+                return;
+            }
 
-        // 🟢 PASO 2: Crear el objeto de transacción 
-        const transactionItem = {
-            id: 'WALLET_RECHARGE_' + Date.now(), 
-            game: 'Recarga de Saldo',
-            // 🎯 MODIFICACIÓN: Usar el ID del jugador del formulario (o 'N/A' si no existe el input)
-            playerId: currentPlayerId, 
-            packageName: selectedPackageData.name,
-            priceUSD: selectedPackageData.usd, 
-            priceVES: selectedPackageData.ves, 
-            requiresAssistance: false,
-            // 🎯 CLAVE: Añadir el google_id obtenido de localStorage
-            google_id: googleId 
-        };
+            // 🟢 PASO 2: Crear el objeto de transacción 
+            const transactionItem = {
+                id: 'WALLET_RECHARGE_' + Date.now(), 
+                game: 'Recarga de Saldo',
+                playerId: currentPlayerId, // Usamos el ID del jugador del formulario
+                packageName: selectedPackageData.name,
+                priceUSD: selectedPackageData.usd, 
+                priceVES: selectedPackageData.ves, 
+                requiresAssistance: false,
+                google_id: googleId 
+            };
 
-        // 🟢 PASO 3: Guardar el array de transacción en localStorage
-        localStorage.setItem('transactionDetails', JSON.stringify([transactionItem]));
+            // 🟢 PASO 3: Guardar el array de transacción en localStorage
+            localStorage.setItem('transactionDetails', JSON.stringify([transactionItem]));
 
-        // 🟢 PASO 4: Redirigir inmediatamente a payment.html para procesar el pago.
-        // Opcional: Podrías limpiar sessionStorage aquí si NO quieres que persista después de ir al pago.
-        // sessionStorage.removeItem('rechargeFormState'); 
-        
-        window.location.href = 'payment.html';
-    });
+            // 🟢 PASO 4: Redirigir. Si el usuario regresa con el botón "Atrás", loadFormState() restaurará el ID y el paquete.
+            window.location.href = 'payment.html';
+        });
+    }
 });
