@@ -936,7 +936,7 @@
             : (transactionDetails.totalUSD || transactionDetails.priceUSD);
 
 
-        // 🎯 CAMBIO CLAVE: Lógica para el flujo de pago con Wallet RESTAURADA
+        // 🎯 INICIO DEL CAMBIO CLAVE: Lógica para el flujo de pago con Wallet
         if (selectedPaymentMethod === 'wallet') {
             
             if (!finalPriceUSD || parseFloat(finalPriceUSD) <= 0) {
@@ -945,43 +945,87 @@
             }
 
             finalizeBtn.disabled = true;
+            // 1. Llamar a la función para verificar saldo y deducir
             finalizeBtn.textContent = 'Deduciendo Saldo...';
 
             try {
-                // ❗ ESTE ES EL SCRIPT QUE DEBERÁS CREAR ❗
+                // 1. PAGO: Llamada a deduct-wallet-balance
                 const walletResponse = await fetch('/.netlify/functions/deduct-wallet-balance', { 
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         email: emailInput.value.trim(),
                         whatsapp: whatsappInput.value.trim(),
-                        amountUSD: finalPriceUSD, // 🎯 FIX 10: amountUSD es el precio USDM (base)
+                        amountUSD: finalPriceUSD, 
                         cartDetails: JSON.stringify(Array.isArray(transactionDetails) ? transactionDetails : [transactionDetails]), 
                     })
                 });
 
                 if (walletResponse.ok) {
-                    // Si la deducción es exitosa, mostrar mensaje de éxito
-                    // 🛑 LÍNEAS AÑADIDAS PARA OCULTAR ELEMENTOS
-                    const h2Title = document.querySelector('.form-container h2');
-                    const transactionSummary = document.getElementById('transaction-summary');
-                    if (h2Title) h2Title.style.display = 'none';
-                    if (transactionSummary) transactionSummary.style.display = 'none';
-                    // 🛑 FIN NUEVAS LÍNEAS
+                    // 2. ÉXITO EN EL PAGO: Ahora llamar a process-payment (Notificación a Telegram)
+                    finalizeBtn.textContent = 'Enviando Notificación...';
 
-                    paymentForm.style.display = 'none';
-                    whatsappMessageContainer.style.display = 'none';
-                    successMessageDisplay.style.display = 'block';
-                    localStorage.removeItem('transactionDetails');
-                    localStorage.removeItem('cartItems'); 
+                    // a. Preparar FormData para la función process-payment (simulando formulario)
+                    const processFormData = new FormData();
+                    processFormData.append('paymentMethod', 'wallet');
+                    processFormData.append('email', emailInput.value.trim());
+                    processFormData.append('whatsappNumber', whatsappInput.value.trim());
+                    // Enviamos la cadena de valor del input hidden
+                    processFormData.append('paymentReceipt', 'Wallet_Deduction_Flow'); 
+                    
+                    // Añadir todos los datos de transacción
+                    processFormData.append('cartDetails', JSON.stringify(Array.isArray(transactionDetails) ? transactionDetails : [transactionDetails]));
+                    processFormData.append('finalPrice', transactionDetails.finalPrice);
+                    processFormData.append('currency', transactionDetails.currency);
+                    processFormData.append('totalUSD', transactionDetails.totalUSD);
+                    processFormData.append('totalVES', transactionDetails.totalVES);
+                    processFormData.append('totalUSDM', transactionDetails.totalUSDM);
 
-                    setTimeout(() => {
-                        window.location.href = 'index.html';
-                    }, 5000);
+                    // b. Llamar a process-payment
+                    const processPaymentResponse = await fetch('/.netlify/functions/process-payment', {
+                        method: 'POST',
+                        body: processFormData
+                    });
+
+                    if (processPaymentResponse.ok) {
+                        // 3. ÉXITO COMPLETO (Pago y Notificación OK)
+                        const h2Title = document.querySelector('.form-container h2');
+                        const transactionSummary = document.getElementById('transaction-summary');
+                        if (h2Title) h2Title.style.display = 'none';
+                        if (transactionSummary) transactionSummary.style.display = 'none';
+
+                        paymentForm.style.display = 'none';
+                        whatsappMessageContainer.style.display = 'none';
+                        successMessageDisplay.style.display = 'block';
+                        localStorage.removeItem('transactionDetails');
+                        localStorage.removeItem('cartItems'); 
+
+                        setTimeout(() => {
+                            window.location.href = 'index.html';
+                        }, 5000);
+                        
+                    } else {
+                        // 3. ÉXITO PARCIAL (Pago OK, Notificación fallida)
+                        const errorData = await processPaymentResponse.json();
+                        alert(`¡Pago con Wallet exitoso, pero falló la notificación automática! Por favor, contacta a soporte con tu email (${emailInput.value.trim()}) para confirmar tu pedido y envíanos la captura de tu pedido en Telegram.\nError: ${errorData.message || 'Error desconocido'}`);
+                        console.error('Process Payment (Telegram) error after successful Wallet deduction:', errorData);
+
+                        // Se considera éxito para el usuario, se limpia storage y se redirige
+                        localStorage.removeItem('transactionDetails');
+                        localStorage.removeItem('cartItems'); 
+                        
+                        finalizeBtn.disabled = true;
+                        finalizeBtn.textContent = 'Pago Exitoso. Redirigiendo...';
+                        
+                        setTimeout(() => {
+                            window.location.href = 'index.html';
+                        }, 5000);
+                    }
+
                 } else {
+                    // 2. PAGO FALLIDO (Deducción fallida/Saldo insuficiente)
                     const errorData = await walletResponse.json();
                     
-                    // **CORRECCIÓN DE WALLET: Mensaje de error personalizado para saldo insuficiente.**
                     const errorMessage = errorData.message || 'Error desconocido';
                     
                     if (errorMessage.toLowerCase().includes('saldo insuficiente') || errorMessage.toLowerCase().includes('monto supera los limites de fondos')) {
@@ -1002,6 +1046,7 @@
             }
             return;
         }
+        // 🎯 FIN DEL CAMBIO CLAVE: Lógica para el flujo de pago con Wallet
 
 
         // 🛑 Lógica para el flujo de pago con Plisio (Método Binance de redirección)
@@ -1061,8 +1106,6 @@
         // Lógica para flujo de pago normal (requiere comprobante o ID - Pago Móvil/Zinli/Binance ID)
         
         let requiresReceipt = (selectedPaymentMethod === 'pago-movil' || selectedPaymentMethod === 'zinli');
-        let requiresBinanceId = (selectedPaymentMethod === 'binance-id');
-        let receiptIsOptional = (selectedPaymentMethod === 'binance-id');
 
         if (requiresReceipt) {
             const paymentReceipt = document.getElementById('payment-receipt');
