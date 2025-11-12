@@ -48,19 +48,14 @@ exports.handler = async (event, context) => {
 
     try {
         // OBTENCIÓN DE DATOS
-        const { amount, email, whatsapp, cartDetails, googleId } = data; 
+        // Modificación para asegurar que googleId es null si no existe
+        const { amount, email, whatsapp, cartDetails } = data; 
+        const googleId = data.googleId || null; // <--- CAMBIO CLAVE: Usamos data.googleId o null
 
         // Validaciones básicas de monto y email
         if (!amount || isNaN(parseFloat(amount)) || parseFloat(amount) <= 0 || !email) {
             return { statusCode: 400, body: JSON.stringify({ message: 'Datos de transacción incompletos o inválidos (monto o email).' }) };
         }
-        
-        // ❌ [ELIMINADO] ELIMINAMOS LA VALIDACIÓN INCONDICIONAL DE googleId AQUÍ
-        /*
-        if (!googleId) {
-             return { statusCode: 400, body: JSON.stringify({ message: 'Falta el ID del cliente (googleId) necesario para la acreditación automática.' }) };
-        }
-        */
 
         // Procesar los detalles del producto anidados en cartDetails
         let productDetails = {};
@@ -86,12 +81,11 @@ exports.handler = async (event, context) => {
         const codm_password = productDetails.codmPassword || productDetails.codm_password || null;
         const codm_vinculation = productDetails.codmVinculation || productDetails.codm_vinculation || null;
         
-        // ✅ [AÑADIDO] VALIDACIÓN CONDICIONAL DE googleId
+        // ✅ VALIDACIÓN CONDICIONAL DE googleId (Solo si es recarga)
         const IS_WALLET_RECHARGE = game === 'Recarga de Saldo';
         
         if (IS_WALLET_RECHARGE && !googleId) {
              console.error("TRAZA 11.6: ERROR: Falta googleId para Recarga de Saldo.");
-             // El mensaje de error es crucial para que el usuario sepa que falta el ID
              return { statusCode: 400, body: JSON.stringify({ 
                  message: 'Falta el ID de usuario (googleId) necesario para procesar esta recarga de saldo. Por favor, asegúrate de que el item en tu carrito contenga tu Google ID.' 
              }) };
@@ -125,7 +119,7 @@ exports.handler = async (event, context) => {
                     status: 'pendiente', 
                     email: email,
                     "whatsappNumber": whatsappNumber,
-                    "google_id": googleId, // ⬅️ Ahora puede ser NULL si no es recarga
+                    "google_id": googleId, // ⬅️ Puede ser NULL, solo se valida si es Recarga de Saldo
                     
                     paymentMethod: 'plisio', 
                     methodDetails: {}, 
