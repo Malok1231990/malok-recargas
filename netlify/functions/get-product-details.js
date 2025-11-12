@@ -43,9 +43,10 @@ exports.handler = async function(event, context) {
                     nombre_paquete, 
                     precio_usd, 
                     precio_ves, 
+                    precio_usdm, 
                     orden
                 )
-            `) // <<< ¡CAMBIO CLAVE! Se agregó 'require_id'
+            `) // 👈 CAMBIO CLAVE: Se agregó 'precio_usdm'
             .eq('slug', slug)
             .maybeSingle(); 
             
