@@ -48,10 +48,9 @@ exports.handler = async (event, context) => {
 
     try {
         // OBTENCIÓN DE DATOS
-        // Modificación para asegurar que googleId es null si no existe
         const { amount, email, whatsapp, cartDetails } = data; 
-        const googleId = data.googleId || null; // <--- CAMBIO CLAVE: Usamos data.googleId o null
-
+        const googleId = data.googleId || null; // ✅ Corrección de desestructuración para evitar 'undefined'
+        
         // Validaciones básicas de monto y email
         if (!amount || isNaN(parseFloat(amount)) || parseFloat(amount) <= 0 || !email) {
             return { statusCode: 400, body: JSON.stringify({ message: 'Datos de transacción incompletos o inválidos (monto o email).' }) };
@@ -81,13 +80,21 @@ exports.handler = async (event, context) => {
         const codm_password = productDetails.codmPassword || productDetails.codm_password || null;
         const codm_vinculation = productDetails.codmVinculation || productDetails.codm_vinculation || null;
         
-        // ✅ VALIDACIÓN CONDICIONAL DE googleId (Solo si es recarga)
-        const IS_WALLET_RECHARGE = game === 'Recarga de Saldo';
+        // 🚨 VALIDACIÓN CONDICIONAL MEJORADA DE googleId
+        // Hacemos la comparación de producto más robusta (quita espacios y es case-insensitive)
+        const gameNormalized = (typeof game === 'string' ? game.trim().toLowerCase() : '');
+        const targetNormalized = 'recarga de saldo';
         
+        const IS_WALLET_RECHARGE = gameNormalized === targetNormalized;
+
+        // TRAZA CRUCIAL PARA DEPURACIÓN
+        console.log(`TRAZA 11.6: Producto: "${game}" (Normalized: ${gameNormalized}) | Es Recarga: ${IS_WALLET_RECHARGE} | Google ID: ${googleId}`);
+
         if (IS_WALLET_RECHARGE && !googleId) {
-             console.error("TRAZA 11.6: ERROR: Falta googleId para Recarga de Saldo.");
+             console.error("TRAZA 11.7: ERROR: Falta googleId para Recarga de Saldo. Deteniendo proceso.");
+             // El mensaje de error es el que el usuario nos ha reportado
              return { statusCode: 400, body: JSON.stringify({ 
-                 message: 'Falta el ID de usuario (googleId) necesario para procesar esta recarga de saldo. Por favor, asegúrate de que el item en tu carrito contenga tu Google ID.' 
+                 message: 'No se encontró el ID de usuario (googleId) necesario para procesar esta recarga de saldo. Por favor, asegúrate de que el item en tu carrito sea "Recarga de Saldo" y contenga tu Google ID.' 
              }) };
         }
         // Fin de la validación condicional
@@ -119,7 +126,7 @@ exports.handler = async (event, context) => {
                     status: 'pendiente', 
                     email: email,
                     "whatsappNumber": whatsappNumber,
-                    "google_id": googleId, // ⬅️ Puede ser NULL, solo se valida si es Recarga de Saldo
+                    "google_id": googleId, // ⬅️ Puede ser NULL si no es recarga
                     
                     paymentMethod: 'plisio', 
                     methodDetails: {}, 
