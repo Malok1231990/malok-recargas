@@ -1,78 +1,79 @@
 const { createClient } = require('@supabase/supabase-js');
 
 /**
- * Netlify Function para obtener el saldo actual del usuario desde Supabase.
- * @param {object} event - El objeto de evento de la solicitud HTTP.
- * @param {object} context - El contexto del cliente, incluyendo los datos de Netlify Identity.
+ * Netlify Function para obtener el saldo actual del usuario desde Supabase,
+ * usando el token de sesión personalizado guardado en Supabase.
  */
 exports.handler = async function(event, context) {
-    console.log("--- INICIO DE FUNCIÓN get-user-balance ---");
-    console.log("Método HTTP:", event.httpMethod);
+    console.log("--- INICIO DE FUNCIÓN get-user-balance (Custom Auth) ---");
     
     if (event.httpMethod !== "GET") {
-        console.log("ERROR: Método no permitido (405).");
         return { statusCode: 405, body: "Method Not Allowed" };
     }
 
-    // 1. Verificar la autenticación (Netlify Identity)
-    // context.clientContext.user DEBE contener datos si el token es válido
-    const { user } = context.clientContext; 
-    
-    // LOG CLAVE DE AUTENTICACIÓN
-    if (!user) {
-        console.log("❌ ERROR 401: Usuario NO autenticado por Netlify Identity.");
-        console.log("El token en el encabezado 'Authorization: Bearer <token>' es inválido, expiró o no fue reconocido por Netlify.");
+    // 1. Obtener y verificar el token de sesión (Custom Auth)
+    const authHeader = event.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        console.log("❌ ERROR 401: Falta el token Bearer.");
         return { 
             statusCode: 401, 
-            body: JSON.stringify({ message: "No autorizado. Inicia sesión para ver tu saldo." }) 
+            body: JSON.stringify({ message: "No autorizado. Falta el token de sesión." }) 
         };
     }
     
-    console.log("✅ Autenticación exitosa. Usuario Netlify Identity encontrado.");
-    const userId = user.sub; 
-    console.log("User ID (sub):", userId);
-    
-    const supabaseUrl = process.env.SUPABASE_URL;
-    const supabaseAnonKey = process.env.SUPABASE_ANON_KEY; 
+    // Extraer el token de la forma "Bearer [token]"
+    const sessionToken = authHeader.split(' ')[1];
+    console.log("Token de sesión extraído (Longitud):", sessionToken.length);
 
-    // LOG DE CONFIGURACIÓN
-    if (!supabaseUrl || !supabaseAnonKey) {
-        console.error("Faltan variables de entorno de Supabase. URL o Key no definidos.");
+    // 2. Configuración de Supabase (Usando la Service Key para operaciones de backend)
+    const supabaseUrl = process.env.SUPABASE_URL;
+    // CLAVE: Usamos la Service Key para poder buscar por el campo session_token de forma segura.
+    const supabaseServiceKey = process.env.SUPABASE_SERVICE_KEY; 
+
+    if (!supabaseUrl || !supabaseServiceKey) {
+        console.error("Faltan variables de entorno de Supabase (URL o SERVICE_KEY).");
         return { 
             statusCode: 500, 
-            body: JSON.stringify({ message: "Error de configuración del servidor. Faltan credenciales de Supabase." })
+            body: JSON.stringify({ message: "Error de configuración del servidor." })
         };
     }
-    console.log("Configuración de Supabase cargada.");
 
-    // 2. Inicializar Supabase con la llave pública (Anon Key)
-    const supabase = createClient(supabaseUrl, supabaseAnonKey);
+    // Usamos el cliente de Supabase con la Service Key
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     try {
-        // 3. Consultar la tabla 'saldos'
-        console.log(`Buscando saldo en Supabase para user_id: ${userId}`);
-        const { data: saldoData, error } = await supabase
-            .from('saldos') // Tabla correcta
-            .select('saldo_usd') // Columna correcta
-            .eq('user_id', userId) // Columna de filtro correcta
+        // 3. Buscar el user_id (Google ID) asociado a este token de sesión personalizado
+        const { data: userData, error: userError } = await supabase
+            .from('usuarios')
+            .select('google_id') 
+            .eq('session_token', sessionToken)
             .maybeSingle(); 
-        
-        // LOG DE CONSULTA DE SUPABASE
-        if (error) {
-            console.error("❌ Error de Supabase al obtener saldo:", error.message);
-            throw new Error(error.message || "Error desconocido en la consulta a Supabase."); 
+
+        if (userError || !userData) {
+            console.error("❌ ERROR 401: Token de sesión inválido o no encontrado en la tabla 'usuarios'.", userError?.message);
+            return { statusCode: 401, body: JSON.stringify({ message: "Sesión inválida o expirada. Por favor, vuelve a iniciar sesión." }) };
         }
         
-        // LOG DE DATOS ENCONTRADOS
-        console.log("Datos brutos de Supabase (saldoData):", saldoData);
+        const userId = userData.google_id; // Este es el ID que mapea a saldos.user_id
+        console.log("✅ Token verificado con Supabase. User ID (Google ID):", userId);
 
-        // 4. Extraer el valor con el nombre de columna correcto (saldo_usd)
-        // Si no existe, asume 0.00
+        // 4. Buscar el saldo usando el google_id
+        const { data: saldoData, error: saldoError } = await supabase
+            .from('saldos') 
+            .select('saldo_usd') 
+            .eq('user_id', userId) // Filtramos por el Google ID
+            .maybeSingle(); 
+
+        if (saldoError) {
+            console.error("Error de Supabase al obtener saldo:", saldoError.message);
+            throw new Error(saldoError.message || "Error desconocido en la consulta de saldo."); 
+        }
+
+        // 5. Extraer el valor con el nombre de columna correcto (saldo_usd)
         const saldoActual = saldoData?.saldo_usd || '0.00'; 
-        
         console.log(`✅ Saldo final encontrado: ${saldoActual}`);
         
-        // 5. Devolver el saldo.
+        // 6. Devolver el saldo.
         return {
             statusCode: 200,
             headers: { "Content-Type": "application/json" },
