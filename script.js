@@ -1,4 +1,4 @@
-// script.js COMPLETO Y MODIFICADO (Versión Final con Soporte USDM Separado y Refresco de Saldo)
+// script.js COMPLETO Y MODIFICADO (Versión Final con Corrección de Token para Saldo)
 
 // 🎯 FUNCIÓN PARA CARGAR Y APLICAR LA CONFIGURACIÓN DE COLORES
 async function applySiteConfig() {
@@ -153,10 +153,10 @@ window.handleCredentialResponse = async (response) => {
             
             // Usamos un pequeño timeout para asegurarnos de que el alert se muestre antes de la recarga
             setTimeout(() => {
-                    alert(`¡Bienvenido(a), ${userName}! Has iniciado sesión correctamente.`);
-                    
-                    // 🎯 CORRECCIÓN: Redirigir explícitamente a index.html
-                    window.location.href = 'index.html'; 
+                        alert(`¡Bienvenido(a), ${userName}! Has iniciado sesión correctamente.`);
+                        
+                        // 🎯 CORRECCIÓN: Redirigir explícitamente a index.html
+                        window.location.href = 'index.html'; 
             }, 50);
 
         } else {
@@ -166,7 +166,7 @@ window.handleCredentialResponse = async (response) => {
             
             // Si falla, re-inicializar el botón
             if (window.google && window.google.accounts && window.google.accounts.id) {
-                    initGoogleSignIn(true); // Forzar la renderización del botón
+                        initGoogleSignIn(true); // Forzar la renderización del botón
             }
         }
 
@@ -227,24 +227,45 @@ window.getCurrentCurrency = function() {
 
 
 // =========================================================================
-// === NUEVA FUNCIÓN CLAVE: Refresco de Saldo de Billetera ===
+// === FUNCIÓN CLAVE CORREGIDA: Refresco de Saldo de Billetera (SOLUCIÓN 401) ===
 // =========================================================================
 
 /**
  * Llama a la Netlify Function para obtener el saldo actual del usuario
- * y actualiza tanto localStorage como la UI, sin forzar un re-login.
+ * y actualiza tanto localStorage como la UI.
  */
 async function refreshWalletBalance() {
     const userDataJson = localStorage.getItem('userData');
-    if (!userDataJson) return; // No hay usuario logueado.
+    
+    // 🔍 LOG 1: Verificar si hay datos de usuario
+    if (!userDataJson) {
+        console.log('[Wallet LOG] No hay datos de usuario en localStorage. Saliendo de refreshWalletBalance.');
+        return; // No hay usuario logueado.
+    }
 
     try {
-        // Llama a la función de Netlify para obtener el saldo
-        // Asume que la función se llama 'get-user-balance' (archivo .netlify/functions/get-user-balance.js)
-        const response = await fetch('/.netlify/functions/get-user-balance'); 
+        // 1. OBTENER EL TOKEN DE SESIÓN (CLAVE PARA AUTORIZACIÓN)
+        const sessionToken = localStorage.getItem('userSessionToken');
+        
+        // 🔍 LOG 2: Verificar el token
+        console.log('[Wallet LOG] Token de Sesión encontrado (Longitud):', sessionToken ? sessionToken.length : 'NULO');
+
+        // 2. LLAMADA CORREGIDA: Incluyendo el token en los encabezados (headers)
+        const response = await fetch('/.netlify/functions/get-user-balance', {
+            method: 'GET',
+            headers: {
+                // 🔑 ESTO SOLUCIONA EL 401: Enviar el token como Bearer
+                'Authorization': `Bearer ${sessionToken}`,
+                'Content-Type': 'application/json'
+            }
+        }); 
+        
+        // 🔍 LOG 3: Respuesta del servidor
+        console.log('[Wallet LOG] Respuesta del servidor recibida. Status:', response.status);
 
         if (!response.ok) {
-            console.error("No se pudo obtener el saldo. Estado:", response.status);
+            // 🔍 LOG 4: Log de error más específico para el 401
+            console.error(`[Wallet ERROR] Falló la solicitud de saldo. Estado HTTP: ${response.status}. Si es 401, el token fue rechazado.`);
             return;
         }
 
@@ -264,7 +285,7 @@ async function refreshWalletBalance() {
             virtualBalanceElement.textContent = `$. ${userData.balance}`;
         }
         
-        console.log(`[Wallet] Saldo actualizado a: $.${userData.balance}`);
+        console.log(`[Wallet OK] Saldo actualizado a: $.${userData.balance}`);
         
     } catch (error) {
         console.error("Error al refrescar el saldo de la billetera:", error);
