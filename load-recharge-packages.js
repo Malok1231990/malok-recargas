@@ -1,4 +1,4 @@
-// load-recharge-packages.js (FINAL: Con persistencia garantizada en sessionStorage)
+// load-recharge-packages.js (SOLUCIÓN DEFINITIVA con Persistencia y Corrección de IDs)
 
 // =========================================================================
 // === UTILITY: Obtener Google ID desde localStorage ===
@@ -6,15 +6,12 @@
 
 /**
  * Utilidad para obtener el google_id del usuario desde localStorage.
- * Asume que el objeto 'userData' guardado en localStorage contiene la propiedad 'google_id'.
- * @returns {string|null} El google_id si existe, o null.
  */
 function getUserId() {
     const userDataJson = localStorage.getItem('userData');
     if (userDataJson) {
         try {
             const userData = JSON.parse(userDataJson);
-            // 🎯 CLAVE: Acceder a la propiedad google_id
             return userData.google_id || null; 
         } catch (e) {
             console.error("Error al parsear userData de localStorage:", e);
@@ -29,17 +26,16 @@ function getUserId() {
 // =========================================================================
 
 document.addEventListener('DOMContentLoaded', () => {
-    // Buscamos ambos IDs de grid por si el nombre cambia entre archivos
-    const packageGrid = document.getElementById('package-options-grid') || document.getElementById('recharge-package-options-grid');
-    // Usamos el ID del formulario del HTML (product.html)
+    // 🚩 CLAVE 1: Uso de IDs del product.html: #recharge-form, #player-id-input, #package-options-grid
+    const packageGrid = document.getElementById('package-options-grid');
     const rechargeForm = document.getElementById('recharge-form'); 
     const playerIdInput = document.getElementById('player-id-input'); 
-    // Buscamos el botón de submit dentro del formulario
-    const selectButton = rechargeForm ? rechargeForm.querySelector('button[type="submit"]') : null; 
+    // Buscamos el botón de submit usando su clase, ya que el ID 'select-package-btn' no existe en el HTML.
+    const selectButton = rechargeForm ? rechargeForm.querySelector('.recharge-button') : null; 
     
     let selectedPackageData = null;
 
-    // Paquetes de saldo (Hardcodeados para el ejemplo, idealmente desde Supabase)
+    // Paquetes de saldo (Hardcodeados para el ejemplo)
     const RECHARGE_PACKAGES = [
         { name: 'Saldo $5 USD', usd: '5.00' },
         { name: 'Saldo $10 USD', usd: '10.00' }, 
@@ -50,7 +46,7 @@ document.addEventListener('DOMContentLoaded', () => {
     ];
     
     // =========================================================================
-    // === PERSISTENCIA DE ESTADO CON sessionStorage ===
+    // === PERSISTENCIA DE ESTADO CON sessionStorage (LO QUE FALTABA) ===
     // =========================================================================
 
     /**
@@ -88,11 +84,12 @@ document.addEventListener('DOMContentLoaded', () => {
         sessionStorage.setItem('rechargeFormState', JSON.stringify(currentState));
     }
     
-    // 1. Cargar el estado al inicio
+    // 1. Cargar el estado al inicio (esto restaura la ID y el paquete al cargar la página)
     loadFormState();
     
     // 2. Escuchar cambios en el input del ID para guardar el estado en tiempo real
     if (playerIdInput) {
+        // Guardar el estado cada vez que se teclea algo
         playerIdInput.addEventListener('input', saveFormState);
     }
     
@@ -115,7 +112,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const exchangeRate = getExchangeRate(); 
         
         RECHARGE_PACKAGES.forEach((pkg) => {
-            
+            // ... (Lógica de renderizado)
             const usdPrice = parseFloat(pkg.usd);
             const calculatedVesPrice = (usdPrice * exchangeRate).toFixed(2);
             
@@ -139,7 +136,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         attachPackageEventListeners();
 
-        // Aplicar la clase 'selected' si hay un paquete en selectedPackageData
+        // Aplicar la clase 'selected' si hay un paquete restaurado de sessionStorage
         if (selectedPackageData && selectButton) {
             const currentSelected = Array.from(packageGrid.children).find(
                 opt => opt.dataset.packageName === selectedPackageData.name
@@ -184,7 +181,7 @@ document.addEventListener('DOMContentLoaded', () => {
     window.addEventListener('currencyChanged', renderPackages); 
     document.addEventListener('siteConfigLoaded', renderPackages, { once: true });
     
-    // Lógica de Pago Directo al enviar el formulario
+    // 🎯 Lógica de Pago Directo al enviar el formulario
     if (rechargeForm) {
         rechargeForm.addEventListener('submit', (e) => { 
             e.preventDefault();
@@ -194,13 +191,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
             
-            // 🚩 ¡SOLUCIÓN! 🚩
-            // 1. Aseguramos que el estado del formulario (incluyendo el ID final) se guarde en sessionStorage.
+            // 🚩 ¡LA SOLUCIÓN CLAVE! 🚩
+            // 1. Forzamos el guardado del estado (ID incluido) ANTES de redirigir.
             saveFormState(); 
             
-            // 2. Leemos el valor final del ID (que está garantizado que está en sessionStorage si la página recarga)
+            // 2. Leemos el valor final del ID.
             const currentPlayerId = playerIdInput ? playerIdInput.value : 'N/A';
-
+            
             // 🟢 PASO 1: Obtener el ID del usuario desde localStorage
             const googleId = getUserId();
             
@@ -213,7 +210,8 @@ document.addEventListener('DOMContentLoaded', () => {
             const transactionItem = {
                 id: 'WALLET_RECHARGE_' + Date.now(), 
                 game: 'Recarga de Saldo',
-                playerId: currentPlayerId, // Usamos el ID del jugador del formulario
+                // 🚩 CORRECCIÓN ADICIONAL: Usar el ID real del input en la transacción
+                playerId: currentPlayerId, 
                 packageName: selectedPackageData.name,
                 priceUSD: selectedPackageData.usd, 
                 priceVES: selectedPackageData.ves, 
@@ -224,7 +222,7 @@ document.addEventListener('DOMContentLoaded', () => {
             // 🟢 PASO 3: Guardar el array de transacción en localStorage
             localStorage.setItem('transactionDetails', JSON.stringify([transactionItem]));
 
-            // 🟢 PASO 4: Redirigir. Si el usuario regresa con el botón "Atrás", loadFormState() restaurará el ID y el paquete.
+            // 🟢 PASO 4: Redirigir. Al volver, loadFormState() restaurará el estado guardado.
             window.location.href = 'payment.html';
         });
     }
