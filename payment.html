@@ -367,13 +367,12 @@
     const finalizeBtn = document.getElementById('finalize-recharge-btn');
     const successMessageDisplay = document.getElementById('success-message-display');
     const paymentDetailsFormDiv = document.getElementById('payment-details-form');
-    const paymentMethodsDiv = document.getElementById('payment-methods'); // Asegurar que esta variable se usa
+    const paymentMethodsDiv = document.getElementById('payment-methods'); 
 
     // 3. FUNCIONES DE LÓGICA
     
     /**
-     * @NUEVA_FUNCIÓN_CLAVE: Busca y retorna el google_id de la transacción.
-     * Esto es CRÍTICO para las recargas de saldo.
+     * Busca y retorna el google_id de la transacción.
      * @returns {string|null} El Google ID si se encuentra un ítem de 'Recarga de Saldo', de lo contrario null.
      */
     function getGoogleIdFromTransaction() {
@@ -391,7 +390,7 @@
 
 
     /**
-     * @NUEVA_FUNCIÓN: Verifica si algún ítem en la transacción requiere flujo asistido (TikTok/Telegram).
+     * Verifica si algún ítem en la transacción requiere flujo asistido (TikTok/Telegram).
      * @returns {boolean}
      */
     function isAssistedFlow() {
@@ -410,8 +409,7 @@
     }
 
     /**
-     * @MODIFICADO: Genera y actualiza el enlace de WhatsApp para recargas asistidas.
-     * Ahora genera un mensaje detallado para el carrito.
+     * Genera y actualiza el enlace de WhatsApp para recargas asistidas.
      */
     function updateWhatsAppLink() {
         if (!isAssistedFlow()) return;
@@ -446,48 +444,40 @@
                 }
             });
             
-            message += `\n*TOTAL A PAGAR:* ${totalAmount} ${currency}`;
-            message += `\n\n*Correo de Contacto:* ${email}\n*WhatsApp de Contacto:* ${whatsappNumber}\n\nPor favor, ayúdame a finalizar mi compra.`;
-
+            message += `\n*TOTAL A PAGAR: ${currency} ${totalAmount}*\n\n`;
+            message += `*Mi Correo:* ${email}\n`;
+            message += `*Mi WhatsApp:* ${whatsappNumber}\n\n`;
+            message += `_Adjunto el comprobante de pago en este chat._`;
+            
+            // Codificar el mensaje para la URL
             const encodedMessage = encodeURIComponent(message);
             
-            // Número de WhatsApp de Malok Recargas
-            const malokWhatsappNumber = '584126949631'; 
-            
-            // Ajustar el selector al que está en el HTML
-            const whatsappLinkInContainer = whatsappMessageContainer.querySelector('.whatsapp-link');
-            if (whatsappLinkInContainer) {
-                whatsappLinkInContainer.href = `https://wa.me/${malokWhatsappNumber}?text=${encodedMessage}`;
-                whatsappLinkInContainer.classList.remove('disabled');
-                whatsappLinkInContainer.style.pointerEvents = 'auto'; // Habilitar click
-                whatsappLinkInContainer.style.opacity = '1';
-            }
-        } else if (whatsappLink) {
-            // Deshabilitar el enlace si faltan campos o detalles de la transacción
-            const whatsappLinkInContainer = whatsappMessageContainer.querySelector('.whatsapp-link');
-            if (whatsappLinkInContainer) {
-                whatsappLinkInContainer.href = '#';
-                whatsappLinkInContainer.classList.add('disabled');
-                whatsappLinkInContainer.style.pointerEvents = 'none'; // Deshabilitar click
-                whatsappLinkInContainer.style.opacity = '0.5';
-            }
+            // Actualizar el href del enlace de WhatsApp
+            whatsappLink.href = `https://wa.me/584126949631?text=${encodedMessage}`;
         }
     }
 
+
     /**
-     * @MODIFICADO: Genera y actualiza el resumen de la transacción en la UI, ahora manejando un array de productos (el carrito).
-     * Calcula el total de todos los productos y muestra los detalles individuales.
-     * 🎯 FIX: Se añade lógica para manejar el precio USDM (precio base sin recargo) para el cálculo del total y la visualización.
+     * @MODIFICADO: Muestra el resumen de la transacción con los totales corregidos.
      */
     function updateTransactionSummary() {
         const summaryDiv = document.getElementById('transaction-summary');
         
-        // Aseguramos que transactionDetails sea un array. Si es un objeto singular (flujo antiguo), lo convertimos a un array.
+        // Manejo de datos de transacción (Aseguramos que siempre sea un array)
+        const storedDetails = localStorage.getItem('transactionDetails');
+        if (storedDetails) {
+            transactionDetails = JSON.parse(storedDetails); 
+        }
+
+        // Si es un objeto singular (flujo antiguo), lo convertimos a un array.
         const cartItems = Array.isArray(transactionDetails) ? transactionDetails : (transactionDetails ? [transactionDetails] : []);
         
         if (!summaryDiv || cartItems.length === 0) {
             summaryDiv.innerHTML = '<p class="error-message">No se encontraron detalles de la recarga. Por favor, vuelve a la tienda.</p>';
-            setTimeout(() => { window.location.href = 'index.html'; }, 10000);
+            setTimeout(() => {
+                window.location.href = 'index.html';
+            }, 10000);
             return;
         }
 
@@ -497,7 +487,7 @@
         let totalUSD = 0; // Total con recargo (e.g., $1.13)
         let totalVES = 0;
         let totalUSDM = 0; // 🎯 FIX 1: Nuevo total para USDM (Precio base sin recargo, e.g., $1.00)
-        
+
         let summaryHTML = '<h3>Resumen de la Transacción</h3>';
         summaryHTML += '<div class="product-list-summary">';
 
@@ -506,44 +496,29 @@
             // Aseguramos que los precios sean números, usando 0 como fallback
             const priceUSD = parseFloat(item.priceUSD || 0);
             const priceVES = parseFloat(item.priceVES || 0);
-            
             // 🎯 FIX 2: Usamos un campo para el precio base (USDM). Se asume que el user lo carga como 'priceUSDM' o 'priceBaseUSD'.
             const priceUSDM = parseFloat(item.priceUSDM || item.priceBaseUSD || 0);
-            
+
             // Acumular todos los totales
             totalUSD += priceUSD;
             totalVES += priceVES;
-            totalUSDM += priceUSDM; // 🎯 FIX 3: Acumular el total de USDM
+            totalUSDM += priceUSDM; // 🎯 FIX 3: Acumular el total base
 
-            // El precio a mostrar depende de la moneda seleccionada
-            let displayPrice;
-            if (selectedCurrency === 'VES') {
-                displayPrice = priceVES.toFixed(2);
-            } else if (selectedCurrency === 'USDM') {
-                // 🎯 FIX 4: Mostrar el precio base para USDM
-                displayPrice = priceUSDM.toFixed(2);
-            } else {
-                displayPrice = priceUSD.toFixed(2);
-            }
-            
-            // Datos específicos del juego/servicio
-            const game = item.game;
+            let displayPrice = (selectedCurrency === 'VES' ? priceVES : priceUSD).toFixed(2);
             let gameOrServiceLabel = 'Juego';
+            let game = item.game || 'Servicio';
             let playerInfoHtml = '';
-            let passwordToReveal = null;
             let passwordHtml = '';
+            let passwordToReveal = null;
 
-            // Lógica para mostrar IDs, correos, etc., según el juego
-            if (game === 'Roblox') {
+            // Lógica para mostrar los campos de usuario/contraseña específicos
+            if (game === 'Free Fire' || game === 'Mobile Legends' || game === 'PUBG Mobile') {
+                const gameIdHtml = item.playerId ? `<p><strong>ID de Jugador:</strong> ${item.playerId}</p>` : '';
+                playerInfoHtml = gameIdHtml;
+            } else if (game === 'Roblox') {
                 const gameEmailHtml = item.robloxEmail ? `<p><strong>Correo de Roblox:</strong> ${item.robloxEmail}</p>` : '';
-                if (item.robloxPassword) {
-                    passwordToReveal = item.robloxPassword;
-                }
-                playerInfoHtml = gameEmailHtml;
-            } else if (game === 'Free Fire') {
-                const playerIdHtml = item.playerId ? `<p><strong>ID de Jugador:</strong> ${item.playerId}</p>` : '';
-                const playerZoneHtml = item.playerZone ? `<p><strong>Zona:</strong> ${item.playerZone}</p>` : '';
-                playerInfoHtml = `${playerIdHtml}${playerZoneHtml}`;
+                const gamePasswordHtml = item.robloxPassword ? `<p><strong>Contraseña de Roblox:</strong> ${item.robloxPassword}</p>` : '';
+                playerInfoHtml = `${gameEmailHtml}${gamePasswordHtml}`;
             } else if (game === 'Call of Duty Mobile') {
                 const gameEmailHtml = item.codmEmail ? `<p><strong>Correo de ${game}:</strong> ${item.codmEmail}</p>` : '';
                 if (item.codmPassword) {
@@ -555,7 +530,7 @@
                 // 🎯 INICIO DEL CAMBIO: Lógica para Recarga de Saldo/Wallet
                 gameOrServiceLabel = 'Servicio';
                 playerInfoHtml = `<p><strong>ID de Usuario (Google ID):</strong> ${item.google_id}</p>`;
-                // 🎯 FIN DEL CAMBIO 
+                // 🎯 FIN DEL CAMBIO
             } else {
                 // Para otros juegos, mostramos el ID de Jugador (playerId)
                 const playerIdHtml = item.playerId ? `<p><strong>ID/Usuario:</strong> ${item.playerId}</p>` : '';
@@ -567,9 +542,9 @@
                 const maskedPassword = '•'.repeat(passwordToReveal.length);
                 passwordHtml = `
                     <p><strong>Contraseña:</strong> <span id="game-password-${index}">${maskedPassword}</span>
-                    <button type="button" class="toggle-password" data-target-id="game-password-${index}" data-password="${passwordToReveal}">
-                        <i class="fas fa-eye"></i>
-                    </button>
+                        <button type="button" class="toggle-password" data-target-id="game-password-${index}" data-password="${passwordToReveal}">
+                            <i class="fas fa-eye"></i>
+                        </button>
                     </p>
                 `;
             }
@@ -585,84 +560,74 @@
                 <hr>
             `;
         });
-
+        
         // 2. Mostrar el Total Final
-        // 🎯 FIX 5: Determinar el total final basado en la moneda seleccionada, incluyendo USDM
-        const finalDisplayTotal = selectedCurrency === 'VES' ? totalVES.toFixed(2) : (selectedCurrency === 'USDM' ? totalUSDM.toFixed(2) : totalUSD.toFixed(2));
-        const finalCurrency = selectedCurrency === 'USDM' ? 'USD (Wallet)' : selectedCurrency;
-
+        const finalPrice = (selectedCurrency === 'VES' ? totalVES : totalUSD).toFixed(2);
+        
         summaryHTML += `
-            </div>
-            <div class="final-total">
-                <p><strong>Total a Pagar (${finalCurrency}):</strong> ${currencySymbol} ${finalDisplayTotal}</p>
+            <div class="total-summary">
+                <p><strong>TOTAL A PAGAR:</strong> <span class="price-value final-price">${currencySymbol} ${finalPrice}</span></p>
             </div>
         `;
+        summaryHTML += '</div>';
         
         summaryDiv.innerHTML = summaryHTML;
 
-        // 3. Adjuntar totales al objeto global para referencia futura (e.g., al presionar el botón de finalizar)
-        // Convertir el objeto transactionDetails a Array si es necesario antes de adjuntar los totales
-        if (!Array.isArray(transactionDetails)) {
-             // Si el flujo es de un solo producto, actualizamos el objeto original
-            transactionDetails.totalUSD = totalUSD.toFixed(2);
-            transactionDetails.totalVES = totalVES.toFixed(2);
-            transactionDetails.totalUSDM = totalUSDM.toFixed(2); // 🎯 FIX 6: Guardar total USDM
-            transactionDetails.finalPrice = finalDisplayTotal; // Guardar el precio final de la moneda seleccionada
-            transactionDetails.currency = selectedCurrency; // Guardar la moneda seleccionada
-        } else {
-            // Si el flujo es de carrito, creamos un objeto con los totales
-            transactionDetails = {
-                cartItems: cartItems, // Guardamos los detalles originales del carrito
-                totalUSD: totalUSD.toFixed(2),
-                totalVES: totalVES.toFixed(2),
-                totalUSDM: totalUSDM.toFixed(2), // 🎯 FIX 7: Guardar total USDM
-                finalPrice: finalDisplayTotal, // Guardar el precio final de la moneda seleccionada
-                currency: selectedCurrency // Guardar la moneda seleccionada
-            };
-        }
-        
-        // 4. Adjuntar listeners para el botón de mostrar/ocultar contraseña (si existe)
-        attachPasswordToggleListeners();
+        // 3. Actualizar el objeto transactionDetails global con los totales calculados
+        transactionDetails.finalPrice = finalPrice;
+        transactionDetails.currency = selectedCurrency;
+        transactionDetails.totalUSD = totalUSD.toFixed(2);
+        transactionDetails.totalVES = totalVES.toFixed(2);
+        transactionDetails.totalUSDM = totalUSDM.toFixed(2); // 🎯 FIX 4: Guardar el total base
+
+        // 4. Lógica para el botón de mostrar/ocultar contraseña
+        setupPasswordToggle();
+
+        // 5. Actualizar los métodos de pago
+        updatePaymentMethods();
+
+        // 6. Actualizar el link de WhatsApp (si aplica)
+        updateWhatsAppLink();
     }
-    
-    function attachPasswordToggleListeners() {
+
+
+    /**
+     * Lógica para mostrar/ocultar contraseñas.
+     */
+    function setupPasswordToggle() {
         document.querySelectorAll('.toggle-password').forEach(button => {
-            button.removeEventListener('click', handlePasswordToggle); // Evitar duplicados
-            button.addEventListener('click', handlePasswordToggle);
+            button.addEventListener('click', () => {
+                const targetId = button.getAttribute('data-target-id');
+                const password = button.getAttribute('data-password');
+                const targetElement = document.getElementById(targetId);
+                
+                if (targetElement.textContent.includes('•')) {
+                    targetElement.textContent = password;
+                    button.innerHTML = '<i class="fas fa-eye-slash"></i>';
+                } else {
+                    const maskedPassword = '•'.repeat(password.length);
+                    targetElement.textContent = maskedPassword;
+                    button.innerHTML = '<i class="fas fa-eye"></i>';
+                }
+            });
         });
     }
 
-    function handlePasswordToggle(event) {
-        const button = event.currentTarget;
-        const targetId = button.getAttribute('data-target-id');
-        const passwordValue = button.getAttribute('data-password');
-        const targetElement = document.getElementById(targetId);
-
-        if (targetElement) {
-            if (targetElement.textContent.includes('•')) {
-                // Mostrar contraseña
-                targetElement.textContent = passwordValue;
-                button.querySelector('i').className = 'fas fa-eye-slash';
-            } else {
-                // Ocultar contraseña
-                targetElement.textContent = '•'.repeat(passwordValue.length);
-                button.querySelector('i').className = 'fas fa-eye';
-            }
-        }
-    }
-
+    /**
+     * @MODIFICADO: Muestra los métodos de pago según la moneda seleccionada y el flujo Wallet.
+     */
     function updatePaymentMethods() {
         if (!paymentMethodsDiv) return;
         paymentMethodsDiv.innerHTML = ''; 
 
         // Usamos transactionDetails.currency que fue establecido por updateTransactionSummary
         const currentCurrency = transactionDetails.currency; 
-        let methods;
-        
+        let methods; 
+
         // 🎯 CAMBIO CLAVE: Usamos 'let' y asignación condicional
         if (currentCurrency === 'VES') {
             methods = paymentMethodsVES;
-        } else if (currentCurrency === 'USDM') {
+        } else if (currentCurrency === 'USDM') { 
             // 🎯 Lógica para USDM: solo Wallet
             methods = paymentMethodsUSDM;
         } else {
@@ -689,10 +654,13 @@
                 checkFormValidity();
             });
         });
-        
+
         checkFormValidity();
     }
 
+    /**
+     * @MODIFICADO: Carga el HTML específico para cada método de pago.
+     */
     function loadPaymentDetails(methodId) {
         let methodHtml = paymentDetailsTemplates[methodId];
         
@@ -703,58 +671,59 @@
             if (methodId === 'wallet') {
                 const finalPriceElement = document.getElementById('wallet-final-price');
                 // Ahora usa el totalUSDm calculado en updateTransactionSummary
-                const finalPriceUSDM = transactionDetails.totalUSDM || transactionDetails.priceUSDM; 
+                const finalPriceUSDM = transactionDetails.totalUSDM || transactionDetails.priceUSDM || '0.00';
                 if (finalPriceElement) {
-                    finalPriceElement.textContent = `$ ${finalPriceUSDM}`;
+                    finalPriceElement.textContent = `$ ${parseFloat(finalPriceUSDM).toFixed(2)}`;
                 }
             }
 
-            const fileInput = document.getElementById('payment-receipt');
-            
-            // 🛑 MODIFICADO: Solo se requiere comprobante para Pago Móvil y Zinli
-            if (methodId === 'pago-movil' || methodId === 'zinli') {
-                fileInput.required = true;
-                fileInput.addEventListener('change', checkFormValidity);
-            } else if (fileInput) {
-                // Para los demás métodos (Binance/Wallet) el comprobante es opcional/no aplica
-                fileInput.required = false;
-            }
-            
-            // Adjuntar listeners de copiar para las plantillas cargadas
-            attachCopyListeners(); 
-            
-            // Volver a verificar la validez del formulario después de cargar los detalles
-            checkFormValidity();
+            // Re-adjuntar listeners de copia para elementos dinámicos
+            document.querySelectorAll('.copy-button').forEach(button => {
+                button.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    const targetId = button.getAttribute('data-copy-target');
+                    const targetElement = document.getElementById(targetId);
+                    const feedbackId = targetId + '-copy-feedback';
+                    const feedbackElement = document.getElementById(feedbackId);
+                    copyToClipboard(targetElement, feedbackElement);
+                });
+            });
+
+        } else {
+            paymentDetailsFormDiv.innerHTML = '<p>Por favor, selecciona un método de pago.</p>';
         }
-    }
-    
-    function attachCopyListeners() {
-        document.querySelectorAll('.copy-button').forEach(button => {
-            button.removeEventListener('click', handleCopyClick); // Evitar duplicados
-            button.addEventListener('click', handleCopyClick);
-        });
+
+        // Si se selecciona un método que requiere comprobante, activar el required en el input.
+        const uploadReceiptInput = document.getElementById('payment-receipt');
+        if (uploadReceiptInput) {
+            if (methodId === 'pago-movil' || methodId === 'zinli' || methodId === 'binance-id') {
+                uploadReceiptInput.setAttribute('required', 'required');
+            } else {
+                uploadReceiptInput.removeAttribute('required');
+            }
+        }
+        
+        // El botón 'Finalizar Recarga' debe estar disponible si se carga la sección de detalles
+        finalizeBtn.disabled = false;
+        finalizeBtn.textContent = 'Finalizar Recarga';
     }
 
-    function handleCopyClick(event) {
-        event.preventDefault();
-        const button = event.currentTarget;
-        const targetId = button.getAttribute('data-copy-target');
-        const targetElement = document.getElementById(targetId);
-        const feedbackElement = document.getElementById(`${targetId}-copy-feedback`);
 
-        if (targetElement && navigator.clipboard) {
+    /**
+     * Función universal para copiar al portapapeles.
+     */
+    function copyToClipboard(element, feedbackElement) {
+        if (element && navigator.clipboard) {
             try {
-                // Usa el valor interno para copiar (ej: sin el 'V-' en la cédula si fuera necesario, pero aquí copiamos el texto visible)
-                const textToCopy = targetElement.textContent.trim();
-                navigator.clipboard.writeText(textToCopy);
-                
-                if (feedbackElement) {
-                    feedbackElement.textContent = '¡Copiado!';
-                    feedbackElement.style.display = 'inline-block';
-                    setTimeout(() => {
-                        feedbackElement.style.display = 'none';
-                    }, 1500);
-                }
+                navigator.clipboard.writeText(element.textContent.trim()).then(() => {
+                    if (feedbackElement) {
+                        feedbackElement.textContent = '¡Copiado!';
+                        feedbackElement.style.display = 'inline-block';
+                        setTimeout(() => {
+                            feedbackElement.style.display = 'none';
+                        }, 1500);
+                    }
+                });
             } catch (err) {
                 console.error('Error al copiar: ', err);
                 if (feedbackElement) {
@@ -771,9 +740,9 @@
         }
     }
 
+
     /**
      * @MODIFICADO: Verifica la validez del formulario y habilita/deshabilita los botones.
-     * Ahora incluye la excepción para 'binance', 'binance-id' y 'wallet'.
      */
     function checkFormValidity() {
         const selectedRadio = document.querySelector('input[name="paymentMethod"]:checked');
@@ -782,60 +751,52 @@
 
         const emailInput = document.getElementById('email');
         const whatsappInput = document.getElementById('whatsappNumber');
+
         const isEmailFilled = emailInput && emailInput.value.trim() !== '';
         const isEmailValid = emailInput && emailInput.checkValidity();
         const isWhatsappFilled = whatsappInput && whatsappInput.value.trim() !== '';
-
-        let areDetailsFilled = true;
         
-        if (isAssistedFlow()) {
-            // Flujo asistido
-            areDetailsFilled = true;
-        } else if (selectedMethodId === 'binance') {
-            // Plisio (Redirección automática)
-            areDetailsFilled = true;
-        } else if (selectedMethodId === 'wallet') {
-            // 🎯 CAMBIO CLAVE: Wallet RESTAURADA
-            areDetailsFilled = true;
-        } else if (selectedMethodId === 'binance-id') {
-            // 🆕 Binance ID (Comprobante opcional)
-             areDetailsFilled = true;
-        } else if (isMethodSelected) {
-            // Otros métodos (Pago Movil/Zinli): Comprobante requerido
-            const receiptInput = document.getElementById('payment-receipt');
-            areDetailsFilled = receiptInput && receiptInput.files.length > 0;
+        let areDetailsFilled = true; // Por defecto true para métodos sin comprobante visible.
+        
+        if (isAssistedFlow()) { // Flujo asistido
+            // En flujo asistido, el botón de finalizar debe habilitarse solo si los contactos están llenos.
+            finalizeBtn.disabled = !(isEmailFilled && isEmailValid && isWhatsappFilled);
+            return;
+        } 
+        
+        // Lógica para los métodos que NO requieren comprobante visible.
+        if (selectedMethodId === 'binance' || selectedMethodId === 'wallet') { 
+            areDetailsFilled = true; // Siempre true, el comprobante es un input hidden o no aplica.
         } else {
-            areDetailsFilled = false;
+            // Lógica para métodos que SÍ requieren comprobante (pago-movil, zinli, binance-id)
+            const uploadReceiptInput = document.getElementById('payment-receipt');
+            areDetailsFilled = uploadReceiptInput && uploadReceiptInput.files.length > 0;
         }
 
-        const isFormValid = isMethodSelected && isEmailFilled && isEmailValid && isWhatsappFilled && areDetailsFilled;
-        
-        // Habilitar/Deshabilitar el botón de Finalizar Recarga
-        finalizeBtn.disabled = !isFormValid;
-        
-        // Actualizar el enlace de WhatsApp si es asistido
-        if (isAssistedFlow() && isEmailValid && isWhatsappFilled) {
-            updateWhatsAppLink();
-            whatsappMessageContainer.style.display = 'block';
-            finalizeBtn.textContent = 'Notificar Recarga';
-        } else if (!isAssistedFlow()) {
-            whatsappMessageContainer.style.display = 'none';
-            // Texto estándar del botón
-            finalizeBtn.textContent = selectedMethodId === 'binance' ? 'Pagar con Plisio y Redirigir' : 'Finalizar Recarga';
+        // Habilitar/deshabilitar el botón
+        const formIsValid = isMethodSelected && isEmailFilled && isEmailValid && isWhatsappFilled && areDetailsFilled;
+        finalizeBtn.disabled = !formIsValid;
+
+        // Mostrar un mensaje de "Procesando" si es Plisio/Binance
+        if (selectedMethodId === 'binance' && formIsValid) {
+            finalizeBtn.textContent = 'Continuar a Plisio';
+        } else if (selectedMethodId === 'wallet' && formIsValid) {
+            finalizeBtn.textContent = 'Deducir de Wallet y Finalizar';
+        } else {
+            finalizeBtn.textContent = 'Finalizar Recarga';
         }
     }
 
-    // 4. LÓGICA DE INICIALIZACIÓN Y SUBIDA DEL FORMULARIO
-    
-    // Event listener para manejar la subida del formulario
-    paymentForm.addEventListener('submit', async function (event) {
-        event.preventDefault();
-        
+
+    // 4. MANEJO DEL SUBMIT DEL FORMULARIO
+    paymentForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+
         const selectedPaymentMethod = document.querySelector('input[name="paymentMethod"]:checked')?.value;
         const emailInput = document.getElementById('email');
         const whatsappInput = document.getElementById('whatsappNumber');
 
-        // Validaciones de campos de contacto (universales)
+        // 🎯 Validaciones de campos de contacto (universales)
         if (!emailInput || emailInput.value.trim() === '' || !emailInput.checkValidity()) {
             alert('Por favor, ingresa un correo electrónico válido para recibir notificaciones.');
             emailInput.focus();
@@ -845,86 +806,84 @@
             alert('Por favor, ingresa tu número de WhatsApp para poder contactarte y completar la recarga.');
             return;
         }
-        
-        // Lógica especial para recargas asistidas (no se envían al backend)
+
+        // Lógica especial para recargas asistidas (TikTok, Telegram)
         if (isAssistedFlow()) {
-            // 🛑 LÍNEAS AÑADIDAS PARA OCULTAR ELEMENTOS
+            // 🛑 Ocultar el formulario y mostrar mensaje de éxito temporal.
             const h2Title = document.querySelector('.form-container h2');
             const transactionSummary = document.getElementById('transaction-summary');
             if (h2Title) h2Title.style.display = 'none';
             if (transactionSummary) transactionSummary.style.display = 'none';
-            // 🛑 FIN NUEVAS LÍNEAS
 
-            // Simplemente oculta el formulario y muestra el mensaje de éxito temporal.
             paymentForm.style.display = 'none';
             whatsappMessageContainer.style.display = 'none';
             successMessageDisplay.style.display = 'block';
-            
             localStorage.removeItem('transactionDetails');
-            localStorage.removeItem('cartItems'); 
+            localStorage.removeItem('cartItems');
 
             setTimeout(() => {
                 window.location.href = 'index.html';
             }, 5000);
             return;
         }
+
+        // Obtener el precio final correcto (USDM si es Wallet, USD si es otro método USD)
+        const finalPriceUSD = selectedPaymentMethod === 'wallet' ? parseFloat(transactionDetails.totalUSDM || 0) : parseFloat(transactionDetails.totalUSD || 0);
+
+        if (finalPriceUSD <= 0) {
+            alert('Error: El monto de la transacción es inválido. Por favor, revisa tu carrito.');
+            return;
+        }
         
-        // 🎯 FIX 9: Obtener el precio final correcto (USDM si es Wallet, USD si es otro método USD)
-        const finalPriceUSD = selectedPaymentMethod === 'wallet' ? (transactionDetails.totalUSDM || transactionDetails.priceUSDM) : (transactionDetails.totalUSD || transactionDetails.priceUSD);
+        finalizeBtn.disabled = true;
         
-        // 🎯 INICIO DEL CAMBIO CLAVE: Lógica para el flujo de pago con Wallet
+        // ====================================================================
+        // 🎯 LÓGICA DE PAGO CON WALLET (CORRECCIÓN APLICADA AQUÍ)
+        // ====================================================================
         if (selectedPaymentMethod === 'wallet') {
-            // 🛑 CORRECCIÓN: Obtener y validar el token de sesión
-            // Nota: Se utiliza 'customSessionToken' porque es la clave usada en tu HTML,
-            // aunque el backend 'process-google-login.js' usa 'sessionToken'. Si tienes errores,
-            // verifica la clave con la que se guarda el token al iniciar sesión.
-            const sessionToken = localStorage.getItem('customSessionToken'); 
+            
+            // 🛑 CORRECCIÓN: Obtener y validar el token de sesión (clave para solucionar el error)
+            const sessionToken = localStorage.getItem('customSessionToken');
             
             if (!sessionToken) {
-                alert('Error: No se encontró la sesión activa (token Bearer). Por favor, inicia sesión de nuevo.');
+                // El error que el usuario estaba viendo
+                alert('Error: No se encontró la sesión activa (token Bearer). Por favor, inicia sesión de nuevo');
                 finalizeBtn.disabled = false;
                 finalizeBtn.textContent = 'Finalizar Recarga';
                 return;
             }
 
-            // Validar que el monto sea positivo
-            if (!finalPriceUSD || parseFloat(finalPriceUSD) <= 0) {
-                alert('Error: El monto de la transacción es inválido. Por favor, revisa tu carrito.');
-                return;
-            }
-
-            finalizeBtn.disabled = true;
-            finalizeBtn.textContent = 'Deduciendo saldo de la Wallet...';
-
+            // a. Llamar a deduct-wallet-balance (El pago real)
             try {
-                // 1. Llamar a deduct-wallet-balance para descontar el saldo
-                const deductResponse = await fetch('/.netlify/functions/deduct-wallet-balance', {
+                finalizeBtn.textContent = 'Deduciendo Saldo de Wallet...';
+                
+                const deductionResponse = await fetch('/.netlify/functions/deduct-wallet-balance', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        // ⭐️ ¡ESTA ES LA CORRECCIÓN! ⭐️
-                        'Authorization': `Bearer ${sessionToken}`, // Añadir el token Bearer
+                        // ⭐️ CORRECCIÓN CLAVE: Adjuntar el token en la cabecera Authorization ⭐️
+                        'Authorization': `Bearer ${sessionToken}` 
                     },
                     body: JSON.stringify({
-                        amountUSD: parseFloat(finalPriceUSD), // El monto a descontar
+                        amountUSD: finalPriceUSD, 
                         email: emailInput.value.trim(),
                         whatsapp: whatsappInput.value.trim(),
-                        // Enviamos los detalles del carrito en el cuerpo para que el backend lo pueda registrar
-                        cartDetails: Array.isArray(transactionDetails) ? transactionDetails : [transactionDetails],
-                    }),
+                        cartDetails: JSON.stringify(Array.isArray(transactionDetails) ? transactionDetails : [transactionDetails]),
+                    })
                 });
 
-                if (deductResponse.ok) {
-                    // 2. ÉXITO DE DEDUCCIÓN: Ahora notificar el pago (Llamar a process-payment)
-                    finalizeBtn.textContent = 'Deducción OK. Notificando Pago...';
-
-                    // a. Preparar datos para process-payment (usando FormData para la función)
+                if (deductionResponse.ok) {
+                    // Si la deducción fue exitosa, pasamos a registrar la transacción (process-payment)
+                    // b. Llamar a process-payment para registrar la transacción y notificar
+                    
+                    finalizeBtn.textContent = 'Notificando Pedido...';
+                    
                     const processFormData = new FormData();
                     processFormData.append('paymentMethod', 'wallet');
                     processFormData.append('email', emailInput.value.trim());
                     processFormData.append('whatsappNumber', whatsappInput.value.trim());
                     // Enviamos la cadena de valor del input hidden
-                    processFormData.append('paymentReceipt', 'Wallet_Deduction_Flow');
+                    processFormData.append('paymentReceipt', 'Wallet_Deduction_Flow'); 
                     // Añadir todos los datos de transacción
                     processFormData.append('cartDetails', JSON.stringify(Array.isArray(transactionDetails) ? transactionDetails : [transactionDetails]));
                     processFormData.append('finalPrice', transactionDetails.finalPrice);
@@ -933,12 +892,12 @@
                     processFormData.append('totalVES', transactionDetails.totalVES);
                     processFormData.append('totalUSDM', transactionDetails.totalUSDM);
 
-                    // b. Llamar a process-payment
+
                     const processPaymentResponse = await fetch('/.netlify/functions/process-payment', {
                         method: 'POST',
                         body: processFormData
                     });
-
+                    
                     if (processPaymentResponse.ok) {
                         // 3. ÉXITO COMPLETO (Pago y Notificación OK)
                         const h2Title = document.querySelector('.form-container h2');
@@ -949,57 +908,52 @@
                         paymentForm.style.display = 'none';
                         whatsappMessageContainer.style.display = 'none';
                         successMessageDisplay.style.display = 'block';
-                        
                         localStorage.removeItem('transactionDetails');
-                        localStorage.removeItem('cartItems'); 
+                        localStorage.removeItem('cartItems');
                         
                         setTimeout(() => {
                             window.location.href = 'index.html';
                         }, 5000);
+                        
                     } else {
                         // 3. ÉXITO PARCIAL (Pago OK, Notificación fallida)
                         const errorData = await processPaymentResponse.json();
                         alert(`¡Pago con Wallet exitoso, pero falló la notificación automática! Por favor, contacta a soporte con tu email (${emailInput.value.trim()}) para confirmar tu pedido y envíanos la captura de tu pedido en Telegram.\nError: ${errorData.message || 'Error desconocido'}`);
-                        console.error('Process Payment (Telegram) error after successful Wallet deduction:', errorData);
-                        // Se considera éxito para el usuario, se limpia storage y se redirige
-                        localStorage.removeItem('transactionDetails');
-                        localStorage.removeItem('cartItems'); 
-                        setTimeout(() => {
-                            window.location.href = 'index.html';
-                        }, 5000);
-                    }
+                        console.error('Process Payment (Notificación) error after successful Wallet deduction:', errorData);
 
+                        finalizeBtn.disabled = false;
+                        finalizeBtn.textContent = 'Finalizar Recarga';
+                    }
+                    
                 } else {
-                    // ERROR DE DEDUCCIÓN (401, 403, 500)
-                    const errorData = await deductResponse.json();
-                    alert(`Error en la deducción de Wallet (${deductResponse.status}): ${errorData.message || 'Error desconocido'}`);
-                    console.error('Deduct Wallet error:', errorData);
+                    // 2. ERROR EN LA DEDUCCIÓN (Saldo insuficiente, token inválido, etc.)
+                    const errorData = await deductionResponse.json();
+                    alert(`Ocurrió un error en el pago con Wallet: ${errorData.message || deductionResponse.statusText}. Por favor, verifica tus datos e inténtalo de nuevo.`);
+                    console.error('Wallet deduction error:', errorData);
+
                     finalizeBtn.disabled = false;
                     finalizeBtn.textContent = 'Finalizar Recarga';
                 }
-
             } catch (error) {
-                alert('Hubo un problema de red al procesar el pago con Wallet. Por favor, inténtalo de nuevo más tarde.');
-                console.error('Network or client error in Wallet deduction:', error);
+                alert('Hubo un problema de conexión con el servidor. Por favor, inténtalo de nuevo más tarde.');
+                console.error('Network or client error during wallet deduction:', error);
                 finalizeBtn.disabled = false;
                 finalizeBtn.textContent = 'Finalizar Recarga';
             }
-            return;
+            return; 
         } 
-        // 🎯 FIN DE LA LÓGICA CORREGIDA PARA WALLET
+        // ====================================================================
+        // 🛑 FIN DE LÓGICA DE PAGO CON WALLET
+        // ====================================================================
 
-        // 🎯 LÓGICA PARA PAGO CON PLISIO (REDIRECCIÓN)
+
+        // ====================================================================
+        // LÓGICA DE PAGO CON PLISIO (REDIRECCIÓN)
+        // ====================================================================
         if (selectedPaymentMethod === 'binance') {
-            
-            // Validar que el monto sea positivo
-            if (!finalPriceUSD || parseFloat(finalPriceUSD) <= 0) {
-                alert('Error: El monto de la transacción es inválido. Por favor, revisa tu carrito.');
-                return;
-            }
-
             finalizeBtn.disabled = true;
             finalizeBtn.textContent = 'Creando Factura en Plisio...';
-
+            
             const googleIdToSend = getGoogleIdFromTransaction();
 
             try {
@@ -1022,189 +976,165 @@
                     const data = await response.json();
                     if (data.chargeUrl) {
                         console.log('Redirigiendo a Plisio:', data.chargeUrl);
-                        window.location.href = data.chargeUrl;
+                        window.location.href = data.chargeUrl; // Redirección inmediata a la pasarela
                     } else {
-                        alert('Error: No se pudo obtener la URL de pago de Plisio.');
+                        throw new Error('No se recibió la URL de pago de Plisio.');
                     }
                 } else {
                     const errorData = await response.json();
-                    alert(`Error al crear la factura de Plisio: ${errorData.message || response.statusText}`);
-                    console.error('Plisio invoice creation error:', errorData);
+                    alert(`Ocurrió un error al crear la factura de Plisio: ${errorData.message || response.statusText}`);
+                    finalizeBtn.disabled = false;
+                    finalizeBtn.textContent = 'Finalizar Recarga';
                 }
-
             } catch (error) {
-                alert('Hubo un problema de conexión al intentar crear la factura de Plisio. Por favor, inténtalo de nuevo más tarde.');
-                console.error('Network or client error during Plisio invoice creation:', error);
-            } finally {
-                finalizeBtn.disabled = false;
-                finalizeBtn.textContent = 'Pagar con Plisio y Redirigir';
-            }
-            return; 
-        }
-
-        // LÓGICA PARA PAGOS CON COMPROBANTE (PAGO MÓVIL, ZINLI, BINANCE ID)
-        // Se asume que esta lógica llama a otra función de Netlify: process-payment.js
-        
-        // 1. Validar comprobante (solo para Pago Movil y Zinli)
-        const receiptInput = document.getElementById('payment-receipt');
-        const requiresReceipt = selectedPaymentMethod === 'pago-movil' || selectedPaymentMethod === 'zinli';
-
-        if (requiresReceipt && (!receiptInput || receiptInput.files.length === 0)) {
-            alert('Por favor, sube el comprobante de pago.');
-            return;
-        }
-
-        // 2. Preparar el FormData para enviar la imagen/archivo y los datos
-        const formData = new FormData();
-        
-        // 🎯 FIX 12: Aseguramos que el archivo se añada si existe, si no, se envía un marcador de posición para Binance ID
-        if (receiptInput && receiptInput.files.length > 0) {
-            formData.append('paymentReceipt', receiptInput.files[0]);
-        } else if (selectedPaymentMethod === 'binance-id') {
-            formData.append('paymentReceipt', 'Binance_ID_Transfer'); // Marcador para transferencia sin comprobante
-        } else if (selectedPaymentMethod === 'wallet' || selectedPaymentMethod === 'binance') {
-            // Estos casos ya se manejan arriba y no deberían llegar aquí, pero como respaldo:
-            formData.append('paymentReceipt', receiptInput ? receiptInput.value : 'No_Receipt_Required');
-        } else {
-             // Si requiere recibo y no tiene archivos, la validación anterior lo detuvo, pero por seguridad
-             return; 
-        }
-
-        // 3. Añadir el resto de los datos
-        formData.append('paymentMethod', selectedPaymentMethod);
-        formData.append('email', emailInput.value.trim());
-        formData.append('whatsappNumber', whatsappInput.value.trim());
-        
-        // Añadir todos los datos de transacción
-        formData.append('cartDetails', JSON.stringify(Array.isArray(transactionDetails) ? transactionDetails : [transactionDetails]));
-        formData.append('finalPrice', transactionDetails.finalPrice);
-        formData.append('currency', transactionDetails.currency);
-        formData.append('totalUSD', transactionDetails.totalUSD);
-        formData.append('totalVES', transactionDetails.totalVES);
-        formData.append('totalUSDM', transactionDetails.totalUSDM);
-        
-        // 4. Deshabilitar botón y enviar
-        finalizeBtn.disabled = true;
-        finalizeBtn.textContent = 'Enviando comprobante...';
-
-        try {
-            const response = await fetch('/.netlify/functions/process-payment', {
-                method: 'POST',
-                // NO incluyas el encabezado 'Content-Type' con FormData, el navegador lo configura automáticamente
-                body: formData
-            });
-
-            if (response.ok) {
-                // Éxito
-                const h2Title = document.querySelector('.form-container h2');
-                const transactionSummary = document.getElementById('transaction-summary');
-                if (h2Title) h2Title.style.display = 'none';
-                if (transactionSummary) transactionSummary.style.display = 'none';
-                
-                paymentForm.style.display = 'none';
-                whatsappMessageContainer.style.display = 'none';
-                successMessageDisplay.style.display = 'block';
-                
-                localStorage.removeItem('transactionDetails');
-                localStorage.removeItem('cartItems'); 
-
-                setTimeout(() => {
-                    window.location.href = 'index.html';
-                }, 5000);
-            } else {
-                const errorData = await response.json();
-                alert(`Ocurrió un error: ${errorData.message || response.statusText}. Por favor, verifica tus datos e inténtalo de nuevo.`);
-                console.error('Server error:', errorData);
+                console.error('Error en el flujo de Plisio:', error);
+                alert('Error de conexión o configuración al iniciar el pago con Plisio.');
                 finalizeBtn.disabled = false;
                 finalizeBtn.textContent = 'Finalizar Recarga';
             }
-        } catch (error) {
-            alert('Hubo un problema de conexión. Por favor, inténtalo de nuevo más tarde.');
-            console.error('Network or client error:', error);
+            return;
+        }
+
+        // ====================================================================
+        // LÓGICA DE PAGO CON PAGO MÓVIL / TRANSFERENCIA (Flujo de comprobante)
+        // ====================================================================
+        if (selectedPaymentMethod === 'pago-movil' || selectedPaymentMethod === 'zinli' || selectedPaymentMethod === 'binance-id') {
+            const uploadReceiptInput = document.getElementById('payment-receipt');
+            if (!uploadReceiptInput || !uploadReceiptInput.files[0]) {
+                alert('Por favor, sube un comprobante de pago.');
+                finalizeBtn.disabled = false;
+                finalizeBtn.textContent = 'Finalizar Recarga';
+                return;
+            }
+
+            const formData = new FormData(paymentForm);
+
+            // Añadir detalles de la transacción al FormData para el backend
+            formData.append('cartDetails', JSON.stringify(Array.isArray(transactionDetails) ? transactionDetails : [transactionDetails]));
+            formData.append('finalPrice', transactionDetails.finalPrice);
+            formData.append('currency', transactionDetails.currency);
+            formData.append('totalUSD', transactionDetails.totalUSD);
+            formData.append('totalVES', transactionDetails.totalVES);
+            formData.append('totalUSDM', transactionDetails.totalUSDM);
+
+
+            // Llamar a la función de Netlify para procesar el pago (subir comprobante y notificar)
+            try {
+                finalizeBtn.textContent = 'Subiendo Comprobante...';
+
+                const response = await fetch('/.netlify/functions/process-payment', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (response.ok) {
+                    // Éxito en el procesamiento
+                    const h2Title = document.querySelector('.form-container h2');
+                    const transactionSummary = document.getElementById('transaction-summary');
+                    if (h2Title) h2Title.style.display = 'none';
+                    if (transactionSummary) transactionSummary.style.display = 'none';
+
+                    paymentForm.style.display = 'none';
+                    whatsappMessageContainer.style.display = 'none';
+                    successMessageDisplay.style.display = 'block';
+                    localStorage.removeItem('transactionDetails');
+                    localStorage.removeItem('cartItems'); 
+
+                    setTimeout(() => {
+                        window.location.href = 'index.html';
+                    }, 5000);
+                } else {
+                    const errorData = await response.json();
+                    alert(`Ocurrió un error: ${errorData.message || response.statusText}. Por favor, verifica tus datos e inténtalo de nuevo.`);
+                    console.error('Server error:', errorData);
+                    finalizeBtn.disabled = false;
+                    finalizeBtn.textContent = 'Finalizar Recarga';
+                }
+            } catch (error) {
+                alert('Hubo un problema de conexión. Por favor, inténtalo de nuevo más tarde.');
+                console.error('Network or client error:', error);
+                finalizeBtn.disabled = false;
+                finalizeBtn.textContent = 'Finalizar Recarga';
+            }
+        } else {
+            // Manejar caso donde no se selecciona ningún método
+            alert('Por favor, selecciona un método de pago.');
             finalizeBtn.disabled = false;
             finalizeBtn.textContent = 'Finalizar Recarga';
         }
     });
 
-    // 5. LÓGICA DE INICIALIZACIÓN DE LA PÁGINA
-    
-    document.addEventListener('DOMContentLoaded', () => {
-        // Lógica de manejo de redirección de Plisio (si vuelve de un pago)
-        const urlParams = new URLSearchParams(window.location.search);
-        const status = urlParams.get('status');
+    // 5. LÓGICA DE INICIALIZACIÓN (al cargar la página)
+
+    // Lógica de Plisio para manejo de redirección (si vienes de una pasarela de pago)
+    const urlParams = new URLSearchParams(window.location.search);
+    const plisioStatus = urlParams.get('plisio_status');
+    const h2Title = document.querySelector('.form-container h2');
+    const transactionSummary = document.getElementById('transaction-summary');
+
+    // 🛑 Lógica para si Plisio nos devuelve un status de "processing" (éxito)
+    if (plisioStatus === 'processing' || plisioStatus === 'ok') { 
+        console.log('Detectada redirección de Plisio exitosa. Activando mensaje de procesamiento.');
         
-        // Asumiendo que el token se guarda con la clave 'isLoggedIn' o similar
-        // if (!localStorage.getItem('isLoggedIn')) {
-        //     window.location.href = 'login.html'; // Redirigir si no está logueado
-        //     return;
-        // }
+        // 🛑 LÍNEAS AÑADIDAS PARA OCULTAR ELEMENTOS
+        if (h2Title) h2Title.style.display = 'none';
+        if (transactionSummary) transactionSummary.style.display = 'none';
 
-        // 🛑 LÓGICA DE MANEJO DE PLISIO (DEBE IR AL PRINCIPIO)
-        if (status === 'finished' || status === 'processing') { // Añadido 'processing' como estado de redirección
-            console.log('Detectada redirección de Plisio exitosa. Activando mensaje de procesamiento.');
-            
-            // 🛑 LÍNEAS AÑADIDAS PARA OCULTAR ELEMENTOS
-            const h2Title = document.querySelector('.form-container h2');
-            const transactionSummary = document.getElementById('transaction-summary');
-            if (h2Title) h2Title.style.display = 'none';
-            if (transactionSummary) transactionSummary.style.display = 'none';
-            // 🛑 FIN NUEVAS LÍNEAS
+        // 1. Ocultar el formulario de comprobante de pago
+        if (paymentForm) paymentForm.style.display = 'none';
+        // 2. Ocultar la sección de mensaje de WhatsApp (si existe)
+        if (whatsappMessageContainer) whatsappMessageContainer.style.display = 'none';
+        // 3. Mostrar el mensaje de éxito (el cuadro de "Su recarga está siendo procesada...")
+        if (successMessageDisplay) successMessageDisplay.style.display = 'block';
+        
+        // 4. Limpiar el localStorage (como respaldo)
+        localStorage.removeItem('transactionDetails');
+        localStorage.removeItem('cartItems'); 
+        
+        // 5. Iniciar la redirección automática a index.html después de 5 segundos
+        setTimeout(() => {
+            window.location.href = 'index.html';
+        }, 5000);
+        // 🛑 Detener la ejecución del resto del script
+        return; 
+    }
 
-            // 1. Ocultar el formulario de comprobante de pago
-            if (paymentForm) paymentForm.style.display = 'none';
-            // 2. Ocultar la sección de mensaje de WhatsApp (si existe)
-            if (whatsappMessageContainer) whatsappMessageContainer.style.display = 'none';
-            // 3. Mostrar el mensaje de éxito (el cuadro de "Su recarga está siendo procesada...")
-            if (successMessageDisplay) successMessageDisplay.style.display = 'block';
-            
-            // 4. Opcional: Limpiar el localStorage (El webhook de Plisio debería haberlo hecho, pero como respaldo)
-            localStorage.removeItem('transactionDetails');
-            localStorage.removeItem('cartItems');
-            
-            // 5. Iniciar la redirección automática a index.html después de 5 segundos
-            setTimeout(() => { window.location.href = 'index.html'; }, 5000);
-            
-            // 🛑 Detener la ejecución del resto del script
-            return;
-        }
-        // 🛑 FIN DE NUEVA LÓGICA DE PLISIO
-
-        const storedDetails = localStorage.getItem('transactionDetails');
-        if (storedDetails) {
-            transactionDetails = JSON.parse(storedDetails);
-            
-            // APLICAR ARREGLO CLAVE: Si es un objeto singular (flujo antiguo), lo convertimos a array.
-            if (!Array.isArray(transactionDetails) && transactionDetails.game) {
-                 transactionDetails = [transactionDetails];
-            }
-            // Si después de la conversión es un array, usamos el primer elemento para los detalles
-            if (Array.isArray(transactionDetails)) {
-                // Recalcular los totales y reestructurar el objeto transactionDetails si es necesario
-                updateTransactionSummary(); 
-            }
-            
-            // Mover los listeners de los campos de contacto aquí para que estén activos siempre
-            const emailInput = document.getElementById('email');
-            const whatsappInput = document.getElementById('whatsappNumber');
-            if (emailInput) emailInput.addEventListener('input', checkFormValidity);
-            if (whatsappInput) whatsappInput.addEventListener('input', checkFormValidity);
-            
-            updatePaymentMethods(); // Esto muestra los métodos de pago según la moneda
-            
-            // Lógica de visualización inicial para recargas asistidas (TikTok/Telegram)
-            if (isAssistedFlow()) {
-                // USAR isAssistedFlow()
-                whatsappMessageContainer.style.display = 'block';
-                finalizeBtn.textContent = 'Notificar Recarga';
-            }
-            
-        } else {
-            document.getElementById('transaction-summary').innerHTML = '<p class="error-message">No se encontraron detalles de la recarga. Por favor, vuelve a la tienda.</p>';
-            // Redirigir después de un tiempo si no hay detalles
-            setTimeout(() => { window.location.href = 'index.html'; }, 3000);
+    // El script principal de inicialización que corre si NO es una redirección de Plisio
+    const storedDetails = localStorage.getItem('transactionDetails');
+    if (storedDetails) {
+        transactionDetails = JSON.parse(storedDetails);
+        
+        // APLICAR ARREGLO CLAVE: Si es un objeto singular (flujo antiguo), lo convertimos a array.
+        if (!Array.isArray(transactionDetails)) {
+            transactionDetails = [transactionDetails];
         }
 
-    });
+        // Mover los listeners de los campos de contacto aquí para que estén activos siempre
+        const emailInput = document.getElementById('email');
+        const whatsappInput = document.getElementById('whatsappNumber');
+        if (emailInput) emailInput.addEventListener('input', checkFormValidity);
+        if (whatsappInput) whatsappInput.addEventListener('input', checkFormValidity);
+
+        updateTransactionSummary(); // Esto calcula los totales y llama a updatePaymentMethods
+
+        // Lógica de copia al portapapeles (Universal)
+        document.querySelectorAll('.copy-button').forEach(button => {
+            button.addEventListener('click', (e) => {
+                e.preventDefault();
+                const targetId = button.getAttribute('data-copy-target');
+                const targetElement = document.getElementById(targetId);
+                const feedbackId = targetId + '-copy-feedback';
+                const feedbackElement = document.getElementById(feedbackId);
+                copyToClipboard(targetElement, feedbackElement);
+            });
+        });
+        
+    } else {
+        // No hay detalles de transacción, redirigir
+        alert('No se encontraron detalles de la transacción. Serás redirigido.');
+        window.location.href = 'index.html';
+    }
+
 </script>
 </body>
 </html>
