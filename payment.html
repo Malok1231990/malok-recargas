@@ -335,7 +335,8 @@
                 <input type="file" id="payment-receipt" name="paymentReceipt" accept="image/*,application/pdf">
                 </div>
         `,
-        // 🆕 NUEVA PLANTILLA: Wallet de la Página (Deducción) - **CORREGIDO: Se eliminó el campo de la contraseña**
+        // ✂️ ELIMINADO: Plantilla para Wallet
+        /*
         'wallet': `
             <div class="payment-fields-container">
                 <p><strong>Paso 1:</strong> Confirma la deducción de <span id="wallet-final-price" style="font-weight: bold;"></span> de tu Wallet de la página.</p>
@@ -343,6 +344,7 @@
                 <input type="hidden" id="payment-receipt" name="paymentReceipt" value="Wallet_Deduction_Flow" required>
                 </div>
         `
+        */
     };
 
     const paymentMethodsVES = [
@@ -353,7 +355,8 @@
         { id: 'binance', name: 'Binance (Pasarela)', type: 'usd', icon: 'fab fa-bitcoin' },
         { id: 'binance-id', name: 'Binance Pay (ID)', type: 'usd', icon: 'fas fa-money-check-alt' }, // 🆕 NUEVO
         { id: 'zinli', name: 'Zinli', type: 'usd', icon: 'fas fa-coins' },
-        { id: 'wallet', name: 'Wallet (Saldo en Página)', type: 'usd', icon: 'fas fa-wallet' } // 🆕 NUEVO
+        // ✂️ ELIMINADO: Opción de Wallet
+        /* { id: 'wallet', name: 'Wallet (Saldo en Página)', type: 'usd', icon: 'fas fa-wallet' } // 🆕 NUEVO */
     ];
 
     // 2. VARIABLES GLOBALES DE LA PAGINA
@@ -648,7 +651,8 @@
         if (methodHtml) {
             paymentDetailsFormDiv.innerHTML = methodHtml;
             
-            // 🆕 Lógica especial para el método Wallet
+            // ✂️ ELIMINADO: Lógica especial para el método Wallet
+            /*
             if (methodId === 'wallet') {
                 const finalPriceElement = document.getElementById('wallet-final-price');
                 const finalPriceUSD = transactionDetails.totalUSD || transactionDetails.priceUSD; 
@@ -656,6 +660,7 @@
                     finalPriceElement.textContent = `$ ${finalPriceUSD}`;
                 }
             }
+            */
 
 
             const fileInput = document.getElementById('payment-receipt');
@@ -664,11 +669,12 @@
             // También ajustar la propiedad 'required' según el método
             if (fileInput) {
                 // Métodos que requieren subir archivo (por defecto)
+                // ✂️ MODIFICACIÓN: Se elimina 'wallet' del else/comprobación.
                 if (methodId === 'pago-movil' || methodId === 'zinli') {
                     fileInput.required = true;
                 } 
-                // Métodos que NO requieren subir archivo o usan hidden input (binance, binance-id, wallet)
-                else {
+                // Métodos que NO requieren subir archivo o usan hidden input (binance, binance-id)
+                else { 
                     fileInput.required = false; 
                 }
 
@@ -725,7 +731,7 @@
 
     /**
      * @MODIFICADO: Verifica la validez del formulario y habilita/deshabilita los botones.
-     * Ahora incluye la excepción para 'binance', 'binance-id' y 'wallet'.
+     * Ahora incluye la excepción para 'binance' y 'binance-id'.
      */
     function checkFormValidity() {
         const selectedRadio = document.querySelector('input[name="paymentMethod"]:checked');
@@ -746,9 +752,12 @@
             areDetailsFilled = true; 
         } else if (selectedMethodId === 'binance') { // Plisio (Redirección automática)
             areDetailsFilled = true;
-        } else if (selectedMethodId === 'wallet') { // 🆕 Wallet (CORREGIDO: No requiere contraseña en el formulario)
+        // ✂️ ELIMINADO: Lógica de wallet
+        /*
+        } else if (selectedMethodId === 'wallet') { // 🆕 Wallet 
             areDetailsFilled = true;
-        } else if (selectedMethodId === 'binance-id') { // 🆕 Binance ID (CORREGIDO: No requiere ID de Origen. Comprobante opcional)
+        */
+        } else if (selectedMethodId === 'binance-id') { // 🆕 Binance ID (Comprobante opcional)
             areDetailsFilled = true;
         } else if (isMethodSelected) { 
             // Otros métodos (Pago Movil/Zinli): Requieren archivo
@@ -903,7 +912,8 @@
         // Usar totalUSD. Si es un array, se usa 'totalUSD', si es singular se usa 'priceUSD'.
         const finalPriceUSD = transactionDetails.totalUSD || transactionDetails.priceUSD; 
 
-        // 🛑 Lógica para el flujo de pago con Wallet (Deducción de la base de datos)
+        // ✂️ ELIMINADO: Lógica para el flujo de pago con Wallet (Deducción de la base de datos)
+        /*
         if (selectedPaymentMethod === 'wallet') {
             // **CORRECCIÓN DE WALLET: Ya no se pide la contraseña en el frontend, se espera que el backend lo maneje.**
             
@@ -971,6 +981,7 @@
             }
             return;
         }
+        */
 
         // 🛑 Lógica para el flujo de pago con Plisio (Método Binance de redirección)
         if (selectedPaymentMethod === 'binance') {
