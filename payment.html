@@ -335,8 +335,7 @@
                 <input type="file" id="payment-receipt" name="paymentReceipt" accept="image/*,application/pdf">
                 </div>
         `,
-        // ✂️ ELIMINADO: Plantilla para Wallet
-        /*
+        // 🎯 CAMBIO CLAVE: Plantilla para Wallet RESTAURADA
         'wallet': `
             <div class="payment-fields-container">
                 <p><strong>Paso 1:</strong> Confirma la deducción de <span id="wallet-final-price" style="font-weight: bold;"></span> de tu Wallet de la página.</p>
@@ -344,7 +343,6 @@
                 <input type="hidden" id="payment-receipt" name="paymentReceipt" value="Wallet_Deduction_Flow" required>
                 </div>
         `
-        */
     };
 
     const paymentMethodsVES = [
@@ -353,10 +351,14 @@
 
     const paymentMethodsUSD = [
         { id: 'binance', name: 'Binance (Pasarela)', type: 'usd', icon: 'fab fa-bitcoin' },
-        { id: 'binance-id', name: 'Binance Pay (ID)', type: 'usd', icon: 'fas fa-money-check-alt' }, // 🆕 NUEVO
+        { id: 'binance-id', name: 'Binance Pay (ID)', type: 'usd', icon: 'fas fa-money-check-alt' },
         { id: 'zinli', name: 'Zinli', type: 'usd', icon: 'fas fa-coins' },
-        // ✂️ ELIMINADO: Opción de Wallet
-        /* { id: 'wallet', name: 'Wallet (Saldo en Página)', type: 'usd', icon: 'fas fa-wallet' } // 🆕 NUEVO */
+        // { id: 'wallet', name: 'Wallet (Saldo en Página)', type: 'usd', icon: 'fas fa-wallet' } // Mantenido comentado, la opción por defecto es USD sin Wallet.
+    ];
+
+    // 🎯 CAMBIO CLAVE: Nueva lista para la moneda USDM (Solo Wallet)
+    const paymentMethodsUSDM = [
+        { id: 'wallet', name: 'Wallet (Saldo en Página)', type: 'usdm', icon: 'fas fa-wallet' }
     ];
 
     // 2. VARIABLES GLOBALES DE LA PAGINA
@@ -620,7 +622,15 @@
         paymentMethodsDiv.innerHTML = '';
         // Usamos transactionDetails.currency que fue establecido por updateTransactionSummary
         const currentCurrency = transactionDetails.currency; 
-        const methods = currentCurrency === 'VES' ? paymentMethodsVES : paymentMethodsUSD;
+        let methods; // 🎯 CAMBIO CLAVE: Usamos 'let' y asignación condicional
+
+        if (currentCurrency === 'VES') {
+            methods = paymentMethodsVES;
+        } else if (currentCurrency === 'USDM') { // 🎯 Lógica para USDM: solo Wallet
+            methods = paymentMethodsUSDM; 
+        } else {
+            methods = paymentMethodsUSD; // Por defecto USD
+        }
 
         methods.forEach(method => {
             const methodItem = document.createElement('div');
@@ -651,16 +661,14 @@
         if (methodHtml) {
             paymentDetailsFormDiv.innerHTML = methodHtml;
             
-            // ✂️ ELIMINADO: Lógica especial para el método Wallet
-            /*
-            if (methodId === 'wallet') {
+            // 🎯 CAMBIO CLAVE: Lógica especial para el método Wallet RESTAURADA
+            if (methodId === 'wallet') { 
                 const finalPriceElement = document.getElementById('wallet-final-price');
                 const finalPriceUSD = transactionDetails.totalUSD || transactionDetails.priceUSD; 
                 if (finalPriceElement) {
                     finalPriceElement.textContent = `$ ${finalPriceUSD}`;
                 }
             }
-            */
 
 
             const fileInput = document.getElementById('payment-receipt');
@@ -669,11 +677,10 @@
             // También ajustar la propiedad 'required' según el método
             if (fileInput) {
                 // Métodos que requieren subir archivo (por defecto)
-                // ✂️ MODIFICACIÓN: Se elimina 'wallet' del else/comprobación.
                 if (methodId === 'pago-movil' || methodId === 'zinli') {
                     fileInput.required = true;
                 } 
-                // Métodos que NO requieren subir archivo o usan hidden input (binance, binance-id)
+                // Métodos que NO requieren subir archivo o usan hidden input (binance, binance-id, wallet)
                 else { 
                     fileInput.required = false; 
                 }
@@ -731,7 +738,7 @@
 
     /**
      * @MODIFICADO: Verifica la validez del formulario y habilita/deshabilita los botones.
-     * Ahora incluye la excepción para 'binance' y 'binance-id'.
+     * Ahora incluye la excepción para 'binance', 'binance-id' y 'wallet'.
      */
     function checkFormValidity() {
         const selectedRadio = document.querySelector('input[name="paymentMethod"]:checked');
@@ -752,11 +759,8 @@
             areDetailsFilled = true; 
         } else if (selectedMethodId === 'binance') { // Plisio (Redirección automática)
             areDetailsFilled = true;
-        // ✂️ ELIMINADO: Lógica de wallet
-        /*
-        } else if (selectedMethodId === 'wallet') { // 🆕 Wallet 
+        } else if (selectedMethodId === 'wallet') { // 🎯 CAMBIO CLAVE: Wallet RESTAURADA
             areDetailsFilled = true;
-        */
         } else if (selectedMethodId === 'binance-id') { // 🆕 Binance ID (Comprobante opcional)
             areDetailsFilled = true;
         } else if (isMethodSelected) { 
@@ -912,8 +916,7 @@
         // Usar totalUSD. Si es un array, se usa 'totalUSD', si es singular se usa 'priceUSD'.
         const finalPriceUSD = transactionDetails.totalUSD || transactionDetails.priceUSD; 
 
-        // ✂️ ELIMINADO: Lógica para el flujo de pago con Wallet (Deducción de la base de datos)
-        /*
+        // 🎯 CAMBIO CLAVE: Lógica para el flujo de pago con Wallet RESTAURADA
         if (selectedPaymentMethod === 'wallet') {
             // **CORRECCIÓN DE WALLET: Ya no se pide la contraseña en el frontend, se espera que el backend lo maneje.**
             
@@ -981,7 +984,7 @@
             }
             return;
         }
-        */
+
 
         // 🛑 Lógica para el flujo de pago con Plisio (Método Binance de redirección)
         if (selectedPaymentMethod === 'binance') {
@@ -1014,7 +1017,7 @@
                         email: emailInput.value.trim(),
                         whatsapp: whatsappInput.value.trim(),
                         cartDetails: JSON.stringify(Array.isArray(transactionDetails) ? transactionDetails : [transactionDetails]), 
-                        // 🔑 ENVIAMOS EL GOOGLE ID, PERO PERMITIMOS QUE SEA NULL 🔑
+                        // 🔑 ENVIAMOS EL GOOGLE ID, PERMITIENDO QUE SEA NULL 🔑
                         googleId: googleIdToSend, 
                     })
                 });
