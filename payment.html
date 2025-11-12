@@ -319,7 +319,7 @@
                 <input type="file" id="payment-receipt" name="paymentReceipt" accept="image/*,application/pdf" required>
             </div>
         `,
-        // 🆕 NUEVA PLANTILLA: Binance Pay (Transferencia por ID) - **CORREGIDO: Se eliminó el campo ID de Origen**
+        // 🆕 NUEVA PLANTILLA: Binance Pay (Transferencia por ID)
         'binance-id': `
             <p><strong>Paso 1:</strong> Transfiere el monto exacto por Binance Pay a la siguiente ID:</p>
             <ul>
@@ -335,7 +335,7 @@
                 <input type="file" id="payment-receipt" name="paymentReceipt" accept="image/*,application/pdf">
                 </div>
         `,
-        // 🎯 CAMBIO CLAVE: Plantilla para Wallet RESTAURADA
+        // 🎯 Plantilla para Wallet
         'wallet': `
             <div class="payment-fields-container">
                 <p><strong>Paso 1:</strong> Confirma la deducción de <span id="wallet-final-price" style="font-weight: bold;"></span> de tu Wallet de la página.</p>
@@ -353,7 +353,6 @@
         { id: 'binance', name: 'Binance (Pasarela)', type: 'usd', icon: 'fab fa-bitcoin' },
         { id: 'binance-id', name: 'Binance Pay (ID)', type: 'usd', icon: 'fas fa-money-check-alt' },
         { id: 'zinli', name: 'Zinli', type: 'usd', icon: 'fas fa-coins' },
-        // { id: 'wallet', name: 'Wallet (Saldo en Página)', type: 'usd', icon: 'fas fa-wallet' } // Mantenido comentado, la opción por defecto es USD sin Wallet.
     ];
 
     // 🎯 CAMBIO CLAVE: Nueva lista para la moneda USDM (Solo Wallet)
@@ -478,7 +477,7 @@
     /**
      * @MODIFICADO: Genera y actualiza el resumen de la transacción en la UI, ahora manejando un array de productos (el carrito).
      * Calcula el total de todos los productos y muestra los detalles individuales.
-     * 🎯 CAMBIO CLAVE AQUÍ: Lógica para mostrar google_id si item.game es 'Recarga de Saldo'.
+     * 🎯 FIX: Se añade lógica para manejar el precio USDM (precio base sin recargo) para el cálculo del total y la visualización.
      */
     function updateTransactionSummary() {
         const summaryDiv = document.getElementById('transaction-summary');
@@ -494,8 +493,9 @@
 
         const selectedCurrency = localStorage.getItem('selectedCurrency') || 'USD';
         const currencySymbol = selectedCurrency === 'VES' ? 'Bs.S' : '$';
-        let totalUSD = 0;
+        let totalUSD = 0; // Total con recargo (e.g., $1.13)
         let totalVES = 0;
+        let totalUSDM = 0; // 🎯 FIX 1: Nuevo total para USDM (Precio base sin recargo, e.g., $1.00)
         let summaryHTML = '<h3>Resumen de la Transacción</h3>';
         
         summaryHTML += '<div class="product-list-summary">';
@@ -505,12 +505,24 @@
             // Aseguramos que los precios sean números, usando 0 como fallback
             const priceUSD = parseFloat(item.priceUSD || 0);
             const priceVES = parseFloat(item.priceVES || 0);
+            // 🎯 FIX 2: Usamos un campo para el precio base (USDM). Se asume que el user lo carga como 'priceUSDM' o 'priceBaseUSD'.
+            const priceUSDM = parseFloat(item.priceUSDM || item.priceBaseUSD || 0); 
 
+            // Acumular todos los totales
             totalUSD += priceUSD;
             totalVES += priceVES;
+            totalUSDM += priceUSDM; // 🎯 FIX 3: Acumular el total de USDM
             
             // El precio a mostrar depende de la moneda seleccionada
-            const displayPrice = selectedCurrency === 'VES' ? priceVES.toFixed(2) : priceUSD.toFixed(2);
+            let displayPrice;
+            if (selectedCurrency === 'VES') {
+                displayPrice = priceVES.toFixed(2);
+            } else if (selectedCurrency === 'USDM') { // 🎯 FIX 4: Lógica para USDM (usa el precio base)
+                // Si el precio USDM no está definido (> 0), usa el precio USD (el error original, pero con fallback)
+                displayPrice = priceUSDM > 0 ? priceUSDM.toFixed(2) : priceUSD.toFixed(2);
+            } else { // Por defecto 'USD' (usa el precio con recargo)
+                displayPrice = priceUSD.toFixed(2);
+            }
             
             let playerInfoHtml = '';
             let passwordHtml = '';
@@ -570,35 +582,39 @@
         });
         
         // 2. Mostrar el Total Final
-        const finalDisplayTotal = selectedCurrency === 'VES' ? totalVES.toFixed(2) : totalUSD.toFixed(2);
+        // 🎯 FIX 5: Determinar el total final basado en la moneda seleccionada, incluyendo USDM
+        const finalDisplayTotal = 
+            selectedCurrency === 'VES' ? totalVES.toFixed(2) : 
+            (selectedCurrency === 'USDM' ? totalUSDM.toFixed(2) : totalUSD.toFixed(2));
         
         // Añadimos el contenedor final del total
         summaryHTML += `
             </div>
             <div class="transaction-total">
-                <p><strong>TOTAL A PAGAR:</strong> <span id="final-total" data-usd="${totalUSD.toFixed(2)}" data-ves="${totalVES.toFixed(2)}">${currencySymbol} ${finalDisplayTotal}</span></p>
+                <p><strong>TOTAL A PAGAR:</strong> <span id="final-total" data-usd="${totalUSD.toFixed(2)}" data-ves="${totalVES.toFixed(2)}" data-usdm="${totalUSDM.toFixed(2)}">${currencySymbol} ${finalDisplayTotal}</span></p>
             </div>
         `;
 
         summaryDiv.innerHTML = summaryHTML;
         
-        // Almacenamos los totales en la variable global (ya sea el array o el objeto singular) para mantener compatibilidad 
-        // con las funciones que usan transactionDetails.finalPrice, transactionDetails.currency, etc.
+        // 3. Almacenar los totales en la variable global
         if (Array.isArray(transactionDetails)) {
             transactionDetails.totalUSD = totalUSD.toFixed(2);
             transactionDetails.totalVES = totalVES.toFixed(2);
+            transactionDetails.totalUSDM = totalUSDM.toFixed(2); // 🎯 FIX 6: Almacenar totalUSDM
             transactionDetails.finalPrice = finalDisplayTotal;
             transactionDetails.currency = selectedCurrency;
         } else if (transactionDetails) {
             // Para el caso de un objeto singular (flujo antiguo), actualizamos el objeto
             transactionDetails.priceUSD = totalUSD.toFixed(2);
             transactionDetails.priceVES = totalVES.toFixed(2);
+            transactionDetails.priceUSDM = totalUSDM.toFixed(2); // 🎯 FIX 7: Almacenar totalUSDM en objeto singular
             transactionDetails.finalPrice = finalDisplayTotal;
             transactionDetails.currency = selectedCurrency;
         }
 
 
-        // 3. Añadir el evento a los botones de mostrar/ocultar contraseña (Ahora son múltiples)
+        // 4. Añadir el evento a los botones de mostrar/ocultar contraseña (Ahora son múltiples)
         document.querySelectorAll('.toggle-password').forEach(button => {
             button.addEventListener('click', () => {
                 const targetId = button.dataset.targetId;
@@ -661,12 +677,13 @@
         if (methodHtml) {
             paymentDetailsFormDiv.innerHTML = methodHtml;
             
-            // 🎯 CAMBIO CLAVE: Lógica especial para el método Wallet RESTAURADA
+            // 🎯 FIX 8: Lógica especial para el método Wallet, usando totalUSDM.
             if (methodId === 'wallet') { 
                 const finalPriceElement = document.getElementById('wallet-final-price');
-                const finalPriceUSD = transactionDetails.totalUSD || transactionDetails.priceUSD; 
+                // Ahora usa el totalUSDm calculado en updateTransactionSummary
+                const finalPriceUSDM = transactionDetails.totalUSDM || transactionDetails.priceUSDM; 
                 if (finalPriceElement) {
-                    finalPriceElement.textContent = `$ ${finalPriceUSD}`;
+                    finalPriceElement.textContent = `$ ${finalPriceUSDM}`;
                 }
             }
 
@@ -913,12 +930,14 @@
             return;
         }
         
-        // Usar totalUSD. Si es un array, se usa 'totalUSD', si es singular se usa 'priceUSD'.
-        const finalPriceUSD = transactionDetails.totalUSD || transactionDetails.priceUSD; 
+        // 🎯 FIX 9: Obtener el precio final correcto (USDM si es Wallet, USD si es otro método USD)
+        const finalPriceUSD = selectedPaymentMethod === 'wallet' 
+            ? (transactionDetails.totalUSDM || transactionDetails.priceUSDM) 
+            : (transactionDetails.totalUSD || transactionDetails.priceUSD);
+
 
         // 🎯 CAMBIO CLAVE: Lógica para el flujo de pago con Wallet RESTAURADA
         if (selectedPaymentMethod === 'wallet') {
-            // **CORRECCIÓN DE WALLET: Ya no se pide la contraseña en el frontend, se espera que el backend lo maneje.**
             
             if (!finalPriceUSD || parseFloat(finalPriceUSD) <= 0) {
                 alert('Error: El monto de la transacción es inválido. Por favor, revisa tu carrito.');
@@ -936,8 +955,7 @@
                     body: JSON.stringify({
                         email: emailInput.value.trim(),
                         whatsapp: whatsappInput.value.trim(),
-                        // Se omite la contraseña ya que fue eliminada de la plantilla.
-                        amountUSD: finalPriceUSD, 
+                        amountUSD: finalPriceUSD, // 🎯 FIX 10: amountUSD es el precio USDM (base)
                         cartDetails: JSON.stringify(Array.isArray(transactionDetails) ? transactionDetails : [transactionDetails]), 
                     })
                 });
@@ -989,6 +1007,7 @@
         // 🛑 Lógica para el flujo de pago con Plisio (Método Binance de redirección)
         if (selectedPaymentMethod === 'binance') {
             
+            // Lógica de validación: Usa finalPriceUSD (que ahora contiene el precio USD con recargo si no es 'wallet')
             if (!finalPriceUSD || parseFloat(finalPriceUSD) <= 0) {
                 alert('Error: El monto de la transacción es inválido. Por favor, revisa tu carrito.');
                 return;
@@ -997,13 +1016,7 @@
             finalizeBtn.disabled = true;
             finalizeBtn.textContent = 'Creando Factura en Plisio...';
             
-            // 🔑 INICIO DEL CAMBIO CLAVE: Obtener el googleId 🔑
-            const googleIdToSend = getGoogleIdFromTransaction(); // Obtiene el google_id (será null si no es recarga)
-
-            // ❌ SE REMUEVE LA VALIDACIÓN INCONDICIONAL DE GOOGLE ID DEL FRONTEND.
-            // La validación condicional se mantiene en create-plisio-invoice.js.
-            
-            // 🔑 FIN DEL CAMBIO CLAVE 🔑
+            const googleIdToSend = getGoogleIdFromTransaction();
 
             try {
                 // Llamada a la función de Netlify para crear la factura de Plisio
@@ -1013,11 +1026,10 @@
                         'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({
-                        amount: finalPriceUSD, 
+                        amount: finalPriceUSD, // 🎯 FIX 11: amount: usa el precio final (USD/USDM)
                         email: emailInput.value.trim(),
                         whatsapp: whatsappInput.value.trim(),
                         cartDetails: JSON.stringify(Array.isArray(transactionDetails) ? transactionDetails : [transactionDetails]), 
-                        // 🔑 ENVIAMOS EL GOOGLE ID, PERMITIENDO QUE SEA NULL 🔑
                         googleId: googleIdToSend, 
                     })
                 });
@@ -1068,6 +1080,7 @@
             formData.append('currency', transactionDetails.currency);
             formData.append('totalUSD', transactionDetails.totalUSD);
             formData.append('totalVES', transactionDetails.totalVES);
+            formData.append('totalUSDM', transactionDetails.totalUSDM); // 🎯 FIX 12: Agregar totalUSDM al formData
         }
 
         console.log('Datos a enviar (FormData):');
