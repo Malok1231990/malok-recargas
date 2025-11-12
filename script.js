@@ -153,10 +153,10 @@ window.handleCredentialResponse = async (response) => {
             
             // Usamos un pequeño timeout para asegurarnos de que el alert se muestre antes de la recarga
             setTimeout(() => {
-                 alert(`¡Bienvenido(a), ${userName}! Has iniciado sesión correctamente.`);
-                 
-                 // 🎯 CORRECCIÓN: Redirigir explícitamente a index.html
-                 window.location.href = 'index.html'; 
+                    alert(`¡Bienvenido(a), ${userName}! Has iniciado sesión correctamente.`);
+                    
+                    // 🎯 CORRECCIÓN: Redirigir explícitamente a index.html
+                    window.location.href = 'index.html'; 
             }, 50);
 
         } else {
@@ -166,7 +166,7 @@ window.handleCredentialResponse = async (response) => {
             
             // Si falla, re-inicializar el botón
             if (window.google && window.google.accounts && window.google.accounts.id) {
-                 initGoogleSignIn(true); // Forzar la renderización del botón
+                    initGoogleSignIn(true); // Forzar la renderización del botón
             }
         }
 
@@ -257,6 +257,9 @@ document.addEventListener('DOMContentLoaded', () => {
     if (savedCurrency === 'USD') {
         initialText = '$ (USD)';
         initialImgSrc = 'images/flag_us.png';
+    } else if (savedCurrency === 'USDM') { // 🎯 NUEVA MONEDA AÑADIDA
+        initialText = '$ (Usd Malok)';
+        initialImgSrc = 'images/favicon.ico';
     }
     updateCurrencyDisplay(savedCurrency, initialText, initialImgSrc);
 
@@ -372,6 +375,7 @@ document.addEventListener('DOMContentLoaded', () => {
         cartItemsContainer.innerHTML = ''; 
         let total = 0;
         const selectedCurrency = localStorage.getItem('selectedCurrency') || 'VES';
+        // CLAVE: USD y USDM usan el mismo símbolo '$'
         const currencySymbol = selectedCurrency === 'VES' ? 'Bs.S' : '$';
 
         if (cart.length === 0) {
@@ -384,7 +388,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
         cart.forEach(item => {
             // Aseguramos que los precios sean números antes de sumar
-            const price = selectedCurrency === 'VES' ? parseFloat(item.priceVES || 0) : parseFloat(item.priceUSD || 0);
+            // CLAVE: Si la moneda es USD o USDM, usa priceUSD. Si no (es VES), usa priceVES.
+            const isUsdType = selectedCurrency === 'USD' || selectedCurrency === 'USDM';
+            const price = isUsdType ? parseFloat(item.priceUSD || 0) : parseFloat(item.priceVES || 0);
             total += price;
             
             const priceDisplay = `${currencySymbol}${price.toFixed(2)}`;
