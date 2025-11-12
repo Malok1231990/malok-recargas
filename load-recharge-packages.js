@@ -31,6 +31,8 @@ function getUserId() {
 document.addEventListener('DOMContentLoaded', () => {
     const packageGrid = document.getElementById('recharge-package-options-grid');
     const rechargeForm = document.getElementById('recharge-wallet-form');
+    // 🎯 NUEVO: Identificar el input de ID para guardar su estado.
+    const playerIdInput = document.getElementById('player-id-input'); 
     const selectButton = document.getElementById('select-package-btn');
     let selectedPackageData = null;
 
@@ -43,6 +45,56 @@ document.addEventListener('DOMContentLoaded', () => {
         { name: 'Saldo $100 USD', usd: '100.00' },
         { name: 'Saldo $200 USD', usd: '200.00' }
     ];
+    
+    // =========================================================================
+    // === PERSISTENCIA DE ESTADO CON sessionStorage (NUEVO) ===
+    // =========================================================================
+
+    /**
+     * Carga el último estado del formulario (ID de Jugador y Paquete) de sessionStorage.
+     */
+    function loadFormState() {
+        const storedStateJson = sessionStorage.getItem('rechargeFormState');
+        if (storedStateJson) {
+            try {
+                const storedState = JSON.parse(storedStateJson);
+                // Restaurar ID del jugador
+                if (playerIdInput && storedState.playerId) {
+                    playerIdInput.value = storedState.playerId;
+                }
+                // Restaurar paquete seleccionado
+                if (storedState.selectedPackageData) {
+                    selectedPackageData = storedState.selectedPackageData;
+                }
+                
+            } catch (e) {
+                console.error("Error al parsear el estado del formulario de sessionStorage:", e);
+            }
+        }
+    }
+    
+    /**
+     * Guarda el estado actual del formulario (ID de Jugador y Paquete) en sessionStorage.
+     */
+    function saveFormState() {
+        const currentState = {
+            playerId: playerIdInput ? playerIdInput.value : '',
+            selectedPackageData: selectedPackageData
+        };
+        sessionStorage.setItem('rechargeFormState', JSON.stringify(currentState));
+    }
+    
+    // 1. Cargar el estado al inicio
+    loadFormState();
+    
+    // 2. Escuchar cambios en el input del ID para guardar el estado
+    if (playerIdInput) {
+        playerIdInput.addEventListener('input', saveFormState);
+    }
+    
+    // =========================================================================
+    // === FUNCIONES EXISTENTES (MODIFICADAS) ===
+    // =========================================================================
 
     /**
      * 🎯 OBTENER TASA: Obtiene la tasa de cambio del Dólar guardada en la configuración CSS.
@@ -92,6 +144,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         attachPackageEventListeners();
 
+        // 🎯 MODIFICACIÓN: Aplicar la clase 'selected' si hay un paquete en selectedPackageData cargado de sessionStorage
         if (selectedPackageData) {
             const currentSelected = Array.from(packageGrid.children).find(
                 opt => opt.dataset.packageName === selectedPackageData.name
@@ -131,6 +184,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 // 4. Habilitar y actualizar el botón
                 selectButton.disabled = false;
                 selectButton.textContent = `Pagar Recarga de ${selectedPackageData.name}`;
+
+                // 🎯 NUEVO: Guardar el estado después de seleccionar un paquete
+                saveFormState();
             });
         });
     }
@@ -142,6 +198,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // 🎯 Lógica de Pago Directo al enviar el formulario
     rechargeForm.addEventListener('submit', (e) => { 
         e.preventDefault();
+
+        // 🎯 NUEVO: Leer el valor actual del input del ID justo antes de enviar
+        const currentPlayerId = playerIdInput ? playerIdInput.value : 'N/A';
 
         if (!selectedPackageData) {
             alert('Por favor, selecciona un paquete de saldo.');
@@ -161,7 +220,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const transactionItem = {
             id: 'WALLET_RECHARGE_' + Date.now(), 
             game: 'Recarga de Saldo',
-            playerId: 'N/A', // No aplica para recarga
+            // 🎯 MODIFICACIÓN: Usar el ID del jugador del formulario (o 'N/A' si no existe el input)
+            playerId: currentPlayerId, 
             packageName: selectedPackageData.name,
             priceUSD: selectedPackageData.usd, 
             priceVES: selectedPackageData.ves, 
@@ -174,6 +234,9 @@ document.addEventListener('DOMContentLoaded', () => {
         localStorage.setItem('transactionDetails', JSON.stringify([transactionItem]));
 
         // 🟢 PASO 4: Redirigir inmediatamente a payment.html para procesar el pago.
+        // Opcional: Podrías limpiar sessionStorage aquí si NO quieres que persista después de ir al pago.
+        // sessionStorage.removeItem('rechargeFormState'); 
+        
         window.location.href = 'payment.html';
     });
 });
