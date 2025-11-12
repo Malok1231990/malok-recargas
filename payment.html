@@ -939,6 +939,17 @@
         // 🎯 INICIO DEL CAMBIO CLAVE: Lógica para el flujo de pago con Wallet
         if (selectedPaymentMethod === 'wallet') {
             
+            // 🛑 CORRECCIÓN: Obtener y validar el token de sesión
+            const sessionToken = localStorage.getItem('customSessionToken'); 
+            
+            if (!sessionToken) {
+                alert('Error: No se encontró la sesión activa (token Bearer). Por favor, inicia sesión de nuevo.');
+                finalizeBtn.disabled = false;
+                finalizeBtn.textContent = 'Finalizar Recarga';
+                return; 
+            }
+            // 🛑 FIN CORRECCIÓN
+
             if (!finalPriceUSD || parseFloat(finalPriceUSD) <= 0) {
                 alert('Error: El monto de la transacción es inválido. Por favor, revisa tu carrito.');
                 return;
@@ -952,7 +963,11 @@
                 // 1. PAGO: Llamada a deduct-wallet-balance
                 const walletResponse = await fetch('/.netlify/functions/deduct-wallet-balance', { 
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        // 🛑 CORRECCIÓN: Se añade el encabezado de autorización
+                        'Authorization': `Bearer ${sessionToken}` 
+                    },
                     body: JSON.stringify({
                         email: emailInput.value.trim(),
                         whatsapp: whatsappInput.value.trim(),
