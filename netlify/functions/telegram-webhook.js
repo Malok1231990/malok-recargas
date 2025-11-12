@@ -144,7 +144,8 @@ exports.handler = async (event, context) => {
                         }
                     } else {
                         // Si NO es 'Recarga de Saldo' (es un producto)
-                        injectionMessage = `\n\n🛒 **PRODUCTO ENTREGADO ✅: No se requería inyección de saldo.`;
+                        // ✅ CORRECCIÓN APLICADA AQUÍ: Se añadió ** al final para cerrar el Markdown.
+                        injectionMessage = `\n\n🛒 **PRODUCTO ENTREGADO ✅: No se requería inyección de saldo.**`;
                     }
                 } // Fin del bloque 'else' si no estaba REALIZADA
 
