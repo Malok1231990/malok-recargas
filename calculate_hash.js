@@ -1,38 +1,39 @@
-// calculate_hash.js
 const crypto = require('crypto');
 
-// ⚠️ TU CLAVE SECRETA (No se repite en la conversación)
-const PLISIO_API_KEY = "ffu-VfsL3WDet7YNDsjkVUMt4EflfeOolYj-ZvTcgHm1F1dbKiX76zjV93RRFmKK"; 
+// 🔑 TU CLAVE SECRETA DE PLISIO
+const PLISIO_WEBHOOK_SECRET = "ffu-VfsL3WDet7YNDsjkVUMt4EflfeOolYj-ZvTcgHm1F1dbKiX76zjV93RRFmKK";
 
-// EL PAYLOAD EXACTO que se enviará en el webhook
-const payload = {
-    order_number: "MALOK-1762947961440",
-    status: "completed",
-    txn_id: "PLISIO_TEST_TXN_002",
-    amount: "0.0031",
-    currency: "BTC",
-    source_amount: "206.00",
+// 💰 JSON CANÓNICO (ORDEN ALFABÉTICO) para MALOK-1762950986718
+const payloadData = {
+    amount: "206", // finalPrice (con comisión)
+    currency: "USDT_TRX", 
+    order_number: "MALOK-1762950986718",
+    psys_cid: 1, // CRÍTICO: Debe ser un número (1) para coincidir con tu webhook
+    source_amount: "200.00", // base_amount
     source_currency: "USD",
-    psys_cid: 1
+    status: "completed",
+    txn_id: "69147f4b46e0f45b7601b015" // methodDetails.plisio_txn_id
 };
 
-// 1. Convertir el payload a una cadena JSON ordenada alfabéticamente
-// Este paso es crucial para la firma HMAC de Plisio.
-const sortedKeys = Object.keys(payload).sort();
-let jsonString = '{';
+// ... (El código de Node.js para ordenar, stringify y calcular el hash es el mismo)
+// ...
+
+// Plisio espera el JSON stringificado, ordenado alfabéticamente y SIN espacios.
+// Para el hashing, se usa solo la data SIN el verify_hash.
+const sortedKeys = Object.keys(payloadData).sort();
+let hashString = '{';
 for (let i = 0; i < sortedKeys.length; i++) {
     const key = sortedKeys[i];
-    jsonString += `"${key}":"${payload[key]}"`;
-    if (i < sortedKeys.length - 1) {
-        jsonString += ',';
-    }
+    const value = payloadData[key];
+    hashString += `"${key}":${(typeof value === 'string' ? `"${value}"` : value)}${i < sortedKeys.length - 1 ? ',' : ''}`;
 }
-jsonString += '}';
+hashString += '}';
 
-// 2. Calcular el HMAC-SHA1
-const hmac = crypto.createHmac('sha1', PLISIO_API_KEY);
-hmac.update(jsonString);
-const calculatedHash = hmac.digest('hex');
+// Concatenar JSON sin espacios + Clave Secreta
+const stringToHash = hashString + PLISIO_WEBHOOK_SECRET;
 
-console.log("JSON String Firmado (Node.js):", jsonString);
-console.log("\n✅ Hash Calculado (Node.js):", calculatedHash);
+// Calcular SHA1 Hash
+const calculatedHash = crypto.createHash('sha1').update(stringToHash).digest('hex');
+
+console.log(`JSON String Firmado (Node.js): ${hashString}`);
+console.log(`\n✅ Hash Calculado (Node.js): ${calculatedHash}`);
