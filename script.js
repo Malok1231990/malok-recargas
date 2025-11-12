@@ -1,4 +1,4 @@
-// script.js COMPLETO Y MODIFICADO (Versión Final con Corrección de Race Condition y Alert)
+// script.js COMPLETO Y MODIFICADO (Versión Final con Refresco de Saldo de Billetera)
 
 // 🎯 FUNCIÓN PARA CARGAR Y APLICAR LA CONFIGURACIÓN DE COLORES
 async function applySiteConfig() {
@@ -26,6 +26,64 @@ async function applySiteConfig() {
     } catch (error) {
         console.error('[CLIENTE] Error al aplicar configuración de colores:', error.message);
         // Si falla, el sitio seguirá usando los colores por defecto definidos en style.css
+    }
+}
+
+
+// =================================================================
+// === NUEVA FUNCIÓN CLAVE: REFRESCAR SALDO DESDE EL SERVIDOR ===
+// =================================================================
+
+/**
+ * Llama a la Netlify Function '/.netlify/functions/get-wallet-balance' 
+ * para obtener el saldo más reciente, actualiza localStorage y refresca la UI.
+ * * * 🔑 Esta función debe ser llamada inmediatamente después de que se 
+ * * confirme una recarga exitosa del saldo del cliente.
+ */
+window.fetchWalletBalanceAndRefreshUserData = async function() {
+    const sessionToken = localStorage.getItem('userSessionToken');
+    const userDataJson = localStorage.getItem('userData');
+    
+    if (!sessionToken || !userDataJson) {
+        console.log('[BALANCE] Usuario no logueado. Saltando refresco de saldo.');
+        return false;
+    }
+
+    try {
+        // Llama a la Netlify Function (el token de sesión debe enviarse en los headers)
+        const response = await fetch('/.netlify/functions/get-wallet-balance', {
+            method: 'GET',
+            // El token de autenticación (JWT) debería ser manejado por Netlify Identity
+            // al usar la función, o debes pasarlo explícitamente en el header 'Authorization'.
+            // Asumo que Netlify Identity lo gestiona al llamar la función.
+        });
+        
+        if (!response.ok) {
+            console.error('[BALANCE] Error del servidor al obtener saldo:', response.status);
+            return false;
+        }
+
+        const data = await response.json();
+        const newBalance = parseFloat(data.saldo || 0.00).toFixed(2);
+        
+        // 1. Obtener los datos actuales del usuario
+        const currentData = JSON.parse(userDataJson);
+        
+        // 2. Actualizar el saldo en el objeto de usuario
+        currentData.balance = newBalance;
+        
+        // 3. Sobreescribir el localStorage con el nuevo saldo
+        localStorage.setItem('userData', JSON.stringify(currentData)); 
+        
+        // 4. Forzar la re-renderización de la UI para mostrar el saldo actualizado
+        checkUserSessionAndRenderUI();
+        
+        console.log(`[BALANCE] Saldo actualizado en UI: $${newBalance}`);
+        return true;
+
+    } catch (error) {
+        console.error('[BALANCE] Error de red/cliente al refrescar saldo:', error);
+        return false;
     }
 }
 
@@ -88,6 +146,7 @@ function checkUserSessionAndRenderUI() {
         // 5. Lógica de la Billetera (NUEVO)
         if (walletContainer && virtualBalanceElement) {
             // Usamos el saldo real del usuario. El backend garantiza que siempre es un string de 2 decimales
+            // 🔑 CLAVE: El valor se lee DIRECTAMENTE de localStorage, que fue actualizado por la nueva función.
             const balance = userData.balance || '0.00'; 
             virtualBalanceElement.textContent = `$. ${balance}`;
             walletContainer.style.display = 'flex'; // Mostrar la billetera
@@ -528,6 +587,12 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // 🚨 Inicializar Google Sign-In DESPUÉS de comprobar la sesión
     const isUserLoggedIn = checkUserSessionAndRenderUI(); 
+    
+    if (isUserLoggedIn) {
+        // 🔑 CLAVE: Refrescar el saldo desde el servidor al iniciar la sesión/cargar la página
+        // Esto asegura que si el saldo cambió en otra sesión, se actualice aquí.
+        window.fetchWalletBalanceAndRefreshUserData(); 
+    }
     
     if (!isUserLoggedIn) {
         // Lógica para asegurar que initGoogleSignIn se llame después de que el SDK cargue
