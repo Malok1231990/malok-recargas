@@ -670,7 +670,8 @@
             if (!sessionToken) {
                  // Si no hay token, no mostramos Wallet y redirigimos a USD para otros pagos
                  methods = paymentMethodsUSD; 
-                 alert('Para pagar con Wallet (Saldo en Página) debes iniciar sesión.');
+                 // Este alert ya es redundante con el chequeo de DOMContentLoaded, pero se deja por seguridad
+                 // alert('Para pagar con Wallet (Saldo en Página) debes iniciar sesión.');
             } else {
                  methods = paymentMethodsUSDM; 
             }
@@ -1147,10 +1148,16 @@
         const sessionToken = localStorage.getItem('customSessionToken');
         const selectedCurrency = localStorage.getItem('selectedCurrency') || 'USD';
         
+        // **********************************************
+        // 🎯 AÑADIDO PARA DEBUGGING: REVISA ESTO EN LA CONSOLA (F12) 🎯
+        console.log("DEBUG: La moneda seleccionada es:", selectedCurrency);
+        console.log("DEBUG: ¿Existe 'customSessionToken' en localStorage?:", !!sessionToken); 
+        // **********************************************
+
         // Si la moneda seleccionada es Wallet (USDM) y no hay token, redirigimos.
         if (selectedCurrency === 'USDM' && !sessionToken) {
             // Opcional: Mostrar un mensaje antes de redirigir
-            alert('Debes iniciar sesión para usar tu Wallet. Serás redirigido.');
+            alert('Debes iniciar sesión para usar tu Wallet. Serás redirigido a la página de inicio de sesión.');
             window.location.href = 'login.html'; // Cambia a la URL de tu página de login
             return;
         }
