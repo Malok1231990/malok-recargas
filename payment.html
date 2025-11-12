@@ -664,17 +664,7 @@
             methods = paymentMethodsVES;
         } else if (currentCurrency === 'USDM') {
             // 🎯 Lógica para USDM: solo Wallet
-            // ⚠️ ADICIÓN CLAVE PARA WALLET: Si se selecciona Wallet, debemos validar la sesión primero.
-            // Aunque la validación principal está en submit, esto evita mostrar Wallet si no hay token.
-            const sessionToken = localStorage.getItem('customSessionToken');
-            if (!sessionToken) {
-                 // Si no hay token, no mostramos Wallet y redirigimos a USD para otros pagos
-                 methods = paymentMethodsUSD; 
-                 // Este alert ya es redundante con el chequeo de DOMContentLoaded, pero se deja por seguridad
-                 // alert('Para pagar con Wallet (Saldo en Página) debes iniciar sesión.');
-            } else {
-                 methods = paymentMethodsUSDM; 
-            }
+            methods = paymentMethodsUSDM;
         } else {
             methods = paymentMethodsUSD; // Por defecto USD
         }
@@ -891,7 +881,6 @@
             const sessionToken = localStorage.getItem('customSessionToken'); 
             
             if (!sessionToken) {
-                // ESTE MENSAJE ES EL QUE ESTÁS VIENDO
                 alert('Error: No se encontró la sesión activa (token Bearer). Por favor, inicia sesión de nuevo.');
                 finalizeBtn.disabled = false;
                 finalizeBtn.textContent = 'Finalizar Recarga';
@@ -1144,23 +1133,11 @@
         const urlParams = new URLSearchParams(window.location.search);
         const status = urlParams.get('status');
         
-        // 🛑 LÓGICA ADICIONAL: VALIDACIÓN DE SESIÓN AL CARGAR LA PÁGINA 🛑
-        const sessionToken = localStorage.getItem('customSessionToken');
-        const selectedCurrency = localStorage.getItem('selectedCurrency') || 'USD';
-        
-        // **********************************************
-        // 🎯 AÑADIDO PARA DEBUGGING: REVISA ESTO EN LA CONSOLA (F12) 🎯
-        console.log("DEBUG: La moneda seleccionada es:", selectedCurrency);
-        console.log("DEBUG: ¿Existe 'customSessionToken' en localStorage?:", !!sessionToken); 
-        // **********************************************
-
-        // Si la moneda seleccionada es Wallet (USDM) y no hay token, redirigimos.
-        if (selectedCurrency === 'USDM' && !sessionToken) {
-            // Opcional: Mostrar un mensaje antes de redirigir
-            alert('Debes iniciar sesión para usar tu Wallet. Serás redirigido a la página de inicio de sesión.');
-            window.location.href = 'login.html'; // Cambia a la URL de tu página de login
-            return;
-        }
+        // Asumiendo que el token se guarda con la clave 'isLoggedIn' o similar
+        // if (!localStorage.getItem('isLoggedIn')) {
+        //     window.location.href = 'login.html'; // Redirigir si no está logueado
+        //     return;
+        // }
 
         // 🛑 LÓGICA DE MANEJO DE PLISIO (DEBE IR AL PRINCIPIO)
         if (status === 'finished' || status === 'processing') { // Añadido 'processing' como estado de redirección
