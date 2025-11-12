@@ -40,7 +40,6 @@ exports.handler = async (event, context) => {
     
     let finalAmountUSD = '0.00'; 
     let finalAmountFloat = 0; 
-    // MODIFICACIÓN CLAVE 1: Declarar baseAmountFloat
     let baseAmountFloat = 0; 
     const orderNumber = `MALOK-${Date.now()}`; // Número único de orden inicial (ID_TRANSACCION)
     
@@ -49,7 +48,6 @@ exports.handler = async (event, context) => {
 
     try {
         // OBTENCIÓN DE DATOS
-        // 🎯 MODIFICADO: Añadido googleId
         const { amount, email, whatsapp, cartDetails, googleId } = data; 
 
         // Validaciones básicas
@@ -57,11 +55,6 @@ exports.handler = async (event, context) => {
             return { statusCode: 400, body: JSON.stringify({ message: 'Datos de transacción incompletos o inválidos (monto o email).' }) };
         }
         
-        // ** Validamos googleId, ya que es CRÍTICO para la inyección automática
-        if (!googleId) {
-             return { statusCode: 400, body: JSON.stringify({ message: 'Falta el ID del cliente (googleId) necesario para la acreditación automática.' }) };
-        }
-
         // Procesar los detalles del producto anidados en cartDetails
         let productDetails = {};
         if (cartDetails) {
@@ -86,12 +79,22 @@ exports.handler = async (event, context) => {
         const codm_password = productDetails.codmPassword || productDetails.codm_password || null;
         const codm_vinculation = productDetails.codmVinculation || productDetails.codm_vinculation || null;
         
+        // 🚨 MODIFICACIÓN CLAVE: VALIDACIÓN CONDICIONAL DE googleId
+        const IS_WALLET_RECHARGE = game === 'Recarga de Saldo';
+        
+        if (IS_WALLET_RECHARGE && !googleId) {
+             console.error("TRAZA 11.6: ERROR: Falta googleId para Recarga de Saldo.");
+             return { statusCode: 400, body: JSON.stringify({ 
+                 message: 'Falta el ID del cliente (googleId) necesario para la acreditación automática de la Recarga de Saldo.' 
+             }) };
+        }
+        // Fin de la validación condicional
+
         // Cálculo del monto
         const feePercentage = 0.03; 
         const amountValue = parseFloat(amount);
         const amountWithFee = amountValue * (1 + feePercentage); 
         
-        // MODIFICACIÓN CLAVE 2: Asignar el monto base
         baseAmountFloat = amountValue; 
         finalAmountFloat = amountWithFee;
         finalAmountUSD = amountWithFee.toFixed(2);
@@ -109,13 +112,12 @@ exports.handler = async (event, context) => {
                 {
                     id_transaccion: orderNumber, 
                     "finalPrice": finalAmountFloat,
-                    // MODIFICACIÓN CLAVE 3: Insertar el monto base
                     "base_amount": baseAmountFloat, 
                     currency: 'USD', 
                     status: 'pendiente', 
                     email: email,
                     "whatsappNumber": whatsappNumber,
-                    "google_id": googleId, // ⬅️ ¡SOLUCIÓN: Insertamos el google_id aquí!
+                    "google_id": googleId, // ⬅️ Ahora puede ser NULL si no es recarga
                     
                     paymentMethod: 'plisio', 
                     methodDetails: {}, 
@@ -175,7 +177,6 @@ exports.handler = async (event, context) => {
                 .update({ 
                     currency: 'USD',
                     "finalPrice": finalAmountFloat,
-                    // Ya tenemos base_amount insertado, no necesitamos actualizarlo aquí, a menos que quisiéramos ser redundantes.
                     methodDetails: {
                         plisio_txn_id: plisioData.data.txn_id, 
                         invoice_id: plisioData.data.invoice_id,
@@ -209,11 +210,11 @@ exports.handler = async (event, context) => {
         
         console.error(`TRAZA 21: ERROR DE CONEXIÓN O EJECUCIÓN: ${error.message}`);
         
-        if(supabase && orderNumber) {
+        const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
+        if(orderNumber) {
             console.warn(`TRAZA 22: Limpieza: Intentando eliminar la fila ${orderNumber} de Supabase debido a un fallo.`);
-            // Aseguramos que la instancia de supabase esté disponible si falla la API de Plisio
-            const cleanupSupabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
-            cleanupSupabase.from('transactions').delete().eq('id_transaccion', orderNumber).then(() => {
+            
+            supabase.from('transactions').delete().eq('id_transaccion', orderNumber).then(() => {
                 console.log(`TRAZA 22.5: Fila ${orderNumber} eliminada correctamente.`);
             }).catch(cleanError => {
                 console.error(`TRAZA 22.6: Fallo al eliminar fila de limpieza: ${cleanError.message}`);
