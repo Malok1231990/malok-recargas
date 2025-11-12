@@ -50,11 +50,18 @@ exports.handler = async (event, context) => {
         // OBTENCIÓN DE DATOS
         const { amount, email, whatsapp, cartDetails, googleId } = data; 
 
-        // Validaciones básicas
+        // Validaciones básicas de monto y email
         if (!amount || isNaN(parseFloat(amount)) || parseFloat(amount) <= 0 || !email) {
             return { statusCode: 400, body: JSON.stringify({ message: 'Datos de transacción incompletos o inválidos (monto o email).' }) };
         }
         
+        // ❌ [ELIMINADO] ELIMINAMOS LA VALIDACIÓN INCONDICIONAL DE googleId AQUÍ
+        /*
+        if (!googleId) {
+             return { statusCode: 400, body: JSON.stringify({ message: 'Falta el ID del cliente (googleId) necesario para la acreditación automática.' }) };
+        }
+        */
+
         // Procesar los detalles del producto anidados en cartDetails
         let productDetails = {};
         if (cartDetails) {
@@ -79,13 +86,14 @@ exports.handler = async (event, context) => {
         const codm_password = productDetails.codmPassword || productDetails.codm_password || null;
         const codm_vinculation = productDetails.codmVinculation || productDetails.codm_vinculation || null;
         
-        // 🚨 MODIFICACIÓN CLAVE: VALIDACIÓN CONDICIONAL DE googleId
+        // ✅ [AÑADIDO] VALIDACIÓN CONDICIONAL DE googleId
         const IS_WALLET_RECHARGE = game === 'Recarga de Saldo';
         
         if (IS_WALLET_RECHARGE && !googleId) {
              console.error("TRAZA 11.6: ERROR: Falta googleId para Recarga de Saldo.");
+             // El mensaje de error es crucial para que el usuario sepa que falta el ID
              return { statusCode: 400, body: JSON.stringify({ 
-                 message: 'Falta el ID del cliente (googleId) necesario para la acreditación automática de la Recarga de Saldo.' 
+                 message: 'Falta el ID de usuario (googleId) necesario para procesar esta recarga de saldo. Por favor, asegúrate de que el item en tu carrito contenga tu Google ID.' 
              }) };
         }
         // Fin de la validación condicional
@@ -210,11 +218,12 @@ exports.handler = async (event, context) => {
         
         console.error(`TRAZA 21: ERROR DE CONEXIÓN O EJECUCIÓN: ${error.message}`);
         
-        const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
+        // Creamos la instancia de supabase si falló antes de la asignación
+        const cleanupSupabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
         if(orderNumber) {
             console.warn(`TRAZA 22: Limpieza: Intentando eliminar la fila ${orderNumber} de Supabase debido a un fallo.`);
             
-            supabase.from('transactions').delete().eq('id_transaccion', orderNumber).then(() => {
+            cleanupSupabase.from('transactions').delete().eq('id_transaccion', orderNumber).then(() => {
                 console.log(`TRAZA 22.5: Fila ${orderNumber} eliminada correctamente.`);
             }).catch(cleanError => {
                 console.error(`TRAZA 22.6: Fallo al eliminar fila de limpieza: ${cleanError.message}`);
