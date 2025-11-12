@@ -1,4 +1,4 @@
-// script.js COMPLETO Y MODIFICADO (Versión Final con Soporte USDM Separado)
+// script.js COMPLETO Y MODIFICADO (Versión Final con Soporte USDM Separado y Refresco de Saldo)
 
 // 🎯 FUNCIÓN PARA CARGAR Y APLICAR LA CONFIGURACIÓN DE COLORES
 async function applySiteConfig() {
@@ -85,9 +85,9 @@ function checkUserSessionAndRenderUI() {
             if (googleLoginBtnContainer) googleLoginBtnContainer.style.display = 'none';
         }
         
-        // 5. Lógica de la Billetera (NUEVO)
+        // 5. Lógica de la Billetera
         if (walletContainer && virtualBalanceElement) {
-            // Usamos el saldo real del usuario. El backend garantiza que siempre es un string de 2 decimales
+            // Lee el saldo de localStorage (el cual será actualizado inmediatamente por refreshWalletBalance)
             const balance = userData.balance || '0.00'; 
             virtualBalanceElement.textContent = `$. ${balance}`;
             walletContainer.style.display = 'flex'; // Mostrar la billetera
@@ -112,7 +112,7 @@ function checkUserSessionAndRenderUI() {
         // 4. Ocultar el botón de Cerrar Sesión. El botón de Google se manejará en initGoogleSignIn
         if (logoutBtn) logoutBtn.style.display = 'none';
 
-        // 5. Ocultar la Billetera (NUEVO)
+        // 5. Ocultar la Billetera
         if (walletContainer) {
             walletContainer.style.display = 'none';
         }
@@ -224,6 +224,54 @@ window.getCurrentCurrency = function() {
     // Retorna la moneda guardada ('USD' o 'VES'), o 'VES' como valor por defecto.
     return localStorage.getItem('selectedCurrency') || 'VES'; 
 };
+
+
+// =========================================================================
+// === NUEVA FUNCIÓN CLAVE: Refresco de Saldo de Billetera ===
+// =========================================================================
+
+/**
+ * Llama a la Netlify Function para obtener el saldo actual del usuario
+ * y actualiza tanto localStorage como la UI, sin forzar un re-login.
+ */
+async function refreshWalletBalance() {
+    const userDataJson = localStorage.getItem('userData');
+    if (!userDataJson) return; // No hay usuario logueado.
+
+    try {
+        // Llama a la función de Netlify para obtener el saldo
+        // Asume que la función se llama 'get-user-balance' (archivo .netlify/functions/get-user-balance.js)
+        const response = await fetch('/.netlify/functions/get-user-balance'); 
+
+        if (!response.ok) {
+            console.error("No se pudo obtener el saldo. Estado:", response.status);
+            return;
+        }
+
+        const data = await response.json();
+        // data.saldo es el campo que devuelve tu Netlify Function
+        const newBalance = data.saldo || '0.00';
+        
+        // 1. Actualizar el localStorage con el nuevo saldo
+        const userData = JSON.parse(userDataJson);
+        // Aseguramos que el saldo se guarde como un string con 2 decimales.
+        userData.balance = parseFloat(newBalance).toFixed(2); 
+        localStorage.setItem('userData', JSON.stringify(userData));
+
+        // 2. Actualizar la UI directamente
+        const virtualBalanceElement = document.getElementById('virtual-balance'); 
+        if (virtualBalanceElement) {
+            virtualBalanceElement.textContent = `$. ${userData.balance}`;
+        }
+        
+        console.log(`[Wallet] Saldo actualizado a: $.${userData.balance}`);
+        
+    } catch (error) {
+        console.error("Error al refrescar el saldo de la billetera:", error);
+    }
+}
+// Hacemos la función global para que pueda ser llamada desde la lógica de pago/recarga
+window.refreshWalletBalance = refreshWalletBalance; 
 // -----------------------------------------------------------------
 
 
@@ -257,7 +305,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (savedCurrency === 'USD') {
         initialText = '$ (USD)';
         initialImgSrc = 'images/flag_us.png';
-    } else if (savedCurrency === 'USDM') { // 🎯 NUEVA MONEDA AÑADIDA
+    } else if (savedCurrency === 'USDM') { 
         initialText = '$ (Usd Malok)';
         initialImgSrc = 'images/favicon.ico';
     }
@@ -394,11 +442,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 // Si es VES, usa priceVES
                 price = parseFloat(item.priceVES || 0);
             } else if (selectedCurrency === 'USDM') {
-                // 🚀 CAMBIO CLAVE: Si es USDM, usa el nuevo campo priceUSDM
-                // IMPORTANTE: Debes asegurarte de que tus objetos de producto tengan el campo 'priceUSDM'
+                // Si es USDM, usa el nuevo campo priceUSDM
                 price = parseFloat(item.priceUSDM || 0); 
             } else {
-                // Por defecto (USD, u otra), usa priceUSD
+                // Por defecto (USD), usa priceUSD
                 price = parseFloat(item.priceUSD || 0);
             }
             
@@ -539,6 +586,11 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // 🚨 Inicializar Google Sign-In DESPUÉS de comprobar la sesión
     const isUserLoggedIn = checkUserSessionAndRenderUI(); 
+    
+    // 🚀 LÓGICA CLAVE AÑADIDA: Refrescar el saldo al cargar la página si está logueado
+    if (isUserLoggedIn) { 
+        window.refreshWalletBalance(); 
+    }
     
     if (!isUserLoggedIn) {
         // Lógica para asegurar que initGoogleSignIn se llame después de que el SDK cargue

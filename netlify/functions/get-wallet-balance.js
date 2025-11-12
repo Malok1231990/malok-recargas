@@ -1,12 +1,16 @@
 const { createClient } = require('@supabase/supabase-js');
 
+/**
+ * Netlify Function para obtener el saldo actual del usuario desde Supabase.
+ * @param {object} event - El objeto de evento de la solicitud HTTP.
+ * @param {object} context - El contexto del cliente, incluyendo los datos de Netlify Identity.
+ */
 exports.handler = async function(event, context) {
     if (event.httpMethod !== "GET") {
         return { statusCode: 405, body: "Method Not Allowed" };
     }
 
-    // 1. Verificar la autenticación (Asume Netlify Identity)
-    // El objeto 'user' viene inyectado si el usuario está logueado.
+    // 1. Verificar la autenticación (Netlify Identity)
     const { user } = context.clientContext; 
     
     if (!user) {
@@ -16,7 +20,7 @@ exports.handler = async function(event, context) {
         };
     }
     
-    // El 'sub' es el ID de usuario de Supabase/Identity
+    // El 'sub' es el ID de usuario único (que mapea a user_id / google_id)
     const userId = user.sub; 
     
     const supabaseUrl = process.env.SUPABASE_URL;
@@ -31,16 +35,14 @@ exports.handler = async function(event, context) {
     }
 
     // 2. Inicializar Supabase con la llave pública (Anon Key)
-    // Esto funciona si tienes Row Level Security (RLS) configurado para que 
-    // los usuarios 'authenticated' puedan leer su propia fila en 'perfiles'.
     const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
     try {
-        // 3. Consultar solo el saldo del perfil
-        const { data: perfil, error } = await supabase
-            .from('perfiles')
-            .select('saldo')
-            .eq('id', userId) // Buscar por el ID del usuario
+        // 3. 🚀 CORRECCIÓN CLAVE: Consultar la tabla 'saldos' y el campo 'saldo_usd'
+        const { data: saldoData, error } = await supabase
+            .from('saldos') // Tabla correcta
+            .select('saldo_usd') // Columna correcta
+            .eq('user_id', userId) // Columna de filtro correcta
             .maybeSingle(); 
 
         if (error) {
@@ -48,9 +50,11 @@ exports.handler = async function(event, context) {
             throw new Error(error.message || "Error desconocido en la consulta a Supabase."); 
         }
 
-        const saldoActual = perfil?.saldo || 0.00;
-
-        // 4. Devolver el saldo en el cuerpo de la respuesta
+        // 4. Extraer el valor con el nombre de columna correcto (saldo_usd)
+        // Si no existe, asume 0.00
+        const saldoActual = saldoData?.saldo_usd || '0.00'; 
+        
+        // 5. Devolver el saldo. Usamos el nombre 'saldo' para mantener la compatibilidad con el frontend.
         return {
             statusCode: 200,
             headers: { "Content-Type": "application/json" },
@@ -58,7 +62,7 @@ exports.handler = async function(event, context) {
         };
 
     } catch (error) {
-        console.error("Error FATAL en la función get-wallet-balance:", error.message);
+        console.error("Error FATAL en la función get-user-balance:", error.message);
         return {
             statusCode: 500,
             body: JSON.stringify({ message: `Error interno del servidor al cargar el saldo: "${error.message}"` }),
