@@ -678,18 +678,7 @@
                 }
             }
             
-            // 🆕 Lógica para Binance ID: Validar el campo de ID de Origen **(ELIMINADO)**
-            // const binanceOriginIdInput = document.getElementById('binance-origin-id');
-            // if(binanceOriginIdInput) {
-            //     binanceOriginIdInput.addEventListener('input', checkFormValidity);
-            // }
-            // 🆕 Lógica para Wallet: Validar el campo de Contraseña **(ELIMINADO)**
-            // const walletPasswordInput = document.getElementById('wallet-password');
-            // if(walletPasswordInput) {
-            //     walletPasswordInput.addEventListener('input', checkFormValidity);
-            // }
-
-
+            
             // 🛠️ CORRECCIÓN: Usar querySelectorAll para adjuntar evento a *todos* los botones de copiar
             const copyButtons = paymentDetailsFormDiv.querySelectorAll('.copy-button'); 
             copyButtons.forEach(button => { 
@@ -737,8 +726,6 @@
     /**
      * @MODIFICADO: Verifica la validez del formulario y habilita/deshabilita los botones.
      * Ahora incluye la excepción para 'binance', 'binance-id' y 'wallet'.
-     * **CORRECCIÓN DE WALLET:** No requiere campos adicionales, solo selección y contacto.
-     * **CORRECCIÓN DE BINANCE ID:** No requiere ID de origen.
      */
     function checkFormValidity() {
         const selectedRadio = document.querySelector('input[name="paymentMethod"]:checked');
@@ -987,7 +974,7 @@
 
         // 🛑 Lógica para el flujo de pago con Plisio (Método Binance de redirección)
         if (selectedPaymentMethod === 'binance') {
-            // ... (El código anterior de Plisio se mantiene sin cambios)
+            
             if (!finalPriceUSD || parseFloat(finalPriceUSD) <= 0) {
                 alert('Error: El monto de la transacción es inválido. Por favor, revisa tu carrito.');
                 return;
@@ -996,16 +983,13 @@
             finalizeBtn.disabled = true;
             finalizeBtn.textContent = 'Creando Factura en Plisio...';
             
-            // 🔑 INICIO DEL CAMBIO PARA INCLUIR GOOGLE ID 🔑
-            const googleIdToSend = getGoogleIdFromTransaction(); // Obtiene el google_id
+            // 🔑 INICIO DEL CAMBIO CLAVE: Obtener el googleId 🔑
+            const googleIdToSend = getGoogleIdFromTransaction(); // Obtiene el google_id (será null si no es recarga)
 
-            if (!googleIdToSend) {
-                 alert('Error: No se encontró el ID de usuario (googleId) necesario para procesar esta recarga de saldo. Por favor, asegúrate de que el item en tu carrito sea "Recarga de Saldo" y contenga tu Google ID.');
-                 finalizeBtn.disabled = false;
-                 finalizeBtn.textContent = 'Finalizar Recarga';
-                 return;
-            }
-            // 🔑 FIN DEL CAMBIO 🔑
+            // ❌ SE REMUEVE LA VALIDACIÓN INCONDICIONAL DE GOOGLE ID DEL FRONTEND.
+            // La validación condicional se mantiene en create-plisio-invoice.js.
+            
+            // 🔑 FIN DEL CAMBIO CLAVE 🔑
 
             try {
                 // Llamada a la función de Netlify para crear la factura de Plisio
@@ -1019,7 +1003,7 @@
                         email: emailInput.value.trim(),
                         whatsapp: whatsappInput.value.trim(),
                         cartDetails: JSON.stringify(Array.isArray(transactionDetails) ? transactionDetails : [transactionDetails]), 
-                        // 🔑 SOLUCIÓN: AGREGAR EL GOOGLE ID AQUÍ 🔑
+                        // 🔑 ENVIAMOS EL GOOGLE ID, PERO PERMITIMOS QUE SEA NULL 🔑
                         googleId: googleIdToSend, 
                     })
                 });
@@ -1062,17 +1046,6 @@
             }
         }
         
-        // Si es Binance ID, añadir el campo de ID al FormData **(ELIMINADO: Ya no se pide ID de Origen)**
-        // if (requiresBinanceId) {
-        //     const binanceOriginId = document.getElementById('binance-origin-id');
-        //     if (!binanceOriginId || binanceOriginId.value.trim() === '') {
-        //         alert('Por favor, ingresa tu Binance Pay ID de origen.');
-        //         return;
-        //     }
-        //     formData.append('binanceOriginId', binanceOriginId.value.trim());
-        // }
-
-
         // Agregamos todos los datos de transacción
         formData.append('cartDetails', JSON.stringify(Array.isArray(transactionDetails) ? transactionDetails : [transactionDetails]));
         
