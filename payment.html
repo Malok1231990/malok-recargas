@@ -163,7 +163,7 @@
             top: 100px; /* Ajusta la posición vertical */
             right: 20px;
             background-color: var( --accent-green); /* Color llamativo de advertencia */
-            color: #333;
+            color: var(--text-color);
             padding: 10px 15px;
             border-radius: 8px;
             box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
@@ -451,7 +451,7 @@
             if (remainingTime < 0) {
                 clearInterval(timerInterval);
                 paymentTimerDisplay.textContent = '00:00';
-                paymentTimerContainer.classList.add('expired');
+                paymentTimerContainer.classList.add('expired', 'critical-state'); // También añade critical-state al expirar
                 alert(`El tiempo de ${PAYMENT_TIMEOUT_MINUTES} minutos para completar el pago ha expirado. Su carrito ha sido vaciado.`);
                 
                 // Redirigir y vaciar carrito
@@ -467,7 +467,8 @@
     }
     
     /**
-     * ⏰ NUEVA FUNCIÓN: Actualiza el texto del temporizador.
+     * ⏰ FUNCIÓN MODIFICADA: Actualiza el texto y **las clases de estado** del temporizador.
+     * Esto corrige el problema del color hardcoded.
      * @param {number} ms - Milisegundos restantes.
      */
     function displayTime(ms) {
@@ -480,14 +481,24 @@
         
         paymentTimerDisplay.textContent = `${minutesStr}:${secondsStr}`;
         
-        // Cambiar color a rojo en los últimos 2 minutos
-        if (minutes < 2) {
-            paymentTimerContainer.style.backgroundColor = '#dc3545';
-            paymentTimerContainer.style.color = 'white';
-        } else {
-            paymentTimerContainer.style.backgroundColor = '#ffcc00';
-            paymentTimerContainer.style.color = '#333';
-        }
+        // **INICIO DE LA CORRECCIÓN DEL COLOR HARDCODED**
+        
+        // 1. Limpiar clases de estado previas
+        paymentTimerContainer.classList.remove('warning-state', 'critical-state');
+
+        // 2. Aplicar clases basadas en el tiempo restante (Usando las variables CSS)
+        if (minutes < 5 && minutes >= 2) {
+            // Estado de advertencia (5 minutos o menos, pero más de 1 minuto)
+            paymentTimerContainer.classList.add('warning-state');
+        } else if (minutes < 2) {
+            // Estado crítico (menos de 2 minutos)
+            paymentTimerContainer.classList.add('critical-state');
+        } 
+        
+        // Si el tiempo es mayor a 5 minutos, no se añade ninguna clase, 
+        // y el contenedor mantiene su estilo base (que debería usar --timer-normal-bg)
+        
+        // **FIN DE LA CORRECCIÓN DEL COLOR HARDCODED**
     }
 
     /**
