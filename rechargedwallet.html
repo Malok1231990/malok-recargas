@@ -296,18 +296,6 @@
     </style>
 </head>
 <body>
-
-        <script>
-        // Esto asegura que la lógica de carga de paquetes (load-recharge-packages.js) 
-        // y la visualización del header (script.js) inicien siempre en VES, 
-        // sobrescribiendo la última moneda seleccionada si es necesario.
-        localStorage.setItem('currency', 'VES');
-        console.log('Moneda por defecto forzada a VES para la recarga de billetera.');
-        
-        // Opcional: Si 'script.js' tiene una función global para actualizar la UI del selector de moneda,
-        // puedes llamarla aquí para que el selector visual en el header también cambie inmediatamente.
-        // Ejemplo: if (typeof updateCurrencyDisplay === 'function') { updateCurrencyDisplay('VES'); }
-    </script>
     <header>
     <div class="header-left">
         <a href="index.html" class="logo-link">
@@ -424,7 +412,17 @@
 
     <script src="script.js"></script>
     
-
+    <script>
+        // Esto asegura que la lógica de carga de paquetes (load-recharge-packages.js) 
+        // y la visualización del header (script.js) inicien siempre en VES, 
+        // sobrescribiendo la última moneda seleccionada si es necesario.
+        localStorage.setItem('selectedCurrency', 'VES');
+        console.log('Moneda por defecto forzada a VES para la recarga de billetera.');
+        
+        // Opcional: Si 'script.js' tiene una función global para actualizar la UI del selector de moneda,
+        // puedes llamarla aquí para que el selector visual en el header también cambie inmediatamente.
+        // Ejemplo: if (typeof updateCurrencyDisplay === 'function') { updateCurrencyDisplay('VES'); }
+    </script>
     
     <script src="load-recharge-packages.js"></script> 
 </body>
