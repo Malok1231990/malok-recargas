@@ -939,8 +939,8 @@
         // 🎯 INICIO DEL CAMBIO CLAVE: Lógica para el flujo de pago con Wallet
         if (selectedPaymentMethod === 'wallet') {
             
-            // 🛑 CORRECCIÓN: Obtener y validar el token de sesión
-            const sessionToken = localStorage.getItem('customSessionToken'); 
+            // 🛑 CORRECCIÓN PRINCIPAL: CAMBIO DE CLAVE 'customSessionToken' A 'sessionToken'
+            const sessionToken = localStorage.getItem('sessionToken'); // ⭐️ CORRECCIÓN CLAVE ⭐️
             
             if (!sessionToken) {
                 alert('Error: No se encontró la sesión activa (token Bearer). Por favor, inicia sesión de nuevo.');
@@ -965,7 +965,7 @@
                     method: 'POST',
                     headers: { 
                         'Content-Type': 'application/json',
-                        // 🛑 CORRECCIÓN: Se añade el encabezado de autorización
+                        // 🛑 CORRECCIÓN: Se añade el encabezado de autorización usando el token corregido
                         'Authorization': `Bearer ${sessionToken}` 
                     },
                     body: JSON.stringify({
