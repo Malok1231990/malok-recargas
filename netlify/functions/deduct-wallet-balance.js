@@ -89,6 +89,10 @@ exports.handler = async function(event, context) {
         
         const googleId = userData.google_id;
         
+        // 🚨 LÍNEA CLAVE DE DIAGNÓSTICO AÑADIDA
+        console.log(`✅ DIAGNÓSTICO: Google ID del usuario logueado: ${googleId}`);
+        console.log("✅ DIAGNÓSTICO: Saldo crudo (userData.saldos):", JSON.stringify(userData.saldos));
+        
         if (!googleId) {
             console.error("Usuario encontrado sin Google ID.", userData);
             return { 
@@ -98,7 +102,7 @@ exports.handler = async function(event, context) {
         }
 
         // 5. Verificar saldo suficiente
-        // 🔑 LÍNEA CORREGIDA: Acceder al índice [0] del array 'saldos'
+        // Accedemos al primer elemento del array, ya que es un JOIN
         const currentBalance = parseFloat(userData.saldos?.[0]?.saldo_usd || 0.00); 
 
         console.log(`Saldo de ${userData.nombre} encontrado. Actual: ${currentBalance}, Requerido: ${deductionAmount}`);
@@ -117,7 +121,7 @@ exports.handler = async function(event, context) {
         // === DEDUCCIÓN EN TRANSACCIÓN ===
         // =========================================================
         
-        // 6. Actualizar saldo (Usando el FIX PGRST204 de eliminar la fecha manual)
+        // 6. Actualizar saldo 
         const { error: updateError } = await supabase
             .from('saldos')
             .update({ 
