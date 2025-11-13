@@ -155,17 +155,8 @@ window.handleCredentialResponse = async (response) => {
             setTimeout(() => {
                     alert(`¡Bienvenido(a), ${userName}! Has iniciado sesión correctamente.`);
                     
-                    // 🎯 INICIO DE LA LÓGICA DE REDIRECCIÓN INTELIGENTE (MODIFICACIÓN CLAVE)
-                    const redirectTo = localStorage.getItem('redirectToAfterLogin');
-                    
-                    if (redirectTo) {
-                        localStorage.removeItem('redirectToAfterLogin'); // Limpiar después de usar
-                        window.location.href = redirectTo; // Redirige a la página guardada
-                    } else {
-                        // Redirección por defecto
-                        window.location.href = 'index.html'; 
-                    }
-                    // 🎯 FIN DE LA LÓGICA DE REDIRECCIÓN INTELIGENTE
+                    // 🎯 CORRECCIÓN: Redirigir explícitamente a index.html
+                    window.location.href = 'index.html'; 
             }, 50);
 
         } else {
@@ -548,7 +539,6 @@ document.addEventListener('DOMContentLoaded', () => {
             // 1. Limpiar la sesión en localStorage
             localStorage.removeItem('userSessionToken');
             localStorage.removeItem('userData');
-            localStorage.removeItem('redirectToAfterLogin'); // Limpiamos la URL de redirección
             
             // 2. Forzar la re-detección y actualización de la UI
             checkUserSessionAndRenderUI();
@@ -572,7 +562,6 @@ document.addEventListener('DOMContentLoaded', () => {
     window.logoutUser = function() {
         localStorage.removeItem('userSessionToken');
         localStorage.removeItem('userData');
-        localStorage.removeItem('redirectToAfterLogin'); // Limpiamos la URL de redirección
         checkUserSessionAndRenderUI();
         if (window.location.pathname.includes('index.html') === false) {
             window.location.href = 'index.html'; 
@@ -597,15 +586,6 @@ document.addEventListener('DOMContentLoaded', () => {
             } else {
                 // Si está deslogueado, lo redirigimos a login.html
                 if (authDropdown) authDropdown.classList.remove('active'); // Cerramos el dropdown
-                
-                // 🔑 NUEVO: Lógica para guardar la URL de la página actual antes de ir a login.html.
-                // Esto es crucial para la redirección posterior. Solo guardamos si no estamos en login.html.
-                const currentPage = window.location.pathname.split('/').pop();
-                if (currentPage !== 'login.html' && currentPage.length > 0) {
-                    // Guardamos el nombre del archivo (ej: 'payment.html') en localStorage
-                    localStorage.setItem('redirectToAfterLogin', currentPage);
-                }
-
                 window.location.href = 'login.html'; // ⬅️ REDIRECCIÓN A login.html
             }
         });

@@ -950,21 +950,6 @@
 
     // 4. EVENT LISTENERS
     document.addEventListener('DOMContentLoaded', () => {
-        // 🚨 VERIFICACIÓN DE AUTENTICACIÓN CRÍTICA 🚨
-        const sessionToken = localStorage.getItem('userSessionToken');
-        if (!sessionToken) {
-            console.error('DIAGNÓSTICO: userSessionToken NO encontrado. Redirigiendo a login.html.');
-            alert('Debes iniciar sesión para acceder a la página de pago.');
-            // Opcional: Limpiar datos de carrito por seguridad si no hay sesión
-            localStorage.removeItem('transactionDetails'); 
-            localStorage.removeItem('cartItems'); 
-            localStorage.removeItem('paymentStartTime');
-            
-            window.location.href = 'login.html'; // Redirección al login
-            return; // Detener la ejecución del resto del script
-        }
-        // ------------------------------------------
-
         const transactionSummaryDiv = document.getElementById('transaction-summary');
 
         // 🟢 NUEVA LÓGICA: DETECCIÓN DE REDIRECCIÓN DE PLISIO (FLUSO AUTOMÁTICO)
