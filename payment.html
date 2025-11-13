@@ -156,10 +156,51 @@
             color: var(--accent-green, #28a745);
         }
         /* ------------------------------------------- */
+        
+        /* ⏰ NUEVOS ESTILOS PARA EL TEMPORIZADOR ⏰ */
+        #payment-timer-container {
+            position: fixed;
+            top: 100px; /* Ajusta la posición vertical */
+            right: 20px;
+            background-color: #ffcc00; /* Color llamativo de advertencia */
+            color: #333;
+            padding: 10px 15px;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            font-size: 1.1em;
+            font-weight: bold;
+            z-index: 1000; /* Asegura que esté por encima de otros elementos */
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        #payment-timer-container.expired {
+            background-color: #dc3545; /* Rojo para cuando expire */
+            color: white;
+        }
+
+        @media (max-width: 768px) {
+            #payment-timer-container {
+                top: auto;
+                bottom: 20px;
+                right: 50%;
+                transform: translateX(50%);
+                width: 90%;
+                justify-content: center;
+                text-align: center;
+            }
+        }
+        /* --------------------------------------- */
     </style>
 </head>
 <body>
-   <header>
+    <div id="payment-timer-container" style="display: none;">
+        <i class="fas fa-clock"></i>
+        <span>Tiempo restante para completar el pago: </span>
+        <span id="payment-timer">15:00</span>
+    </div>
+    <header>
     <div class="header-left">
         <a href="index.html" class="logo-link">
             <img src="images/malok_logo.png" alt="Malok Recargas Logo" class="logo-img">
@@ -368,9 +409,87 @@
     const successMessageDisplay = document.getElementById('success-message-display');
     const paymentDetailsFormDiv = document.getElementById('payment-details-form');
     const paymentMethodsDiv = document.getElementById('payment-methods'); 
+    
+    // ⏰ NUEVAS VARIABLES GLOBALES PARA EL TEMPORIZADOR ⏰
+    const PAYMENT_TIMEOUT_MINUTES = 15;
+    const paymentTimerContainer = document.getElementById('payment-timer-container');
+    const paymentTimerDisplay = document.getElementById('payment-timer');
+    let timerInterval;
+
 
     // 3. FUNCIONES DE LÓGICA
     
+    /**
+     * ⏰ NUEVA FUNCIÓN CLAVE: Inicia o restaura el temporizador de pago.
+     */
+    function startPaymentTimer() {
+        const startTime = localStorage.getItem('paymentStartTime');
+        const now = new Date().getTime();
+        const duration = PAYMENT_TIMEOUT_MINUTES * 60 * 1000;
+        let endTime;
+
+        if (startTime) {
+            endTime = parseInt(startTime) + duration;
+        } else {
+            // Si no hay hora de inicio, es la primera vez que se carga la página de pago.
+            endTime = now + duration;
+            localStorage.setItem('paymentStartTime', now.toString());
+        }
+
+        // Mostrar el contenedor del temporizador
+        paymentTimerContainer.style.display = 'flex';
+        
+        // Limpiar cualquier intervalo previo
+        if (timerInterval) {
+            clearInterval(timerInterval);
+        }
+
+        timerInterval = setInterval(() => {
+            const current = new Date().getTime();
+            const remainingTime = endTime - current;
+            
+            if (remainingTime < 0) {
+                clearInterval(timerInterval);
+                paymentTimerDisplay.textContent = '00:00';
+                paymentTimerContainer.classList.add('expired');
+                alert(`El tiempo de ${PAYMENT_TIMEOUT_MINUTES} minutos para completar el pago ha expirado. Su carrito ha sido vaciado.`);
+                
+                // Redirigir y vaciar carrito
+                localStorage.removeItem('transactionDetails');
+                localStorage.removeItem('cartItems'); 
+                localStorage.removeItem('paymentStartTime');
+                window.location.href = 'index.html';
+                return;
+            }
+
+            displayTime(remainingTime);
+        }, 1000);
+    }
+    
+    /**
+     * ⏰ NUEVA FUNCIÓN: Actualiza el texto del temporizador.
+     * @param {number} ms - Milisegundos restantes.
+     */
+    function displayTime(ms) {
+        const totalSeconds = Math.floor(ms / 1000);
+        const minutes = Math.floor(totalSeconds / 60);
+        const seconds = totalSeconds % 60;
+        
+        const minutesStr = minutes < 10 ? '0' + minutes : minutes;
+        const secondsStr = seconds < 10 ? '0' + seconds : seconds;
+        
+        paymentTimerDisplay.textContent = `${minutesStr}:${secondsStr}`;
+        
+        // Cambiar color a rojo en los últimos 2 minutos
+        if (minutes < 2) {
+            paymentTimerContainer.style.backgroundColor = '#dc3545';
+            paymentTimerContainer.style.color = 'white';
+        } else {
+            paymentTimerContainer.style.backgroundColor = '#ffcc00';
+            paymentTimerContainer.style.color = '#333';
+        }
+    }
+
     /**
      * @NUEVA_FUNCIÓN_CLAVE: Busca y retorna el google_id de la transacción.
      * Esto es CRÍTICO para las recargas de saldo.
@@ -487,7 +606,11 @@
         
         if (!summaryDiv || cartItems.length === 0) {
             summaryDiv.innerHTML = '<p class="error-message">No se encontraron detalles de la recarga. Por favor, vuelve a la tienda.</p>';
-            setTimeout(() => { window.location.href = 'index.html'; }, 10000);
+            // ⏰ AÑADIDO: Detener el temporizador si no hay detalles de transacción válidos
+            clearInterval(timerInterval);
+            localStorage.removeItem('paymentStartTime');
+            
+            setTimeout(() => { window.location.href = 'index.html'; }, 1000);
             return;
         }
 
@@ -799,6 +922,20 @@
             updateWhatsAppLink();
         }
     }
+    
+    /**
+     * ⏰ NUEVA FUNCIÓN CLAVE: Limpia el temporizador tras un pago exitoso (llamada antes de redirección).
+     */
+    function cleanUpPaymentSession() {
+        if (timerInterval) {
+            clearInterval(timerInterval);
+        }
+        localStorage.removeItem('transactionDetails');
+        localStorage.removeItem('cartItems'); 
+        localStorage.removeItem('paymentStartTime'); // ⏰ NUEVO: Limpiar hora de inicio del temporizador
+        paymentTimerContainer.style.display = 'none'; // Ocultar el temporizador
+    }
+    
 
     // 4. EVENT LISTENERS
     document.addEventListener('DOMContentLoaded', () => {
@@ -829,9 +966,8 @@
             // 3. Mostrar el mensaje de éxito (el cuadro de "Su recarga está siendo procesada...")
             if (successMessageDisplay) successMessageDisplay.style.display = 'block';
 
-            // 4. Opcional: Limpiar el localStorage (El webhook de Plisio debería haberlo hecho, pero como respaldo)
-            localStorage.removeItem('transactionDetails');
-            localStorage.removeItem('cartItems'); 
+            // 4. Limpiar la sesión de pago
+            cleanUpPaymentSession(); // ⏰ USAR LA NUEVA FUNCIÓN
 
             // 5. Iniciar la redirección automática a index.html después de 5 segundos
             setTimeout(() => {
@@ -847,6 +983,10 @@
         const storedDetails = localStorage.getItem('transactionDetails');
         if (storedDetails) {
             transactionDetails = JSON.parse(storedDetails);
+            
+            // ⏰ INICIO DEL TEMPORIZADOR: Solo si hay detalles de transacción válidos
+            startPaymentTimer();
+            // ----------------------------------------------------
             
             // APLICAR ARREGLO CLAVE: Si es un objeto singular (flujo antiguo), lo convertimos a array.
             if (!Array.isArray(transactionDetails)) {
@@ -883,6 +1023,11 @@
             whatsappMessageContainer.style.display = 'none';
             if (paymentDetailsFormDiv) paymentDetailsFormDiv.style.display = 'none';
             if (paymentMethodsDiv) paymentMethodsDiv.closest('.form-section-step').style.display = 'none';
+            
+            // ⏰ AÑADIDO: Detener el temporizador si no hay detalles de transacción válidos
+            clearInterval(timerInterval);
+            localStorage.removeItem('paymentStartTime');
+            paymentTimerContainer.style.display = 'none';
         }
     });
 
@@ -921,9 +1066,9 @@
             paymentForm.style.display = 'none';
             whatsappMessageContainer.style.display = 'none';
             successMessageDisplay.style.display = 'block';
-            localStorage.removeItem('transactionDetails');
-            localStorage.removeItem('cartItems'); 
-
+            
+            cleanUpPaymentSession(); // ⏰ USAR LA NUEVA FUNCIÓN
+            
             setTimeout(() => {
                 window.location.href = 'index.html';
             }, 5000);
@@ -1024,8 +1169,9 @@
                         paymentForm.style.display = 'none';
                         whatsappMessageContainer.style.display = 'none';
                         successMessageDisplay.style.display = 'block';
-                        localStorage.removeItem('transactionDetails');
-                        localStorage.removeItem('cartItems'); 
+                        
+                        cleanUpPaymentSession(); // ⏰ USAR LA NUEVA FUNCIÓN
+                        
                         console.log('DIAGNÓSTICO: Notificación exitosa. Redirigiendo.');
 
 
@@ -1040,8 +1186,7 @@
                         console.error('DIAGNÓSTICO: Process Payment (Telegram) error after successful Wallet deduction:', errorData);
 
                         // Se considera éxito para el usuario, se limpia storage y se redirige
-                        localStorage.removeItem('transactionDetails');
-                        localStorage.removeItem('cartItems'); 
+                        cleanUpPaymentSession(); // ⏰ USAR LA NUEVA FUNCIÓN
                         
                         finalizeBtn.disabled = true;
                         finalizeBtn.textContent = 'Pago Exitoso. Redirigiendo...';
@@ -1092,7 +1237,11 @@
             finalizeBtn.textContent = 'Creando Factura en Plisio...';
             
             const googleIdToSend = getGoogleIdFromTransaction();
-
+            
+            // ⏰ AÑADIDO: Limpiar el temporizador antes de la redirección a una pasarela externa
+            clearInterval(timerInterval);
+            localStorage.removeItem('paymentStartTime');
+            
             try {
                 // Llamada a la función de Netlify para crear la factura de Plisio
                 const response = await fetch('/.netlify/functions/create-plisio-invoice', {
@@ -1127,6 +1276,8 @@
                 alert('Hubo un problema de conexión al intentar crear la factura.');
                 console.error('Network or client error:', error);
             } finally {
+                // Si falla, restaurar el temporizador (asumiendo que el usuario vuelve a la página)
+                startPaymentTimer(); 
                 finalizeBtn.disabled = false;
                 finalizeBtn.textContent = 'Finalizar Recarga';
             }
@@ -1188,8 +1339,8 @@
                 paymentForm.style.display = 'none';
                 whatsappMessageContainer.style.display = 'none';
                 successMessageDisplay.style.display = 'block';
-                localStorage.removeItem('transactionDetails');
-                localStorage.removeItem('cartItems'); 
+                
+                cleanUpPaymentSession(); // ⏰ USAR LA NUEVA FUNCIÓN
 
                 setTimeout(() => {
                     window.location.href = 'index.html';
