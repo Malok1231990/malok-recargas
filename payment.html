@@ -939,11 +939,13 @@
         // 🎯 INICIO DEL CAMBIO CLAVE: Lógica para el flujo de pago con Wallet
         if (selectedPaymentMethod === 'wallet') {
             
-            const sessionToken = localStorage.getItem('sessionToken'); 
+            // 🚨🚨🚨 CORRECCIÓN CLAVE 🚨🚨🚨: Usar la clave correcta 'userSessionToken'
+            const sessionToken = localStorage.getItem('userSessionToken'); 
             
             // 🛑 DIAGNÓSTICO CLAVE 1: Verificar la existencia del token justo antes de usarlo
             if (!sessionToken) {
-                console.error('DIAGNÓSTICO: sessionToken NO encontrado en localStorage. Deteniendo el pago.');
+                // El log de error también se corrige para la clave correcta
+                console.error('DIAGNÓSTICO: userSessionToken NO encontrado en localStorage. Deteniendo el pago.');
                 alert('Error: No se encontró la sesión activa (token Bearer). Por favor, inicia sesión de nuevo.');
                 finalizeBtn.disabled = false;
                 finalizeBtn.textContent = 'Finalizar Recarga';
@@ -986,6 +988,9 @@
                     // 2. ÉXITO EN EL PAGO: Ahora llamar a process-payment (Notificación a Telegram)
                     finalizeBtn.textContent = 'Enviando Notificación...';
                     console.log('DIAGNÓSTICO: Deducción exitosa. Procediendo a notificar el pago.');
+                    
+                    // 🔑 LÍNEA CLAVE AÑADIDA: Refrescar el saldo después de una deducción exitosa
+                    window.refreshWalletBalance(); 
 
                     // a. Preparar FormData para la función process-payment (simulando formulario)
                     const processFormData = new FormData();
