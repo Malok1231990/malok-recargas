@@ -44,8 +44,9 @@ exports.handler = async function(event, context) {
             body: JSON.stringify({ message: "No autorizado. Falta el token de sesión." }) 
         };
     }
-    
-    const sessionToken = authHeader.split(' ')[1];
+
+    // Extraer el token de la cadena "Bearer <token>"
+    const sessionToken = authHeader.substring(7);
 
     // 3. Obtener el cuerpo de la solicitud
     let body;
@@ -55,90 +56,103 @@ exports.handler = async function(event, context) {
         return { statusCode: 400, body: JSON.stringify({ message: "Formato de cuerpo inválido." }) };
     }
     
-    const { amountUSD, email, whatsapp, cartDetails } = body;
+    // Validar los datos necesarios para la deducción
+    const { 
+        amountUSD, 
+        email, 
+        whatsapp, 
+        cartDetails 
+    } = body;
     
-    // 4. Validar el monto
-    const amount = parseFloat(amountUSD);
+    // ⚠️ Importante: Aseguramos que el monto sea un número válido antes de la deducción
+    const deductionAmount = parseFloat(amountUSD);
 
-    if (isNaN(amount) || amount <= 0) {
-        return {
-            statusCode: 400,
-            body: JSON.stringify({ message: "Monto de deducción inválido." })
-        };
+    if (isNaN(deductionAmount) || deductionAmount <= 0) {
+        return { statusCode: 400, body: JSON.stringify({ message: "Monto de deducción inválido." }) };
     }
 
     try {
-        // A. Verificación del Token y obtención de googleId (usuario)
-        const { data: userData, error: userError } = await supabase
+        // 4. Buscar usuario por el token de sesión (Verificación de sesión)
+        // Hacemos un JOIN para obtener el saldo en la misma consulta
+        const { data: userData, error: authError } = await supabase
             .from('usuarios')
-            .select('google_id, nombre')
-            .eq('session_token', sessionToken) // Busca el usuario por el token de sesión
+            .select('google_id, nombre, email, saldos!left(saldo_usd)') 
+            .eq('session_token', sessionToken) // Busca por el token en la tabla usuarios
             .maybeSingle();
 
-        if (userError || !userData) {
-            console.error("Token de sesión inválido o expirado:", userError?.message);
-            return {
-                statusCode: 401,
-                body: JSON.stringify({ message: "Token de sesión inválido o expirado." })
+        if (authError || !userData) {
+            console.error("❌ ERROR 401: Token de sesión inválido o expirado.", authError);
+            return { 
+                statusCode: 401, 
+                body: JSON.stringify({ message: "La sesión no es válida. Por favor, inicia sesión de nuevo." }) 
             };
         }
         
         const googleId = userData.google_id;
         
-        // B. Obtener Saldo Actual
-        const { data: saldoData, error: saldoError } = await supabase
-            .from('saldos')
-            .select('saldo_usd')
-            .eq('user_id', googleId) // Filtramos por el Google ID
-            .maybeSingle();
-
-        if (saldoError) {
-            console.error("Error de Supabase al obtener saldo:", saldoError.message);
-            throw new Error(saldoError.message || "Error desconocido en la consulta de saldo."); 
-        }
-        
-        // C. Calcular nuevo saldo y verificar fondos
-        const currentBalance = parseFloat(saldoData?.saldo_usd || '0.00');
-
-        if (currentBalance < amount) {
-            console.log(`❌ ERROR: Saldo insuficiente. Actual: ${currentBalance}, Monto: ${amount}`);
-            return {
-                statusCode: 402, // 402 Payment Required
-                body: JSON.stringify({ message: "Saldo insuficiente para completar la transacción." })
+        if (!googleId) {
+            console.error("Usuario encontrado sin Google ID.", userData);
+            return { 
+                statusCode: 500, 
+                body: JSON.stringify({ message: "Error interno: ID de usuario no disponible." }) 
             };
         }
 
-        const newBalance = currentBalance - amount;
+        // 5. Verificar saldo suficiente
+        // Usamos .saldos[0].saldo_usd para obtener el saldo del JOIN
+        const currentBalance = parseFloat(userData.saldos?.[0]?.saldo_usd || 0.00); 
         
-        // 🚨🚨🚨 FIX CLAVE 🚨🚨🚨
-        // Convertir newBalance a un número flotante con dos decimales para asegurar la compatibilidad con el tipo 'numeric' de Supabase
-        const newBalanceFloat = parseFloat(newBalance.toFixed(2));
-        console.log(`✅ Nuevo saldo calculado (Float): ${newBalanceFloat}`);
+        if (currentBalance < deductionAmount) {
+            console.log(`Saldo insuficiente para ${userData.nombre}. Actual: ${currentBalance}, Requerido: ${deductionAmount}`);
+            return { 
+                statusCode: 403, 
+                body: JSON.stringify({ message: "Saldo insuficiente en la billetera. Recarga para continuar." }) 
+            };
+        }
 
+        const newBalance = currentBalance - deductionAmount;
 
-        // D. Actualizar el saldo en Supabase
+        // =========================================================
+        // === DEDUCCIÓN EN TRANSACCIÓN ===
+        // =========================================================
+        
+        // 6. Actualizar saldo 
+        // 🚨🚨🚨 FIX CLAVE: Se elimina la referencia a 'fecha_actualizacion' que causaba el error PGRST204 🚨🚨🚨
         const { error: updateError } = await supabase
             .from('saldos')
-            // Utilizamos el valor numérico newBalanceFloat para evitar errores de tipo string
-            .update({ saldo_usd: newBalanceFloat }) 
-            .eq('user_id', googleId);
+            .update({ 
+                // Aseguramos dos decimales. Supabase lo debería convertir al tipo 'numeric'
+                saldo_usd: newBalance.toFixed(2)
+            })
+            .eq('user_id', googleId); // Filtramos por el Google ID
 
         if (updateError) {
-            console.error("Error de Supabase al actualizar saldo:", updateError.message);
-            return {
-                statusCode: 500,
+            console.error("Error al actualizar saldo:", updateError);
+            return { 
+                statusCode: 500, 
                 body: JSON.stringify({ message: "Fallo al actualizar el saldo en la base de datos." }) 
             };
         }
 
-        // E. Registrar la transacción (opcional pero muy recomendado)
+        // 7. Registrar la transacción (opcional pero muy recomendado)
+        
+        // Asegurar que cartDetails sea un objeto JSON válido para el campo JSONB
+        let parsedCartDetails = cartDetails;
+        try {
+            if (typeof cartDetails === 'string') {
+                parsedCartDetails = JSON.parse(cartDetails);
+            }
+        } catch (parseError) {
+            console.error("Advertencia: Falló el parseo de cartDetails. Se insertará el valor original.", parseError);
+            parsedCartDetails = cartDetails; 
+        }
+
         const transactionData = {
             user_id: googleId,
-            monto: -amount, // Negativo para deducción
+            monto: -deductionAmount, // Negativo para deducción
             tipo: 'pago_servicio',
             descripcion: `Pago de servicio con Wallet (${email})`,
-            // cartDetails ya es un objeto/array JSON en el cuerpo
-            metadatos: { email, whatsapp, cartDetails } 
+            metadatos: { email, whatsapp, cartDetails: parsedCartDetails } 
         };
 
         const { error: transError } = await supabase
@@ -147,16 +161,15 @@ exports.handler = async function(event, context) {
 
         if (transError) {
             console.error("Error al registrar transacción (advertencia):", transError);
-            // El pago fue exitoso, el error de registro es secundario.
         }
 
-        // F. Éxito
+        // 8. Éxito
         return {
             statusCode: 200,
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
                 message: "Deducción exitosa.",
-                nuevo_saldo: newBalanceFloat.toFixed(2),
+                nuevo_saldo: newBalance.toFixed(2),
                 usuario: userData.nombre
             }),
         };
@@ -165,7 +178,7 @@ exports.handler = async function(event, context) {
         console.error(`[NETLIFY FUNCTION] Error FATAL: ${error.message}`);
         return {
             statusCode: 500,
-            body: JSON.stringify({ message: `Error interno del servidor: ${error.message}` })
+            body: JSON.stringify({ message: error.message || "Error desconocido al procesar el pago." }),
         };
     }
-};
+}
