@@ -102,8 +102,10 @@ exports.handler = async function(event, context) {
         }
 
         // 5. Verificar saldo suficiente
-        // Accedemos al primer elemento del array, ya que es un JOIN
-        const currentBalance = parseFloat(userData.saldos?.[0]?.saldo_usd || 0.00); 
+        // ⭐️ LÍNEA CORREGIDA ⭐️
+        // Se accede directamente a 'saldo_usd' dentro del objeto 'saldos', ya que .maybeSingle() 
+        // anida el resultado del JOIN como un objeto simple, no un array.
+        const currentBalance = parseFloat(userData.saldos?.saldo_usd || 0.00); 
 
         console.log(`Saldo de ${userData.nombre} encontrado. Actual: ${currentBalance}, Requerido: ${deductionAmount}`);
 
