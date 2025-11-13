@@ -1,8 +1,50 @@
-// netlify/functions/plisio-webhook.js (MODIFICADO PARA INCLUIR BOTÓN DE REALIZADO EN PRODUCTOS)
+// netlify/functions/plisio-webhook.js (MODIFICADO PARA INCLUIR BOTÓN DE REALIZADO Y WHATSAPP)
 const crypto = require('crypto');
 const { createClient } = require('@supabase/supabase-js');
 const axios = require('axios');
 const nodemailer = require('nodemailer'); 
+
+// ⭐️ INICIO: FUNCIÓN DE NORMALIZACIÓN DEL NÚMERO DE WHATSAPP ⭐️
+function normalizeWhatsappNumber(number) {
+    if (!number) return null;
+
+    // 1. Eliminar todos los caracteres no numéricos
+    let cleanedNumber = number.replace(/[^\d]/g, '');
+
+    // 2. Manejar prefijos comunes de Venezuela
+    
+    // Si empieza con '0412', '0414', etc. (Formato local con 0)
+    // Se asume que el código de país (58) está implícito si el número tiene 11 dígitos.
+    if (cleanedNumber.length === 11 && cleanedNumber.startsWith('0')) {
+        // Quita el 0 y añade el 58. Ej: 04121234567 -> 584121234567
+        return '58' + cleanedNumber.substring(1);
+    }
+
+    // Si empieza con '580412', '580414', etc. (Formato +58 con el 0 del código de área)
+    if (cleanedNumber.length === 13 && cleanedNumber.startsWith('580')) {
+        // Quita el 0 después del 58. Ej: 5804121234567 -> 584121234567
+        return '58' + cleanedNumber.substring(3);
+    }
+    
+    // Si ya empieza con '58' y tiene 12 dígitos, ya está correcto. Ej: 584121234567
+    if (cleanedNumber.length === 12 && cleanedNumber.startsWith('58')) {
+        return cleanedNumber;
+    }
+    
+    // Si empieza con el código de área sin el 58. (Asumiendo 10 dígitos)
+    if (cleanedNumber.length === 10 && (cleanedNumber.startsWith('412') || cleanedNumber.startsWith('424') || cleanedNumber.startsWith('414') || cleanedNumber.startsWith('416') || cleanedNumber.startsWith('426'))) {
+        return '58' + cleanedNumber;
+    }
+
+    // Fallback: si no cumple el formato 58... pero está limpio y tiene al menos 10 dígitos
+    if (cleanedNumber.length >= 10) {
+        return cleanedNumber; 
+    }
+
+    return null; // Devuelve null si no es un número de teléfono válido/esperado
+}
+// ⭐️ FIN: FUNCIÓN DE NORMALIZACIÓN DEL NÚMERO DE WHATSAPP ⭐️
+
 
 exports.handler = async (event, context) => {
     // 🚨 TRAZA 0: Verificamos si la función empieza a ejecutarse.
@@ -129,7 +171,8 @@ exports.handler = async (event, context) => {
     
     let transactionData;
     let injectionMessage = "";
-    
+    let normalizedWhatsapp = null; // Inicializar la variable
+
     try {
         const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY, {
             auth: { persistSession: false },
@@ -167,6 +210,9 @@ exports.handler = async (event, context) => {
         }
         
         transactionData = transactions;
+        // ⭐️ NUEVO: Normalizar el número de WhatsApp ⭐️
+        normalizedWhatsapp = normalizeWhatsappNumber(transactionData.whatsappNumber);
+
         // Destructuramos la nueva variable y mantenemos las viejas por si acaso
         const { google_id, game, "finalPrice": finalPrice, currency, base_amount } = transactionData;
         
@@ -329,22 +375,40 @@ exports.handler = async (event, context) => {
         messageText += `📧 Correo Cliente: ${transactionData.email || 'N/A'}\n`;
         if (transactionData.whatsappNumber) { 
              messageText += `📱 WhatsApp Cliente: ${transactionData.whatsappNumber}\n`;
+             if (normalizedWhatsapp && normalizedWhatsapp !== transactionData.whatsappNumber) {
+                 messageText += `(Número normalizado: ${normalizedWhatsapp})\n`;
+             }
         }
 
 
         // 💡 CAMBIO 2: Lógica de generación del botón
         let replyMarkup = {};
+        const inlineKeyboard = []; // Usaremos un array para construir los botones
+
+        // 1. Botón de Marcar como REALIZADA (Solo si no fue automática)
         if (newStatus === 'CONFIRMADO') {
             console.log("TRAZA 13.5: Creando botón 'Marcar como REALIZADA' para producto pendiente.");
+            inlineKeyboard.push([{ 
+                text: '✅ Marcar como REALIZADA', 
+                callback_data: `mark_done_${invoiceID}` 
+            }]);
+        }
+        
+        // 2. Botón de WhatsApp (Si el número se normalizó correctamente)
+        if (normalizedWhatsapp) {
+            console.log("TRAZA 13.6: Creando botón de WhatsApp con número normalizado.");
+            const whatsappLink = `https://wa.me/${normalizedWhatsapp}`;
+            // Agregamos este botón en una nueva fila
+            inlineKeyboard.push([{ text: "💬 Contactar Cliente por WhatsApp", url: whatsappLink }]);
+        }
+
+        // 3. Ensamblar el replyMarkup si hay botones
+        if (inlineKeyboard.length > 0) {
             replyMarkup = {
-                inline_keyboard: [
-                    [{ 
-                        text: '✅ Marcar como REALIZADA', 
-                        callback_data: `mark_done_${invoiceID}` 
-                    }]
-                ]
+                inline_keyboard: inlineKeyboard
             };
         }
+
 
         const telegramApiUrl = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`;
         let telegramMessageResponse;
