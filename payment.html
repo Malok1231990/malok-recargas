@@ -367,7 +367,7 @@
     const finalizeBtn = document.getElementById('finalize-recharge-btn');
     const successMessageDisplay = document.getElementById('success-message-display');
     const paymentDetailsFormDiv = document.getElementById('payment-details-form');
-    const paymentMethodsDiv = document.getElementById('payment-methods'); // Asegurar que esta variable se usa
+    const paymentMethodsDiv = document.getElementById('payment-methods'); 
 
     // 3. FUNCIONES DE LÓGICA
     
@@ -939,16 +939,18 @@
         // 🎯 INICIO DEL CAMBIO CLAVE: Lógica para el flujo de pago con Wallet
         if (selectedPaymentMethod === 'wallet') {
             
-            // 🛑 CORRECCIÓN PRINCIPAL: CAMBIO DE CLAVE 'customSessionToken' A 'sessionToken'
-            const sessionToken = localStorage.getItem('sessionToken'); // ⭐️ CORRECCIÓN CLAVE ⭐️
+            const sessionToken = localStorage.getItem('sessionToken'); 
             
+            // 🛑 DIAGNÓSTICO CLAVE 1: Verificar la existencia del token justo antes de usarlo
             if (!sessionToken) {
+                console.error('DIAGNÓSTICO: sessionToken NO encontrado en localStorage. Deteniendo el pago.');
                 alert('Error: No se encontró la sesión activa (token Bearer). Por favor, inicia sesión de nuevo.');
                 finalizeBtn.disabled = false;
                 finalizeBtn.textContent = 'Finalizar Recarga';
                 return; 
             }
-            // 🛑 FIN CORRECCIÓN
+            console.log('DIAGNÓSTICO: Token de Sesión Encontrado. Longitud:', sessionToken.length);
+
 
             if (!finalPriceUSD || parseFloat(finalPriceUSD) <= 0) {
                 alert('Error: El monto de la transacción es inválido. Por favor, revisa tu carrito.');
@@ -956,16 +958,17 @@
             }
 
             finalizeBtn.disabled = true;
-            // 1. Llamar a la función para verificar saldo y deducir
             finalizeBtn.textContent = 'Deduciendo Saldo...';
-
+            
+            // 🛑 DIAGNÓSTICO CLAVE 2: Antes de la llamada de red
+            console.log(`DIAGNÓSTICO: Iniciando fetch a Netlify Function '/.netlify/functions/deduct-wallet-balance' con Token Bearer. Monto: ${finalPriceUSD}`);
+            
             try {
                 // 1. PAGO: Llamada a deduct-wallet-balance
                 const walletResponse = await fetch('/.netlify/functions/deduct-wallet-balance', { 
                     method: 'POST',
                     headers: { 
                         'Content-Type': 'application/json',
-                        // 🛑 CORRECCIÓN: Se añade el encabezado de autorización usando el token corregido
                         'Authorization': `Bearer ${sessionToken}` 
                     },
                     body: JSON.stringify({
@@ -976,9 +979,13 @@
                     })
                 });
 
+                // 🛑 DIAGNÓSTICO CLAVE 3: Después de la respuesta de red
+                console.log('DIAGNÓSTICO: Respuesta de Netlify Function recibida. Estado:', walletResponse.status);
+
                 if (walletResponse.ok) {
                     // 2. ÉXITO EN EL PAGO: Ahora llamar a process-payment (Notificación a Telegram)
                     finalizeBtn.textContent = 'Enviando Notificación...';
+                    console.log('DIAGNÓSTICO: Deducción exitosa. Procediendo a notificar el pago.');
 
                     // a. Preparar FormData para la función process-payment (simulando formulario)
                     const processFormData = new FormData();
@@ -1014,6 +1021,8 @@
                         successMessageDisplay.style.display = 'block';
                         localStorage.removeItem('transactionDetails');
                         localStorage.removeItem('cartItems'); 
+                        console.log('DIAGNÓSTICO: Notificación exitosa. Redirigiendo.');
+
 
                         setTimeout(() => {
                             window.location.href = 'index.html';
@@ -1023,7 +1032,7 @@
                         // 3. ÉXITO PARCIAL (Pago OK, Notificación fallida)
                         const errorData = await processPaymentResponse.json();
                         alert(`¡Pago con Wallet exitoso, pero falló la notificación automática! Por favor, contacta a soporte con tu email (${emailInput.value.trim()}) para confirmar tu pedido y envíanos la captura de tu pedido en Telegram.\nError: ${errorData.message || 'Error desconocido'}`);
-                        console.error('Process Payment (Telegram) error after successful Wallet deduction:', errorData);
+                        console.error('DIAGNÓSTICO: Process Payment (Telegram) error after successful Wallet deduction:', errorData);
 
                         // Se considera éxito para el usuario, se limpia storage y se redirige
                         localStorage.removeItem('transactionDetails');
@@ -1049,13 +1058,14 @@
                          alert(`Error en el pago con Wallet: ${errorMessage}.`);
                     }
                     
-                    console.error('Wallet deduction error:', errorData);
+                    console.error('DIAGNÓSTICO: Wallet deduction error (Status:', walletResponse.status, '):', errorData);
                     finalizeBtn.disabled = false;
                     finalizeBtn.textContent = 'Finalizar Recarga';
                 }
             } catch (error) {
-                alert('Hubo un problema de conexión al intentar pagar con Wallet.');
-                console.error('Wallet network error:', error);
+                // 🛑 DIAGNÓSTICO CLAVE 4: Error de red o promesa fallida
+                alert('Hubo un problema de conexión al intentar pagar con Wallet. Revisa la consola para el error de red.');
+                console.error('DIAGNÓSTICO: Wallet network error:', error);
                 finalizeBtn.disabled = false;
                 finalizeBtn.textContent = 'Finalizar Recarga';
             }
