@@ -70,11 +70,11 @@ exports.handler = async (event, context) => {
             let emailCliente = null; 
 
             try {
-                // 2. BUSCAR LA TRANSACCIÓN
+                // 2. BUSCAR LA TRANSACCIÓN (SELECCIONANDO LA COLUMNA 'email' de transactions)
                 console.log(`LOG: Buscando datos de transacción ${transactionId} en 'transactions'.`);
                 const { data: transactionData, error: fetchError } = await supabase
                     .from('transactions')
-                    .select('status, google_id, "finalPrice", currency, game, "cartDetails"') 
+                    .select('status, google_id, "finalPrice", currency, game, "cartDetails", email') 
                     .eq('id_transaccion', transactionId)
                     .maybeSingle();
 
@@ -90,16 +90,18 @@ exports.handler = async (event, context) => {
                     "finalPrice": finalPrice, 
                     currency,
                     game,
-                    "cartDetails": productDetails
+                    "cartDetails": productDetails,
+                    email: transactionEmail // OBTENEMOS EL EMAIL DIRECTO DE LA TRANSACCIÓN
                 } = transactionData;
                 
-                console.log(`LOG: Transacción encontrada. Google ID asociado: ${google_id}. Estado actual: ${currentStatus}.`);
+                // INICIALIZAMOS emailCliente con el email de la transacción (fuente principal)
+                emailCliente = transactionEmail; 
+
+                console.log(`LOG: Transacción encontrada. Google ID: ${google_id}. Email en transac.: ${emailCliente || 'Nulo'}. Estado: ${currentStatus}.`);
                 
-                // 2.1. BUSCAR EMAIL DEL USUARIO USANDO GOOGLE_ID
-                if (!google_id) {
-                    console.warn(`WARN: google_id es nulo o vacío para la transacción ${transactionId}. Saltando búsqueda de email.`);
-                } else {
-                    console.log(`LOG: Buscando email para google_id: ${google_id} en tabla 'usuarios'.`);
+                // 2.1. BÚSQUEDA SECUNDARIA: SOLO SI EL EMAIL DE LA TRANSACCIÓN ES NULO Y HAY GOOGLE_ID
+                if (!emailCliente && google_id) {
+                    console.warn(`WARN: Email en transacción es nulo. Intentando buscar en tabla 'usuarios' usando google_id: ${google_id}.`);
                     const { data: userData, error: userError } = await supabase
                         .from('usuarios')
                         .select('email')
@@ -110,10 +112,12 @@ exports.handler = async (event, context) => {
                         console.error(`ERROR DB: Fallo al buscar el email del usuario ${google_id}. Mensaje: ${userError.message}`);
                     } else if (userData && userData.email) {
                         emailCliente = userData.email;
-                        console.log(`LOG: ✅ Email de cliente encontrado: ${emailCliente}`);
+                        console.log(`LOG: ✅ Email de cliente encontrado (vía usuarios): ${emailCliente}`);
                     } else {
                         console.warn(`WARN: El google_id ${google_id} NO tiene registro en la tabla 'usuarios'.`);
                     }
+                } else if (!emailCliente) {
+                    console.warn(`WARN: Email en transacción es nulo y google_id es nulo. No se intentó búsqueda secundaria.`);
                 }
                 
                 const IS_WALLET_RECHARGE = game === 'Recarga de Saldo';
@@ -123,7 +127,10 @@ exports.handler = async (event, context) => {
                 let injectionMessage = ""; 
                 let updateDBSuccess = true; 
 
-                // --- (El resto de la lógica de inyección y actualización permanece igual) ---
+
+                // -------------------------------------------------------------
+                // 3. LÓGICA DE INYECCIÓN CONDICIONAL (sin cambios)
+                // -------------------------------------------------------------
                 
                 if (currentStatus === NEW_STATUS) {
                     injectionMessage = "\n\n⚠️ <b>NOTA:</b> La transacción ya estaba en estado 'REALIZADA'. El saldo no fue inyectado de nuevo.";
@@ -195,7 +202,7 @@ exports.handler = async (event, context) => {
                     }
                 }
                 
-                // 5.5. 📧 LÓGICA DE ENVÍO DE CORREO DE FACTURA (USO DE emailCliente)
+                // 5.5. 📧 LÓGICA DE ENVÍO DE CORREO DE FACTURA
                 if (currentStatus !== NEW_STATUS && updateDBSuccess) {
                     console.log(`LOG: Preparando envío de email. Email cliente: ${emailCliente || 'NO ENCONTRADO'}.`);
 
