@@ -263,9 +263,12 @@
                 <div class="form-section-step">
                     <h3>Paso 3: Información de Contacto para Notificaciones</h3>
                     <div class="input-group">
-                        <label for="email">Correo Electrónico (Para notificaciones y factura):</label>
-                        <input type="email" id="email" name="email" placeholder="tu_correo@ejemplo.com" required>
-                    </div>
+                        <label>Correo Electrónico (Para notificaciones y factura):</label>
+                        <p id="displayed-user-email" style="font-weight: bold; padding: 10px; border: 1px solid var(--border-color); border-radius: 5px; background-color: var(--input-background); color: var(--text-color);">
+                            Cargando correo de sesión...
+                        </p>
+                        <input type="hidden" id="email" name="email" required>
+                        </div>
 
                     <div class="input-group">
                         <label for="whatsappNumber">Número de WhatsApp (Para contacto):</label>
@@ -424,6 +427,54 @@
     // 3. FUNCIONES DE LÓGICA
     
     /**
+     * 🎯 NUEVA FUNCIÓN CLAVE: Carga el correo del usuario logueado.
+     * Asume que el objeto de usuario está en localStorage bajo la clave 'user' y tiene una propiedad 'email'.
+     */
+    function loadUserEmailFromSession() {
+        const emailInput = document.getElementById('email'); // Campo hidden
+        const displayedEmail = document.getElementById('displayed-user-email'); // Párrafo de visualización
+        // ⚠️ ATENCIÓN: Asumo que el email de sesión está guardado como JSON bajo la clave 'user'
+        const userJson = localStorage.getItem('user'); 
+
+        if (!emailInput || !displayedEmail) {
+            console.error("Elementos de correo (hidden input o display) no encontrados en el DOM.");
+            return;
+        }
+
+        if (userJson) {
+            try {
+                const userData = JSON.parse(userJson);
+                const userEmail = userData.email; 
+
+                if (userEmail) {
+                    // 1. Asignar al campo oculto para el envío del formulario
+                    emailInput.value = userEmail;
+                    // 2. Mostrar al usuario
+                    displayedEmail.textContent = userEmail;
+                    console.log("Correo de sesión cargado exitosamente.");
+                    
+                    // Llama a checkFormValidity para actualizar el estado del botón
+                    checkFormValidity();
+                } else {
+                    displayedEmail.textContent = "Error: El correo no se encontró en los datos de la sesión (Propiedad 'email' faltante).";
+                    console.error("Propiedad 'email' no encontrada en el objeto de usuario de localStorage.");
+                    emailInput.value = ''; // Asegurar que el campo oculto esté vacío
+                }
+            } catch (e) {
+                displayedEmail.textContent = "Error: Formato de sesión inválido. Vuelve a iniciar sesión.";
+                console.error("Error al parsear el JSON de usuario de localStorage:", e);
+                emailInput.value = ''; // Asegurar que el campo oculto esté vacío
+            }
+        } else {
+            displayedEmail.textContent = "Error: Sesión de usuario ('user') no encontrada. Por favor, inicia sesión.";
+            console.warn("Objeto de usuario ('user') no encontrado en localStorage.");
+            // Si no hay sesión, aseguramos que el campo oculto esté vacío
+            emailInput.value = '';
+        }
+    }
+
+    
+    /**
      * 🔐 NUEVA FUNCIÓN CLAVE: Verifica si existe un token de sesión activo.
      * Si no lo hay, redirige a login.html, guardando la URL actual para volver.
      * @returns {boolean} True si la sesión es válida, False si redirige.
@@ -575,7 +626,8 @@
         const whatsappLink = document.querySelector('.whatsapp-link');
         const email = document.getElementById('email') ? document.getElementById('email').value.trim() : '';
         const whatsappNumber = document.getElementById('whatsappNumber') ? document.getElementById('whatsappNumber').value.trim() : '';
-        const isEmailValid = document.getElementById('email') ? document.getElementById('email').checkValidity() : false;
+        // 🎯 MODIFICADO: Ya no verificamos checkValidity() en el email (es hidden), solo que no esté vacío.
+        const isEmailValid = email !== ''; 
         
         if (whatsappLink && email && isEmailValid && whatsappNumber && transactionDetails && transactionDetails.finalPrice) {
             
@@ -924,9 +976,11 @@
         
         const emailInput = document.getElementById('email');
         const whatsappInput = document.getElementById('whatsappNumber');
-
-        const isEmailFilled = emailInput && emailInput.value.trim() !== '';
-        const isEmailValid = emailInput && emailInput.checkValidity();
+        
+        // 🎯 MODIFICADO: Solo verificamos que el campo oculto tenga un valor
+        const isEmailFilled = emailInput && emailInput.value.trim() !== ''; 
+        // 🎯 MODIFICADO: Ya no es necesaria la validación nativa .checkValidity()
+        const isEmailValid = isEmailFilled; 
 
         const isWhatsappFilled = whatsappInput && whatsappInput.value.trim() !== '';
 
@@ -1039,8 +1093,15 @@
             // Mover los listeners de los campos de contacto aquí para que estén activos siempre
             const emailInput = document.getElementById('email');
             const whatsappInput = document.getElementById('whatsappNumber');
-            if (emailInput) emailInput.addEventListener('input', checkFormValidity);
+            
+            // 🎯 MODIFICACIÓN SOLICITADA: ELIMINAR el listener del email ya que se auto-rellena
+            // if (emailInput) emailInput.addEventListener('input', checkFormValidity);
+            
             if (whatsappInput) whatsappInput.addEventListener('input', checkFormValidity);
+            
+            // 🎯 INICIO MODIFICACIÓN SOLICITADA: Cargar el correo de la sesión
+            loadUserEmailFromSession(); 
+            // 🎯 FIN MODIFICACIÓN SOLICITADA
 
             updateTransactionSummary(); // Esto calcula los totales y los adjunta a transactionDetails
             
@@ -1084,9 +1145,10 @@
         const whatsappInput = document.getElementById('whatsappNumber');
         
         // Validaciones de campos de contacto (universales)
-        if (!emailInput || emailInput.value.trim() === '' || !emailInput.checkValidity()) {
-            alert('Por favor, ingresa un correo electrónico válido para recibir notificaciones.');
-            emailInput.focus();
+        // 🎯 MODIFICACIÓN SOLICITADA: Ajustar la validación para el campo oculto
+        if (!emailInput || emailInput.value.trim() === '' || emailInput.value.trim().toLowerCase().includes('cargando correo de sesión')) {
+            alert('Error: No se pudo obtener tu correo electrónico de la sesión. Por favor, intenta cerrar y volver a iniciar sesión.');
+            // No podemos usar focus() en un campo hidden
             return;
         }
         
@@ -1403,7 +1465,55 @@
         }
     });
 
-// ... (código previo del script de payment.html)
+// 🚩 INICIO DE LA NUEVA FUNCIÓN SOLICITADA 🚩
+
+    /**
+     * 🎯 NUEVA FUNCIÓN CLAVE: Carga el correo del usuario logueado.
+     * Asume que el objeto de usuario está en localStorage bajo la clave 'user' y tiene una propiedad 'email'.
+     */
+    function loadUserEmailFromSession() {
+        const emailInput = document.getElementById('email'); // Campo hidden
+        const displayedEmail = document.getElementById('displayed-user-email'); // Párrafo de visualización
+        // ⚠️ ATENCIÓN: Asumo que el email de sesión está guardado como JSON bajo la clave 'user'
+        const userJson = localStorage.getItem('user'); 
+
+        if (!emailInput || !displayedEmail) {
+            console.error("Elementos de correo (hidden input o display) no encontrados en el DOM.");
+            return;
+        }
+
+        if (userJson) {
+            try {
+                const userData = JSON.parse(userJson);
+                const userEmail = userData.email; 
+
+                if (userEmail) {
+                    // 1. Asignar al campo oculto para el envío del formulario
+                    emailInput.value = userEmail;
+                    // 2. Mostrar al usuario
+                    displayedEmail.textContent = userEmail;
+                    console.log("Correo de sesión cargado exitosamente.");
+                    
+                    // Llama a checkFormValidity para actualizar el estado del botón
+                    checkFormValidity();
+                } else {
+                    displayedEmail.textContent = "Error: El correo no se encontró en los datos de la sesión (Propiedad 'email' faltante).";
+                    console.error("Propiedad 'email' no encontrada en el objeto de usuario de localStorage.");
+                    emailInput.value = ''; // Asegurar que el campo oculto esté vacío
+                }
+            } catch (e) {
+                displayedEmail.textContent = "Error: Formato de sesión inválido. Vuelve a iniciar sesión.";
+                console.error("Error al parsear el JSON de usuario de localStorage:", e);
+                emailInput.value = ''; // Asegurar que el campo oculto esté vacío
+            }
+        } else {
+            displayedEmail.textContent = "Error: Sesión de usuario ('user') no encontrada. Por favor, inicia sesión.";
+            console.warn("Objeto de usuario ('user') no encontrado en localStorage.");
+            // Si no hay sesión, aseguramos que el campo oculto esté vacío
+            emailInput.value = '';
+        }
+    }
+// 🚩 FIN DE LA NUEVA FUNCIÓN SOLICITADA 🚩
 
     // 🚩 INICIO DE LA MODIFICACIÓN SOLICITADA 🚩
 
