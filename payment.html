@@ -1370,6 +1370,35 @@
             finalizeBtn.textContent = 'Finalizar Recarga';
         }
     });
+
+    // 🚩 INICIO DE LA MODIFICACIÓN SOLICITADA 🚩
+
+    /**
+     * Lógica para reiniciar el contador y vaciar el carrito 
+     * si el usuario navega fuera de payment.html (al usar la flecha
+     * atrás o al hacer clic en un enlace como index.html o products.html).
+     */
+    window.addEventListener('unload', function (e) {
+        // Verificar si el mensaje de éxito ya se mostró. Si es así, no limpiamos.
+        // Esto evita borrar el carrito si el usuario está siendo redirigido después de un pago exitoso.
+        const paymentCompleted = successMessageDisplay.style.display === 'block';
+
+        if (!paymentCompleted) {
+            // Vacía las claves que guardan el estado de la transacción y el temporizador.
+            localStorage.removeItem('transactionDetails'); // Vacía los detalles de la transacción
+            localStorage.removeItem('cartItems'); // Vacía el carrito
+            localStorage.removeItem('paymentStartTime'); // Reinicia el contador/temporizador
+            
+            // Detener el intervalo del temporizador si está activo
+            if (timerInterval) {
+                clearInterval(timerInterval);
+            }
+            console.log("Sesión de pago incompleta limpiada debido a navegación fuera de la página.");
+        }
+    });
+
+    // 🚩 FIN DE LA MODIFICACIÓN SOLICITADA 🚩
+
 </script>
 </body>
 </html>
