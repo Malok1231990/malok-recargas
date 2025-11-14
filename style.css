@@ -895,34 +895,61 @@ footer p {
 
 /* Responsive Design */
 @media (max-width: 768px) {
+    /* *** INICIO DE LA CORRECCIÓN PARA REDUCIR LA BARRA SUPERIOR EN MÓVIL *** */
+    /* 1. Ajuste General del Header */
     header {
+        /* Mantenemos la dirección de columna para que el logo
+           y el resto de los elementos (header-right) se apilen (Logo arriba, contenido abajo). */
         flex-direction: column;
         gap: 15px;
-        padding: 15px; /* Ajuste para que tenga espacio a los lados */
+        padding: 15px; 
     }
 
+    /* 2. Modificación Clave: Alinear Elementos a la Derecha en una Fila (con envoltura) */
     .header-right {
-        flex-direction: column;
+        /* CAMBIO CLAVE: Volvemos a 'row' para que intenten estar en la misma línea */
+        flex-direction: row; 
+        /* Permitimos que se envuelvan si no caben */
+        flex-wrap: wrap; 
         width: 100%;
-        max-width: 350px; /* Limitar el ancho máximo para centrar mejor en pantallas pequeñas */
-        margin: 0 auto; /* Centrar en pantallas pequeñas */
+        /* Usamos space-between para distribuir los grupos de elementos */
+        justify-content: space-between; 
+        align-items: center; /* Alineación vertical en el centro */
+        max-width: none; /* Eliminar restricción de ancho para que ocupe el 100% */
+        margin: 0; /* Eliminar margen auto */
         gap: 12px;
     }
-
-    .search-bar, .custom-currency-selector {
-        width: 100%; /* Asegurar que ocupen todo el ancho de su contenedor (.header-right) */
-        max-width: none; /* Eliminar el max-width anterior si causa problemas aquí */
+    
+    /* 3. Asegurar que la barra de búsqueda ocupe una fila completa */
+    .search-bar {
+        width: 100%; /* Ocupa todo el ancho */
+        order: 1; /* La colocamos en la primera fila de header-right */
     }
 
     .search-bar input {
         width: 100%;
-        padding: 10px 15px 10px 40px; /* Asegurar padding izquierdo para el ícono */
-        box-sizing: border-box; /* Para incluir padding en el 100% de ancho */
+        padding: 10px 15px 10px 40px; 
+        box-sizing: border-box; 
     }
-
+    
+    /* 4. Asegurar que los elementos clave (Billetera, Moneda, Carrito, Auth) se agrupen */
+    .wallet-container, 
+    .custom-currency-selector, 
+    .cart-icon, 
+    .auth-dropdown {
+        order: 2; /* Estos elementos van en la segunda fila */
+        width: auto; /* Permite que se ajusten a su contenido */
+        flex-shrink: 0; 
+    }
+    
+    /* Ajuste para el selector de moneda para que se expanda un poco si hay espacio */
     .custom-currency-selector {
-        min-width: unset; /* Permitir que se ajuste al contenido si es necesario */
+        min-width: unset; 
+        flex-grow: 1;
+        max-width: 150px; /* Limitar para que no tome todo el espacio si solo hay 2 elementos */
     }
+    
+    /* *** FIN DE LA CORRECCIÓN PARA REDUCIR LA BARRA SUPERIOR EN MÓVIL *** */
 
     .hero {
         padding: 40px 15px;
