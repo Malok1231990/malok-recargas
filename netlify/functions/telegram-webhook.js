@@ -203,103 +203,41 @@ exports.handler = async (event, context) => {
                     }
                 }
                 
-                // 5.5. 📧 LÓGICA DE ENVÍO DE CORREO DE FACTURA
+                // 5.5. 📧 LÓGICA DE ENVÍO DE CORREO DE FACTURA (SIMPLIFICADA)
                 if (currentStatus !== NEW_STATUS && updateDBSuccess) {
-                    console.log(`LOG: Preparando envío de email. Email cliente: ${emailCliente || 'NO ENCONTRADO'}.`);
+                    console.log(`LOG: Preparando envío de email simplificado. Email cliente: ${emailCliente || 'NO ENCONTRADO'}.`);
 
                     if (emailCliente) {
-                        const invoiceSubject = `✅ Factura de Pedido #${transactionId} - ${game}`;
+                        const invoiceSubject = `✅ ¡Pedido Entregado! Factura #${transactionId} - ${game}`;
                         
-                        
-                        // 🚀 INICIO DE LA MODIFICACIÓN CLAVE PARA MOSTRAR MÚLTIPLES PRODUCTOS (Basado en process-payment.js)
-                        let parsedCartItems = [];
-                        try {
-                            // Si el campo es de texto en DB, necesitamos parsearlo. Si es JSONB, ya debería ser un objeto/array JS.
-                            // Se añade la validación de que inicie con '[' por si el campo contiene texto que no es JSON.
-                            if (typeof productDetails === 'string' && productDetails.trim().startsWith('[')) {
-                                parsedCartItems = JSON.parse(productDetails);
-                            } else if (productDetails) {
-                                // Si ya es un objeto/array (por ser JSONB en Supabase o ya parseado), úsalo directamente.
-                                parsedCartItems = productDetails; 
-                            }
-                            // Aseguramos que sea un array para la iteración.
-                            parsedCartItems = Array.isArray(parsedCartItems) ? parsedCartItems : (productDetails ? [productDetails] : []);
-
-                        } catch (e) {
-                            console.error("ERROR: Fallo al parsear cartDetails/productDetails para el correo:", e.message);
-                            // Fallback en caso de error de parseo, intentando usar lo que sea que se obtuvo
-                            parsedCartItems = productDetails ? (Array.isArray(productDetails) ? productDetails : [productDetails]) : [];
-                        }
-
-                        let productDetailHtml = '';
-                        const cartItems = parsedCartItems; // Usamos el array asegurado
-
-                        if (cartItems.length > 0) {
-                            cartItems.forEach((item, index) => {
-                                let playerInfoEmail = '';
-                                let gameName = item.game || 'Servicio';
-                                let packageName = item.packageName || 'Paquete Desconocido';
-                                
-                                // Construcción de detalles específicos (como en process-payment.js)
-                                if (gameName === 'Roblox') {
-                                    playerInfoEmail = `
-                                        <li><strong>Correo de Roblox:</strong> ${item.robloxEmail || 'N/A'}</li>
-                                        <li><strong>Contraseña de Roblox:</strong> ${item.robloxPassword || 'N/A'}</li>
-                                    `;
-                                } else if (gameName === 'Call of Duty Mobile') {
-                                    playerInfoEmail = `
-                                        <li><strong>Correo de CODM:</strong> ${item.codmEmail || 'N/A'}</li>
-                                        <li><strong>Contraseña de CODM:</strong> ${item.codmPassword || 'N/A'}</li>
-                                        <li><strong>Vinculación de CODM:</strong> ${item.codmVinculation || 'N/A'}</li>
-                                    `;
-                                } else if (gameName === 'Recarga de Saldo' && item.google_id) { 
-                                    playerInfoEmail = `
-                                        <li><strong>ID de Google (Billetera):</strong> ${item.google_id}</li>
-                                        <li><strong>Monto de Recarga (Paquete):</strong> ${packageName}</li>
-                                    `;
-                                } else {
-                                    playerInfoEmail = item.playerId ? `<li><strong>ID de Jugador:</strong> ${item.playerId}</li>` : '';
-                                }
-                                
-                                // Mostrar precio individual (si está disponible)
-                                const itemPrice = item.currency === 'VES' ? item.priceVES : item.priceUSD;
-                                const itemCurrency = item.currency || 'USD';
-                                if (itemPrice) {
-                                    playerInfoEmail += `<li><strong>Precio (Est.):</strong> ${parseFloat(itemPrice).toFixed(2)} ${itemCurrency}</li>`;
-                                }
-
-                                // Agregando el bloque de producto al HTML final
-                                productDetailHtml += `
-                                    <div style="border: 1px solid #ddd; padding: 10px; margin-bottom: 10px; border-radius: 5px;">
-                                        <p style="margin-top: 0;"><strong>Producto ${index + 1}: ${gameName}</strong></p>
-                                        <ul style="list-style: none; padding: 0; margin: 0;">
-                                            <li><strong>Paquete:</strong> ${packageName}</li>
-                                            ${playerInfoEmail}
-                                        </ul>
-                                    </div>
-                                `;
-                            });
-                        } else {
-                            productDetailHtml = '<div>No se pudieron recuperar los detalles completos de los productos.</div>';
-                        }
+                        // 🚀 MODIFICACIÓN CLAVE: Mensaje de confirmación fijo y formal
+                        const productDetailHtml = `
+                            <p style="font-size: 1.1em; color: #007bff; font-weight: bold;">
+                                Le confirmamos que todos los productos de su pedido han sido procesados y entregados con éxito.
+                            </p>
+                            <p>Puede verificar el estado de su cuenta o billetera.</p>
+                        `;
                         // 🔚 FIN DE LA MODIFICACIÓN CLAVE
-
+                        
                         const invoiceBody = `
                             <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
                                 <h2 style="color: #28a745;">✅ Transacción REALIZADA y Confirmada</h2>
-                                <p>¡Hola! Tu pedido <b>${transactionId}</b> ha sido procesado con éxito y marcado como <b>REALIZADO</b> por el operador.</p>
+                                <p>Estimado/a cliente,</p>
+                                <p>Su pedido <b>${transactionId}</b> ha sido procesado con éxito y marcado como <b>REALIZADO</b> por nuestro operador.</p>
+                                <hr style="border-top: 1px solid #eee;"/>
+                                <h3 style="color: #007bff;">Mensaje de Entrega:</h3>
+                                ${productDetailHtml}
                                 <hr style="border-top: 1px solid #eee;"/>
                                 <h3 style="color: #007bff;">Resumen de la Factura:</h3>
                                 <ul style="list-style: none; padding: 0;">
                                     <li style="margin-bottom: 5px;"><b>ID Transacción:</b> <code>${transactionId}</code></li>
-                                    <li style="margin-bottom: 5px;"><b>Producto/Servicio Principal:</b> ${game}</li>
+                                    <li style="margin-bottom: 5px;"><b>Servicio Principal:</b> ${game}</li>
                                     <li style="margin-bottom: 5px;"><b>Monto Total Pagado:</b> <b>${parseFloat(finalPrice).toFixed(2)} ${currency}</b></li>
                                     <li style="margin-bottom: 5px;"><b>Monto Inyectado (si aplica):</b> ${IS_WALLET_RECHARGE ? `$${amountToInject.toFixed(2)} USD` : 'N/A'}</li>
                                 </ul>
-                                <hr style="border-top: 1px solid #eee;"/>
-                                <h3 style="color: #007bff;">Detalles de los Productos:</h3>
-                                ${productDetailHtml}
-                                <p style="margin-top: 20px; font-size: 0.9em; color: #999;"><i>Este es un correo automático de confirmación de servicio.</i></p>
+                                
+                                <p style="margin-top: 20px;">Gracias por su preferencia.</p>
+                                <p style="font-size: 0.9em; color: #999;"><i>Este es un correo automático de confirmación de servicio.</i></p>
                             </div>
                         `;
 
@@ -307,7 +245,7 @@ exports.handler = async (event, context) => {
                         const emailSent = await sendInvoiceEmail(transactionId, emailCliente, invoiceSubject, invoiceBody);
                         
                         if (emailSent) {
-                            injectionMessage += `\n\n📧 <b>CORREO ENVIADO:</b> Factura enviada a <code>${emailCliente}</code>.`;
+                            injectionMessage += `\n\n📧 <b>CORREO ENVIADO:</b> Factura simplificada enviada a <code>${emailCliente}</code>.`;
                         } else {
                             injectionMessage += `\n\n⚠️ <b>ERROR DE CORREO:</b> No se pudo enviar la factura. Revisar logs SMTP.`;
                         }
