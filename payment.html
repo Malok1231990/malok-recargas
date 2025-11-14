@@ -990,38 +990,6 @@
         }
         // 🛑 FIN DE NUEVA LÓGICA DE PLISIO
 
-        // 🚩 INICIO DE LA MODIFICACIÓN PARA REDIRECCIÓN DE LOGIN 🚩
-        const toggleLoginBtn = document.getElementById('toggle-login-btn');
-        const authDisplayNameLink = document.getElementById('auth-display-name');
-        const googleLoginContainer = document.getElementById('google-login-btn');
-    
-        /**
-         * Guarda la URL actual en localStorage para que el script de login pueda 
-         * redirigir al usuario de vuelta a la página de pago después de iniciar sesión.
-         */
-        const setRedirectUrl = () => {
-            // Guardamos solo la URL base, sin hash ni query params de Plisio/etc.
-            const currentUrl = window.location.href.split(/[?#]/)[0]; 
-            localStorage.setItem('postLoginRedirect', currentUrl);
-            console.log('URL de redirección post-login guardada:', currentUrl);
-        };
-    
-        // Atar el evento a los elementos que inician el flujo de login
-        // Opción 1: Botón que abre el dropdown (por si inicia el flujo al abrir)
-        if (toggleLoginBtn) {
-            toggleLoginBtn.addEventListener('click', setRedirectUrl);
-        }
-        
-        // Opción 2: El enlace "Iniciar Sesión" dentro del dropdown
-        if (authDisplayNameLink && authDisplayNameLink.textContent.trim() === 'Iniciar Sesión') {
-            authDisplayNameLink.addEventListener('click', setRedirectUrl);
-        }
-        
-        // Opción 3: El contenedor del botón de Google (por si es dinámico y necesita el evento en el contenedor)
-        if (googleLoginContainer) {
-            googleLoginContainer.addEventListener('click', setRedirectUrl);
-        }
-        // 🚩 FIN DE LA MODIFICACIÓN PARA REDIRECCIÓN DE LOGIN 🚩
         
         const storedDetails = localStorage.getItem('transactionDetails');
         if (storedDetails) {
@@ -1403,7 +1371,7 @@
         }
     });
 
-    // 🚩 INICIO DE LA MODIFICACIÓN SOLICITADA (LÓGICA DE LIMPIEZA) 🚩
+    // 🚩 INICIO DE LA MODIFICACIÓN SOLICITADA 🚩
 
     /**
      * Lógica para reiniciar el contador y vaciar el carrito 
@@ -1429,7 +1397,7 @@
         }
     });
 
-    // 🚩 FIN DE LA MODIFICACIÓN SOLICITADA (LÓGICA DE LIMPIEZA) 🚩
+    // 🚩 FIN DE LA MODIFICACIÓN SOLICITADA 🚩
 
 </script>
 </body>
