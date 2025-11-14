@@ -262,11 +262,11 @@
                 
                 <div class="form-section-step">
                     <h3>Paso 3: Información de Contacto para Notificaciones</h3>
-                    
-                    <div class="input-group" style="display: none;"> 
+                    <div class="input-group">
                         <label for="email">Correo Electrónico (Para notificaciones y factura):</label>
-                        <input type="email" id="email" name="email" value="" required>
+                        <input type="email" id="email" name="email" placeholder="tu_correo@ejemplo.com" required>
                     </div>
+
                     <div class="input-group">
                         <label for="whatsappNumber">Número de WhatsApp (Para contacto):</label>
                         <input type="tel" id="whatsappNumber" name="whatsappNumber" placeholder="Ej: 584121234567" required>
@@ -573,13 +573,11 @@
         if (!isAssistedFlow()) return;
 
         const whatsappLink = document.querySelector('.whatsapp-link');
-        // 🛑 CAMBIO: Obtener el valor del campo hidden/variable cargada
-        const email = document.getElementById('email') ? document.getElementById('email').value.trim() : ''; 
+        const email = document.getElementById('email') ? document.getElementById('email').value.trim() : '';
         const whatsappNumber = document.getElementById('whatsappNumber') ? document.getElementById('whatsappNumber').value.trim() : '';
-        // 🛑 CAMBIO: El email ahora solo necesita estar "lleno" (cargado automáticamente)
-        const isEmailFilled = email !== ''; 
+        const isEmailValid = document.getElementById('email') ? document.getElementById('email').checkValidity() : false;
         
-        if (whatsappLink && isEmailFilled && whatsappNumber && transactionDetails && transactionDetails.finalPrice) {
+        if (whatsappLink && email && isEmailValid && whatsappNumber && transactionDetails && transactionDetails.finalPrice) {
             
             let message = `¡Hola! Quiero confirmar mi pedido de recarga.\n\n*Pedido Asistido:*\n`;
             
@@ -918,7 +916,6 @@
     /**
      * @MODIFICADO: Verifica la validez del formulario y habilita/deshabilita los botones.
      * Ahora incluye la excepción para 'binance', 'binance-id' y 'wallet'.
-     * 🛑 CAMBIO CLAVE: La validación de email ahora solo verifica que el input HIDDEN exista y tenga un valor.
      */
     function checkFormValidity() {
         const selectedRadio = document.querySelector('input[name="paymentMethod"]:checked');
@@ -927,9 +924,9 @@
         
         const emailInput = document.getElementById('email');
         const whatsappInput = document.getElementById('whatsappNumber');
-        
-        // 🛑 CAMBIO CLAVE: Validación simplificada del email (se asume cargado)
-        const isEmailFilledAndValid = emailInput && emailInput.value.trim() !== ''; 
+
+        const isEmailFilled = emailInput && emailInput.value.trim() !== '';
+        const isEmailValid = emailInput && emailInput.checkValidity();
 
         const isWhatsappFilled = whatsappInput && whatsappInput.value.trim() !== '';
 
@@ -955,8 +952,8 @@
         
         // Lógica para el botón de FINALIZAR RECARGA (flujo normal)
         if (!isAssistedFlow()) { 
-            // Se habilita si: hay método, detalles OK, email lleno/válido (automático), y whatsapp lleno
-            finalizeBtn.disabled = !(isMethodSelected && areDetailsFilled && isEmailFilledAndValid && isWhatsappFilled);
+            // Se habilita si: hay método, detalles OK, email lleno/válido, y whatsapp lleno
+            finalizeBtn.disabled = !(isMethodSelected && areDetailsFilled && isEmailFilled && isEmailValid && isWhatsappFilled);
         } else {
             // Lógica para el botón de WHATSAPP (flujo asistido)
             updateWhatsAppLink();
@@ -1042,16 +1039,7 @@
             // Mover los listeners de los campos de contacto aquí para que estén activos siempre
             const emailInput = document.getElementById('email');
             const whatsappInput = document.getElementById('whatsappNumber');
-            
-            // 🛑 CAMBIO CLAVE: Asignar un valor de email (asumiendo que viene de una función externa/sesión)
-            // ESTA LÍNEA DEBE SER IMPLEMENTADA EN EL BACKEND REAL. AQUÍ SOLO SE SIMULA.
-            // Para la simulación, vamos a asumir que el email está en localStorage como 'userEmail'
-            const userEmailFromDB = localStorage.getItem('userEmail') || 'usuario.logueado@malok.com'; 
-            if (emailInput) {
-                emailInput.value = userEmailFromDB;
-                // El listener de email ahora solo se usa para checkFormValidity (que fue modificado)
-                emailInput.addEventListener('input', checkFormValidity); 
-            }
+            if (emailInput) emailInput.addEventListener('input', checkFormValidity);
             if (whatsappInput) whatsappInput.addEventListener('input', checkFormValidity);
 
             updateTransactionSummary(); // Esto calcula los totales y los adjunta a transactionDetails
@@ -1095,9 +1083,10 @@
         const emailInput = document.getElementById('email');
         const whatsappInput = document.getElementById('whatsappNumber');
         
-        // 🛑 CAMBIO CLAVE: Validaciones de campos de contacto (solo WhatsApp, ya que email es automático)
-        if (!emailInput || emailInput.value.trim() === '') {
-            alert('Error interno: No se pudo obtener tu correo electrónico de la sesión. Por favor, inicia sesión de nuevo.');
+        // Validaciones de campos de contacto (universales)
+        if (!emailInput || emailInput.value.trim() === '' || !emailInput.checkValidity()) {
+            alert('Por favor, ingresa un correo electrónico válido para recibir notificaciones.');
+            emailInput.focus();
             return;
         }
         
@@ -1105,7 +1094,6 @@
             alert('Por favor, ingresa tu número de WhatsApp para poder contactarte y completar la recarga.');
             return;
         }
-        // 🛑 FIN CAMBIO CLAVE
         
         // Lógica especial para recargas asistidas (no se envían al backend)
         if (isAssistedFlow()) { 
