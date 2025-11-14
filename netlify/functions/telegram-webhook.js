@@ -67,14 +67,14 @@ exports.handler = async (event, context) => {
             
             console.log(`LOG: Callback recibido: Intentando marcar transacción ${transactionId} como ${NEW_STATUS}.`);
             
-            let emailCliente = null; // Inicializar variable para el email
+            let emailCliente = null; 
 
             try {
-                // 2. BUSCAR LA TRANSACCIÓN
+                // 2. BUSCAR LA TRANSACCIÓN (USANDO "cartDetails")
                 console.log(`LOG: Buscando datos para transacción ${transactionId} en tabla 'transactions'.`);
                 const { data: transactionData, error: fetchError } = await supabase
                     .from('transactions')
-                    .select('status, google_id, "finalPrice", currency, game, product_details') // 🚨 QUITAMOS 'email_cliente'
+                    .select('status, google_id, "finalPrice", currency, game, "cartDetails"') // 🚨 CORRECCIÓN: Usar "cartDetails"
                     .eq('id_transaccion', transactionId)
                     .maybeSingle();
 
@@ -90,7 +90,7 @@ exports.handler = async (event, context) => {
                     "finalPrice": finalPrice, 
                     currency,
                     game,
-                    product_details
+                    "cartDetails": productDetails // 🚨 CORRECCIÓN: Renombrar para usarlo en la lógica de email
                 } = transactionData;
                 
                 // 2.1. BUSCAR EMAIL DEL USUARIO USANDO GOOGLE_ID
@@ -110,8 +110,6 @@ exports.handler = async (event, context) => {
                     }
                 }
                 
-                // Si el email no se encuentra, se mantendrá como null y se advertirá al final.
-
                 const IS_WALLET_RECHARGE = game === 'Recarga de Saldo';
 
                 const amountInTransactionCurrency = parseFloat(finalPrice);
@@ -129,8 +127,6 @@ exports.handler = async (event, context) => {
                 } else {
                     
                     if (IS_WALLET_RECHARGE) { 
-                        // ... (Lógica de Conversión y RPC, sin cambios) ...
-
                         // PASO 3.1: LÓGICA CONDICIONAL DE CONVERSIÓN
                         if (currency === 'VES' || currency === 'BS') { 
                             if (EXCHANGE_RATE > 0) {
@@ -196,15 +192,15 @@ exports.handler = async (event, context) => {
                     }
                 }
                 
-                // 5.5. 📧 LÓGICA DE ENVÍO DE CORREO DE FACTURA (USA emailCliente)
+                // 5.5. 📧 LÓGICA DE ENVÍO DE CORREO DE FACTURA (USA emailCliente y productDetails)
                 if (currentStatus !== NEW_STATUS && updateDBSuccess && emailCliente) {
                     console.log(`LOG: Procediendo a generar y enviar factura por correo a ${emailCliente}.`);
 
                     const invoiceSubject = `✅ Factura de Pedido #${transactionId} - ${game}`;
                     
-                    // Asegura que product_details es un objeto válido antes de mapear
-                    const productDetailHtml = typeof product_details === 'object' && product_details !== null
-                        ? Object.entries(product_details).map(([key, value]) => `<li><b>${key.charAt(0).toUpperCase() + key.slice(1)}:</b> ${value}</li>`).join('')
+                    // Crea una lista HTML de los detalles del producto usando productDetails (cartDetails)
+                    const productDetailHtml = typeof productDetails === 'object' && productDetails !== null
+                        ? Object.entries(productDetails).map(([key, value]) => `<li><b>${key.charAt(0).toUpperCase() + key.slice(1)}:</b> ${value}</li>`).join('')
                         : '<li>No hay detalles de producto adicionales registrados.</li>';
 
                     const invoiceBody = `
