@@ -212,8 +212,27 @@ exports.handler = async (event, context) => {
                         
                         
                         // 🚀 INICIO DE LA MODIFICACIÓN CLAVE PARA MOSTRAR MÚLTIPLES PRODUCTOS (Basado en process-payment.js)
+                        let parsedCartItems = [];
+                        try {
+                            // Si el campo es de texto en DB, necesitamos parsearlo. Si es JSONB, ya debería ser un objeto/array JS.
+                            // Se añade la validación de que inicie con '[' por si el campo contiene texto que no es JSON.
+                            if (typeof productDetails === 'string' && productDetails.trim().startsWith('[')) {
+                                parsedCartItems = JSON.parse(productDetails);
+                            } else if (productDetails) {
+                                // Si ya es un objeto/array (por ser JSONB en Supabase o ya parseado), úsalo directamente.
+                                parsedCartItems = productDetails; 
+                            }
+                            // Aseguramos que sea un array para la iteración.
+                            parsedCartItems = Array.isArray(parsedCartItems) ? parsedCartItems : (productDetails ? [productDetails] : []);
+
+                        } catch (e) {
+                            console.error("ERROR: Fallo al parsear cartDetails/productDetails para el correo:", e.message);
+                            // Fallback en caso de error de parseo, intentando usar lo que sea que se obtuvo
+                            parsedCartItems = productDetails ? (Array.isArray(productDetails) ? productDetails : [productDetails]) : [];
+                        }
+
                         let productDetailHtml = '';
-                        const cartItems = Array.isArray(productDetails) ? productDetails : (productDetails ? [productDetails] : []);
+                        const cartItems = parsedCartItems; // Usamos el array asegurado
 
                         if (cartItems.length > 0) {
                             cartItems.forEach((item, index) => {
