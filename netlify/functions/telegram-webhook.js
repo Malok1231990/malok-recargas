@@ -210,9 +210,54 @@ exports.handler = async (event, context) => {
                     if (emailCliente) {
                         const invoiceSubject = `✅ Factura de Pedido #${transactionId} - ${game}`;
                         
-                        const productDetailHtml = typeof productDetails === 'object' && productDetails !== null
-                            ? Object.entries(productDetails).map(([key, value]) => `<li><b>${key.charAt(0).toUpperCase() + key.slice(1)}:</b> ${value}</li>`).join('')
-                            : '<li>No hay detalles de producto adicionales registrados.</li>';
+                        
+                        // 🚀 INICIO DE LA MODIFICACIÓN CLAVE PARA MOSTRAR MÚLTIPLES PRODUCTOS
+                        let productDetailHtml;
+
+                        if (Array.isArray(productDetails)) {
+                            // Caso 1: Array de productos (Carrito con múltiples ítems)
+                            productDetailHtml = productDetails.map((product, index) => {
+                                if (typeof product !== 'object' || product === null) return '';
+
+                                // Generar HTML para las propiedades de CADA producto
+                                const propertiesHtml = Object.entries(product)
+                                    .map(([key, value]) => 
+                                        // Filtramos valores que puedan ser objetos complejos o arrays anidados
+                                        (typeof value !== 'object' || value === null) 
+                                            ? `<li><b>${key.charAt(0).toUpperCase() + key.slice(1)}:</b> ${value}</li>` 
+                                            : ''
+                                    )
+                                    .join('');
+                                
+                                // Nombre principal del producto, usando 'name' o 'product_name' si existe, sino 'Item'
+                                const productName = product.name || product.product_name || `Producto ${index + 1}`;
+
+                                // Envolvemos los detalles de CADA producto en una lista separada
+                                return `<li style="margin-top: 10px;">
+                                            <strong>${productName}</strong>
+                                            <ul style="list-style: circle; padding-left: 20px;">
+                                                ${propertiesHtml}
+                                            </ul>
+                                        </li>`;
+                            }).join('');
+                            
+                            // Si el mapeo no produjo HTML (ej. array vacío), usamos un mensaje por defecto.
+                            if (productDetailHtml === '') {
+                                productDetailHtml = '<li>No se pudieron mostrar los detalles del carrito.</li>';
+                            }
+
+                        } else if (typeof productDetails === 'object' && productDetails !== null) {
+                            // Caso 2: Objeto simple de metadatos (Original, para 1 ítem o Recarga de Saldo)
+                            productDetailHtml = Object.entries(productDetails)
+                                .map(([key, value]) => 
+                                    `<li><b>${key.charAt(0).toUpperCase() + key.slice(1)}:</b> ${value}</li>`
+                                )
+                                .join('');
+                        } else {
+                            // Caso 3: Nulo o vacío
+                            productDetailHtml = '<li>No hay detalles de producto adicionales registrados.</li>';
+                        }
+                        // 🔚 FIN DE LA MODIFICACIÓN CLAVE
 
                         const invoiceBody = `
                             <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
@@ -298,7 +343,7 @@ async function sendInvoiceEmail(transactionId, userEmail, emailSubject, emailBod
     const transporter = nodemailer.createTransport({
         host: process.env.SMTP_HOST,
         port: port,
-        secure: port === 465, // <-- CAMBIO: Usa comparación estricta con la variable 'port' (número)
+        secure: port === 465, // <-- Corrección de tipo de dato
         auth: {
             user: process.env.SMTP_USER,
             pass: process.env.SMTP_PASS
