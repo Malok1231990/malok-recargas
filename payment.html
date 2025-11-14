@@ -416,9 +416,35 @@
     const paymentTimerDisplay = document.getElementById('payment-timer');
     let timerInterval;
 
+    // 🔐 NUEVAS VARIABLES DE SEGURIDAD Y REDIRECCIÓN
+    const SESSION_TOKEN_KEY = 'userSessionToken'; // Clave usada en el flujo de Wallet
+    const LOGIN_PAGE_URL = 'login.html'; // Página a la que redirigir
+
 
     // 3. FUNCIONES DE LÓGICA
     
+    /**
+     * 🔐 NUEVA FUNCIÓN CLAVE: Verifica si existe un token de sesión activo.
+     * Si no lo hay, redirige a login.html, guardando la URL actual para volver.
+     * @returns {boolean} True si la sesión es válida, False si redirige.
+     */
+    function checkActiveSession() {
+        // 🚨 Usamos la clave correcta para el token de sesión (ver flujo de Wallet)
+        const sessionToken = localStorage.getItem(SESSION_TOKEN_KEY); 
+
+        // Si la sesión no existe, redirigimos
+        if (!sessionToken) {
+            // Guardar la URL actual de payment.html en localStorage para volver después del login
+            localStorage.setItem('redirectAfterLogin', window.location.href);
+
+            // Redirigir al usuario a la página de login
+            alert('Debes iniciar sesión para acceder a la página de pago. Serás redirigido a la página de inicio de sesión.');
+            window.location.href = LOGIN_PAGE_URL;
+            return false;
+        }
+        return true;
+    }
+
     /**
      * ⏰ NUEVA FUNCIÓN CLAVE: Inicia o restaura el temporizador de pago.
      */
@@ -950,6 +976,12 @@
 
     // 4. EVENT LISTENERS
     document.addEventListener('DOMContentLoaded', () => {
+        
+        // 🛑 LÍNEA CLAVE AÑADIDA: Verificar sesión antes de todo.
+        if (!checkActiveSession()) {
+            return; // Detiene la ejecución si el usuario fue redirigido a login.html
+        }
+        
         const transactionSummaryDiv = document.getElementById('transaction-summary');
 
         // 🟢 NUEVA LÓGICA: DETECCIÓN DE REDIRECCIÓN DE PLISIO (FLUSO AUTOMÁTICO)
