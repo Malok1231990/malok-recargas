@@ -129,7 +129,7 @@ exports.handler = async (event, context) => {
 
 
                 // -------------------------------------------------------------
-                // 3. LÓGICA DE INYECCIÓN CONDICIONAL (sin cambios)
+                // 3. LÓGICA DE INYECCIÓN CONDICIONAL 
                 // -------------------------------------------------------------
                 
                 if (currentStatus === NEW_STATUS) {
@@ -185,6 +185,7 @@ exports.handler = async (event, context) => {
 
 
                 // 5. ACTUALIZACIÓN DEL ESTADO... 
+                // Solo se actualiza si el estado actual es diferente y la inyección/proceso fue exitoso.
                 if (currentStatus !== NEW_STATUS && updateDBSuccess) {
                     console.log(`LOG: Actualizando estado de transacción ${transactionId} a ${NEW_STATUS}.`);
                     const { error: updateError } = await supabase
@@ -290,11 +291,14 @@ exports.handler = async (event, context) => {
 
 // 📧 FUNCIÓN: Envío de correo con Nodemailer (con log de error detallado)
 async function sendInvoiceEmail(transactionId, userEmail, emailSubject, emailBody) {
-    // 1. Configurar el transporter de Nodemailer
+    // 1. Convertir el puerto a número para una comparación segura
+    const port = parseInt(process.env.SMTP_PORT, 10); 
+    
+    // 2. Configurar el transporter de Nodemailer
     const transporter = nodemailer.createTransport({
         host: process.env.SMTP_HOST,
-        port: process.env.SMTP_PORT,
-        secure: process.env.SMTP_PORT == 465, 
+        port: port,
+        secure: port === 465, // <-- CAMBIO: Usa comparación estricta con la variable 'port' (número)
         auth: {
             user: process.env.SMTP_USER,
             pass: process.env.SMTP_PASS
