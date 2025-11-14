@@ -63,11 +63,14 @@ exports.handler = async (event, context) => {
             try {
                 // 2. BUSCAR LA TRANSACCIÓN
                 console.log(`LOG: Buscando datos para transacción ${transactionId} en tabla 'transactions'.`);
+                // ⭐️ INICIO DE LA MODIFICACIÓN CLAVE EN telegram-webhook.js ⭐️
+                // Incluimos base_amount en la selección de columnas
                 const { data: transactionData, error: fetchError } = await supabase
                     .from('transactions')
-                    .select('status, google_id, "finalPrice", currency, game')
+                    .select('status, google_id, "finalPrice", base_amount, currency, game')
                     .eq('id_transaccion', transactionId)
                     .maybeSingle();
+                // ⭐️ FIN DE LA MODIFICACIÓN CLAVE ⭐️
 
                 if (fetchError || !transactionData) {
                     console.error(`ERROR DB: Fallo al buscar la transacción ${transactionId}.`, fetchError ? fetchError.message : 'No encontrada');
@@ -80,13 +83,17 @@ exports.handler = async (event, context) => {
                     status: currentStatus, 
                     google_id, 
                     "finalPrice": finalPrice, 
+                    base_amount, // <-- Nuevo campo
                     currency,
                     game 
                 } = transactionData;
                 
                 const IS_WALLET_RECHARGE = game === 'Recarga de Saldo';
 
-                const amountInTransactionCurrency = parseFloat(finalPrice);
+                // ⭐️ INICIO DE LA MODIFICACIÓN CLAVE EN telegram-webhook.js ⭐️
+                // Determinar el monto a inyectar: base_amount si existe y es recarga, sino finalPrice.
+                const amountInTransactionCurrency = IS_WALLET_RECHARGE && base_amount !== null ? parseFloat(base_amount) : parseFloat(finalPrice);
+                // ⭐️ FIN DE LA MODIFICACIÓN CLAVE ⭐️
                 let amountToInject = amountInTransactionCurrency;
                 let injectionMessage = ""; 
                 let updateDBSuccess = true; // Flag para rastrear el éxito de la inyección/actualización
@@ -115,7 +122,8 @@ exports.handler = async (event, context) => {
 
                         // PASO 3.2: INYECCIÓN DE SALDO
                         if (!google_id || isNaN(amountToInject) || amountToInject <= 0) {
-                            injectionMessage = `\n\n❌ <b>ERROR DE INYECCIÓN DE SALDO:</b> Datos incompletos (Google ID: ${google_id}, Monto: ${finalPrice}). <b>¡REVISIÓN MANUAL REQUERIDA!</b>`;
+                            // Usamos amountInTransactionCurrency para el mensaje para mostrar el valor usado (base_amount o finalPrice)
+                            injectionMessage = `\n\n❌ <b>ERROR DE INYECCIÓN DE SALDO:</b> Datos incompletos (Google ID: ${google_id}, Monto Usado: ${amountInTransactionCurrency}). <b>¡REVISIÓN MANUAL REQUERIDA!</b>`;
                             updateDBSuccess = false;
                         } else {
                             // 4. INYECTAR SALDO AL CLIENTE (Usando la función RPC)
