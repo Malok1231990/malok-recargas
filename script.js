@@ -122,6 +122,10 @@ function checkUserSessionAndRenderUI() {
 }
 
 /**
+// script.js (SOLO LA FUNCIÓN handleCredentialResponse)
+// ... (código previo de script.js)
+
+/**
  * Función de Callback llamada por el SDK de Google al iniciar sesión.
  */
 window.handleCredentialResponse = async (response) => {
@@ -148,6 +152,17 @@ window.handleCredentialResponse = async (response) => {
             // El backend ya garantiza que 'balance' existe
             localStorage.setItem('userData', JSON.stringify(data.user)); 
             
+            // 🚨 MODIFICACIÓN CLAVE PARA LA REDIRECCIÓN 🚨
+            const redirectUrl = localStorage.getItem('redirectAfterLogin');
+            const finalRedirect = redirectUrl || 'index.html'; // Usar la URL guardada o index.html como fallback
+
+            // Si se usó una URL de redirección, la eliminamos para que no se use en el futuro
+            if (redirectUrl) {
+                localStorage.removeItem('redirectAfterLogin');
+                console.log(`Redirigiendo de vuelta a: ${finalRedirect}`);
+            }
+            // ----------------------------------------------
+
             // Mostrar el mensaje de bienvenida
             const userName = data.user.name || 'Usuario';
             
@@ -155,8 +170,8 @@ window.handleCredentialResponse = async (response) => {
             setTimeout(() => {
                     alert(`¡Bienvenido(a), ${userName}! Has iniciado sesión correctamente.`);
                     
-                    // 🎯 CORRECCIÓN: Redirigir explícitamente a index.html
-                    window.location.href = 'index.html'; 
+                    // 🎯 REDIRECCIÓN FINAL: Usa la URL determinada (payment.html o index.html)
+                    window.location.href = finalRedirect; 
             }, 50);
 
         } else {
@@ -176,6 +191,7 @@ window.handleCredentialResponse = async (response) => {
     }
 };
 
+// ... (resto del código de script.js)
 /**
  * Inicializa el SDK de Google y dibuja el botón.
  * @param {boolean} forceRender Si es true, fuerza la renderización aunque haya sesión.

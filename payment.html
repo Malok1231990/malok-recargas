@@ -1403,6 +1403,8 @@
         }
     });
 
+// ... (código previo del script de payment.html)
+
     // 🚩 INICIO DE LA MODIFICACIÓN SOLICITADA 🚩
 
     /**
@@ -1412,10 +1414,15 @@
      */
     window.addEventListener('unload', function (e) {
         // Verificar si el mensaje de éxito ya se mostró. Si es así, no limpiamos.
-        // Esto evita borrar el carrito si el usuario está siendo redirigido después de un pago exitoso.
         const paymentCompleted = successMessageDisplay.style.display === 'block';
 
-        if (!paymentCompleted) {
+        // 🚨 CAMBIO CLAVE: Comprobar si existe una redirección pendiente hacia el login.
+        // Si 'redirectAfterLogin' existe, significa que la navegación a login.html fue intencional
+        // y NO debemos borrar 'transactionDetails' ni 'cartItems'.
+        const isRedirectingToLogin = localStorage.getItem('redirectAfterLogin') !== null;
+
+        // Solo borra el carrito y la transacción si NO se ha completado el pago Y NO estamos redirigiendo intencionalmente a login.
+        if (!paymentCompleted && !isRedirectingToLogin) {
             // Vacía las claves que guardan el estado de la transacción y el temporizador.
             localStorage.removeItem('transactionDetails'); // Vacía los detalles de la transacción
             localStorage.removeItem('cartItems'); // Vacía el carrito
@@ -1426,6 +1433,13 @@
                 clearInterval(timerInterval);
             }
             console.log("Sesión de pago incompleta limpiada debido a navegación fuera de la página.");
+        } else if (paymentCompleted) {
+             // Lógica de limpieza solo de temporizador si el pago ya se completó (ej. Plisio/Wallet)
+             if (timerInterval) {
+                clearInterval(timerInterval);
+                localStorage.removeItem('paymentStartTime');
+             }
+             // Las otras claves (cartItems, transactionDetails) ya se limpiaron en el flujo de éxito
         }
     });
 
