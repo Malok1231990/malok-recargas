@@ -1,7 +1,6 @@
-// netlify/functions/telegram-webhook.js
 const { createClient } = require('@supabase/supabase-js');
 const axios = require('axios');
-const nodemailer = require('nodemailer'); // 📧 1. IMPORTACIÓN DE NODEMAILER
+const nodemailer = require('nodemailer'); 
 
 exports.handler = async (event, context) => {
     if (event.httpMethod !== "POST") {
@@ -14,7 +13,7 @@ exports.handler = async (event, context) => {
     const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
     const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
     
-    // 🔑 NUEVAS VARIABLES DE CORREO (Se usan en la función auxiliar)
+    // 🔑 VARIABLES DE CORREO
     const SMTP_HOST = process.env.SMTP_HOST;
     const SMTP_PORT = process.env.SMTP_PORT;
     const SMTP_USER = process.env.SMTP_USER;
@@ -32,13 +31,13 @@ exports.handler = async (event, context) => {
     // ----------------------------------------------------------------------
     // 🔑 PASO 1: OBTENER LA TASA DE CAMBIO DINÁMICA
     // ----------------------------------------------------------------------
-    let EXCHANGE_RATE = 1.0; // Valor por defecto (si es USD o si falla la DB)
+    let EXCHANGE_RATE = 1.0; 
     
     try {
         const { data: configData, error: configError } = await supabase
             .from('configuracion_sitio')
             .select('tasa_dolar')
-            .eq('id', 1) // Asumimos que la configuración está en el ID 1
+            .eq('id', 1) 
             .maybeSingle();
 
         if (configError) {
@@ -67,13 +66,15 @@ exports.handler = async (event, context) => {
             const NEW_STATUS = 'REALIZADA'; 
             
             console.log(`LOG: Callback recibido: Intentando marcar transacción ${transactionId} como ${NEW_STATUS}.`);
+            
+            let emailCliente = null; // Inicializar variable para el email
 
             try {
-                // 2. BUSCAR LA TRANSACCIÓN (SE AMPLIÓ EL SELECT)
+                // 2. BUSCAR LA TRANSACCIÓN
                 console.log(`LOG: Buscando datos para transacción ${transactionId} en tabla 'transactions'.`);
                 const { data: transactionData, error: fetchError } = await supabase
                     .from('transactions')
-                    .select('status, google_id, "finalPrice", currency, game, email_cliente, product_details') // <-- 🚨 ¡NUEVAS COLUMNAS PARA EL CORREO!
+                    .select('status, google_id, "finalPrice", currency, game, product_details') // 🚨 QUITAMOS 'email_cliente'
                     .eq('id_transaccion', transactionId)
                     .maybeSingle();
 
@@ -89,16 +90,34 @@ exports.handler = async (event, context) => {
                     "finalPrice": finalPrice, 
                     currency,
                     game,
-                    email_cliente,      // <-- Cliente Email
-                    product_details     // <-- Detalles del Producto
+                    product_details
                 } = transactionData;
                 
+                // 2.1. BUSCAR EMAIL DEL USUARIO USANDO GOOGLE_ID
+                if (google_id) {
+                    console.log(`LOG: Buscando email para google_id: ${google_id} en tabla 'usuarios'.`);
+                    const { data: userData, error: userError } = await supabase
+                        .from('usuarios')
+                        .select('email')
+                        .eq('google_id', google_id)
+                        .maybeSingle();
+
+                    if (userError) {
+                        console.error(`ERROR DB: Fallo al buscar el email del usuario ${google_id}.`, userError.message);
+                    } else if (userData && userData.email) {
+                        emailCliente = userData.email;
+                        console.log(`LOG: Email de cliente encontrado: ${emailCliente}`);
+                    }
+                }
+                
+                // Si el email no se encuentra, se mantendrá como null y se advertirá al final.
+
                 const IS_WALLET_RECHARGE = game === 'Recarga de Saldo';
 
                 const amountInTransactionCurrency = parseFloat(finalPrice);
                 let amountToInject = amountInTransactionCurrency;
                 let injectionMessage = ""; 
-                let updateDBSuccess = true; // Flag para rastrear el éxito de la inyección/actualización
+                let updateDBSuccess = true; 
 
 
                 // -------------------------------------------------------------
@@ -110,6 +129,7 @@ exports.handler = async (event, context) => {
                 } else {
                     
                     if (IS_WALLET_RECHARGE) { 
+                        // ... (Lógica de Conversión y RPC, sin cambios) ...
 
                         // PASO 3.1: LÓGICA CONDICIONAL DE CONVERSIÓN
                         if (currency === 'VES' || currency === 'BS') { 
@@ -148,7 +168,7 @@ exports.handler = async (event, context) => {
                             } catch (e) {
                                 console.error("ERROR CRITICO: Falló la llamada RPC para inyección de saldo.", e.message);
                                 updateDBSuccess = false;
-                                throw new Error(`Falló la inyección atómica (RPC). Error: ${e.message}`); // Propaga el error
+                                throw new Error(`Falló la inyección atómica (RPC). Error: ${e.message}`); 
                             }
                         }
                     } else {
@@ -158,7 +178,7 @@ exports.handler = async (event, context) => {
                 } 
 
 
-                // 5. ACTUALIZACIÓN DEL ESTADO... (Solo si la inyección y el estado inicial fueron exitosos)
+                // 5. ACTUALIZACIÓN DEL ESTADO... 
                 if (currentStatus !== NEW_STATUS && updateDBSuccess) {
                     console.log(`LOG: Actualizando estado de transacción ${transactionId} a ${NEW_STATUS}.`);
                     const { error: updateError } = await supabase
@@ -172,17 +192,17 @@ exports.handler = async (event, context) => {
                     if (updateError) {
                         console.error(`ERROR DB: Fallo al actualizar el estado a ${NEW_STATUS}.`, updateError.message);
                         injectionMessage += `\n\n⚠️ <b>ADVERTENCIA:</b> Fallo al actualizar el estado de la transacción: ${updateError.message}`;
-                        updateDBSuccess = false; // Si falla la actualización, cambiamos el flag para el mensaje final
+                        updateDBSuccess = false; 
                     }
                 }
                 
-                // 5.5. 📧 LÓGICA DE ENVÍO DE CORREO DE FACTURA (NUEVA LÓGICA)
-                if (currentStatus !== NEW_STATUS && updateDBSuccess && email_cliente) {
-                    console.log(`LOG: Procediendo a generar y enviar factura por correo a ${email_cliente}.`);
+                // 5.5. 📧 LÓGICA DE ENVÍO DE CORREO DE FACTURA (USA emailCliente)
+                if (currentStatus !== NEW_STATUS && updateDBSuccess && emailCliente) {
+                    console.log(`LOG: Procediendo a generar y enviar factura por correo a ${emailCliente}.`);
 
                     const invoiceSubject = `✅ Factura de Pedido #${transactionId} - ${game}`;
                     
-                    // Crea una lista HTML de los detalles del producto si product_details es un objeto.
+                    // Asegura que product_details es un objeto válido antes de mapear
                     const productDetailHtml = typeof product_details === 'object' && product_details !== null
                         ? Object.entries(product_details).map(([key, value]) => `<li><b>${key.charAt(0).toUpperCase() + key.slice(1)}:</b> ${value}</li>`).join('')
                         : '<li>No hay detalles de producto adicionales registrados.</li>';
@@ -207,15 +227,15 @@ exports.handler = async (event, context) => {
                     `;
 
                     // LLAMAR A LA FUNCIÓN DE ENVÍO
-                    const emailSent = await sendInvoiceEmail(transactionId, email_cliente, invoiceSubject, invoiceBody);
+                    const emailSent = await sendInvoiceEmail(transactionId, emailCliente, invoiceSubject, invoiceBody);
                     
                     if (emailSent) {
-                        injectionMessage += `\n\n📧 <b>CORREO ENVIADO:</b> Factura enviada a <code>${email_cliente}</code>.`;
+                        injectionMessage += `\n\n📧 <b>CORREO ENVIADO:</b> Factura enviada a <code>${emailCliente}</code>.`;
                     } else {
                         injectionMessage += `\n\n⚠️ <b>ERROR DE CORREO:</b> No se pudo enviar la factura. Revisar logs SMTP.`;
                     }
-                } else if (currentStatus !== NEW_STATUS && updateDBSuccess && !email_cliente) {
-                    injectionMessage += `\n\n⚠️ <b>ADVERTENCIA:</b> No se pudo enviar el correo, la columna 'email_cliente' está vacía.`;
+                } else if (currentStatus !== NEW_STATUS && updateDBSuccess && !emailCliente) {
+                    injectionMessage += `\n\n⚠️ <b>ADVERTENCIA:</b> No se pudo enviar el correo, el email del cliente (Google ID: ${google_id}) no fue encontrado en la tabla <b>usuarios</b>.`;
                 }
                 
                 // Si ya estaba REALIZADA, aún se considera un éxito en el marcado
@@ -241,7 +261,6 @@ exports.handler = async (event, context) => {
                 );
                 
             } catch (e) {
-                // Este 'catch' solo atrapa errores graves como fallo en la búsqueda o en la inyección (RPC)
                 console.error("ERROR FATAL en callback_query handler (Catch block):", e.message);
                 await editTelegramMessage(
                     TELEGRAM_BOT_TOKEN, chatId, messageId, 
@@ -260,20 +279,19 @@ exports.handler = async (event, context) => {
 // --- FUNCIONES AUXILIARES ---
 // ----------------------------------------------------------------------
 
-// 📧 NUEVA FUNCIÓN: Envío de correo con Nodemailer
+// 📧 FUNCIÓN: Envío de correo con Nodemailer
 async function sendInvoiceEmail(transactionId, userEmail, emailSubject, emailBody) {
-    // 1. Configurar el transporter de Nodemailer usando las variables de entorno
+    // 1. Configurar el transporter de Nodemailer
     const transporter = nodemailer.createTransport({
         host: process.env.SMTP_HOST,
         port: process.env.SMTP_PORT,
-        secure: process.env.SMTP_PORT == 465, // True si es 465, False para otros puertos
+        secure: process.env.SMTP_PORT == 465, 
         auth: {
             user: process.env.SMTP_USER,
             pass: process.env.SMTP_PASS
         },
     });
 
-    // 2. Configurar el contenido del correo
     const mailOptions = {
         from: process.env.SMTP_USER,
         to: userEmail,               
@@ -289,16 +307,12 @@ async function sendInvoiceEmail(transactionId, userEmail, emailSubject, emailBod
         return true;
     } catch (e) {
         console.error(`ERROR EMAIL: Fallo al enviar el correo de factura para ${transactionId}. Mensaje: ${e.message}`);
-        // Detalle del error de SMTP si está disponible
-        if (e.response && e.response.includes('authentication failed')) {
-            console.error('ERROR SMTP DETALLE: Fallo de autenticación. Verifique SMTP_USER y SMTP_PASS.');
-        }
         return false;
     }
 }
 
 
-// MODIFICADA: Ahora usa parse_mode: 'HTML'
+// Funciones de Telegram (sin cambios)
 async function editTelegramMessage(token, chatId, messageId, text, replyMarkup) {
     const telegramApiUrl = `https://api.telegram.org/bot${token}/editMessageText`;
     try {
@@ -314,7 +328,6 @@ async function editTelegramMessage(token, chatId, messageId, text, replyMarkup) 
     }
 }
 
-// MODIFICADA: Ahora usa parse_mode: 'HTML'
 async function sendTelegramAlert(token, chatId, text, replyToMessageId = null) {
     const telegramApiUrl = `https://api.telegram.org/bot${token}/sendMessage`;
     try {
