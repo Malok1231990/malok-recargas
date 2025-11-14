@@ -231,7 +231,6 @@ exports.handler = async (event, context) => {
                                 <h3 style="color: #007bff;">Resumen de la Factura:</h3>
                                 <ul style="list-style: none; padding: 0;">
                                     <li style="margin-bottom: 5px;"><b>ID Transacción:</b> <code>${transactionId}</code></li>
-                                    <li style="margin-bottom: 5px;"><b>Servicio Principal:</b> ${game}</li>
                                     <li style="margin-bottom: 5px;"><b>Monto Total Pagado:</b> <b>${parseFloat(finalPrice).toFixed(2)} ${currency}</b></li>
                                     <li style="margin-bottom: 5px;"><b>Monto Inyectado (si aplica):</b> ${IS_WALLET_RECHARGE ? `$${amountToInject.toFixed(2)} USD` : 'N/A'}</li>
                                 </ul>
