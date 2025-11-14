@@ -175,25 +175,15 @@ exports.handler = async function(event, context) {
     // --- Guardar Transacción Inicial en Supabase (código omitido) ---
     let newTransactionData;
     let id_transaccion_generado;
-    const firstItem = cartItems[0] || {};
-    const isWalletRecharge = cartItems.length === 1 && firstItem.game === 'Recarga de Saldo';
-    
-    // ⭐️ INICIO DE LA MODIFICACIÓN CLAVE EN process-payment.js ⭐️
-    // Si es una recarga de saldo manual, capturamos el monto base del item para inyectar solo el monto sin comisión.
-    const baseAmount = isWalletRecharge ? firstItem.base_amount : null;
-    // ⭐️ FIN DE LA MODIFICACIÓN CLAVE ⭐️
 
     try {
         id_transaccion_generado = `MALOK-${Date.now()}`;
 
+        const firstItem = cartItems[0] || {};
         
         const transactionToInsert = {
             id_transaccion: id_transaccion_generado,
             finalPrice: parseFloat(finalPrice),
-            // ⭐️ INICIO DE LA MODIFICACIÓN CLAVE EN process-payment.js ⭐️
-            // Guardar base_amount en la DB si aplica
-            base_amount: baseAmount ? parseFloat(baseAmount) : null,
-            // ⭐️ FIN DE LA MODIFICACIÓN CLAVE ⭐️
             currency: currency,
             paymentMethod: paymentMethod,
             email: email,
@@ -238,7 +228,9 @@ exports.handler = async function(event, context) {
 
     // --- Generar Notificación para Telegram (código omitido) ---
     
-    
+    const firstItem = cartItems[0] || {};
+    const isWalletRecharge = cartItems.length === 1 && firstItem.game === 'Recarga de Saldo';
+
     let messageText = isWalletRecharge 
         ? `💸 Nueva Recarga de Billetera Malok Recargas 💸\n\n`
         : `✨ Nueva Recarga (CARRITO) Malok Recargas ✨\n\n`;
@@ -249,11 +241,6 @@ exports.handler = async function(event, context) {
     if (isWalletRecharge && firstItem.google_id) {
         messageText += `🔗 *Google ID (Billetera):* \`${firstItem.google_id}\`\n`;
         messageText += `💵 *Monto Recargado (Paquete):* *${firstItem.packageName || 'N/A'}*\n`;
-        // ⭐️ INICIO DE LA MODIFICACIÓN CLAVE EN process-payment.js ⭐️
-        if (baseAmount) {
-             messageText += `💵 *Monto Base (Sin Comisión):* *${baseAmount} ${currency}*\n`;
-        }
-        // ⭐️ FIN DE LA MODIFICACIÓN CLAVE ⭐️
     }
     
     messageText += `------------------------------------------------\n`;
@@ -281,10 +268,6 @@ exports.handler = async function(event, context) {
         const itemCurrency = item.currency || 'USD';
         if (itemPrice) {
             messageText += `💲 Precio (Est.): ${parseFloat(itemPrice).toFixed(2)} ${itemCurrency}\n`;
-            // También se podría mostrar el base_amount a nivel de item si es relevante
-            if (item.base_amount) {
-                messageText += `💲 Base (Est.): ${parseFloat(item.base_amount).toFixed(2)} ${itemCurrency}\n`;
-            }
         }
         
         messageText += `------------------------------------------------\n`;
@@ -407,11 +390,9 @@ exports.handler = async function(event, context) {
                 `;
             } else if (game === 'Recarga de Saldo' && item.google_id) { 
                 // ⭐️ MODIFICACIÓN CLAVE: Agregar Google ID y Monto de recarga ⭐️
-                let baseAmountInfo = item.base_amount ? `<li><strong>Monto Base (Sin Comisión):</strong> ${item.base_amount} ${currency}</li>` : '';
                 playerInfoEmail = `
                     <li><strong>ID de Google (Billetera):</strong> ${item.google_id}</li>
                     <li><strong>Monto de Recarga (Paquete):</strong> ${packageName}</li>
-                    ${baseAmountInfo}
                 `;
             } else {
                 playerInfoEmail = item.playerId ? `<li><strong>ID de Jugador:</strong> ${item.playerId}</li>` : '';
