@@ -990,21 +990,38 @@
         }
         // 🛑 FIN DE NUEVA LÓGICA DE PLISIO
 
-        
-        // 🎯 INICIO DE LA MODIFICACIÓN CLAVE: Verificación de Sesión y Redirección
-        const sessionToken = localStorage.getItem('userSessionToken');
-        if (!sessionToken) {
-            console.warn('Usuario no autenticado. Redirigiendo a login.html para mantener el flujo del carrito.');
-            
-            // Almacenar la URL actual (payment.html) para la redirección de vuelta
-            const currentUrl = window.location.pathname; 
-            // Redirigir a login.html con el parámetro de redirección
-            // La información del carrito (transactionDetails y cartItems) se mantiene en localStorage.
-            window.location.href = `login.html?redirect=${encodeURIComponent(currentUrl)}`;
-            return; // Detener la ejecución del script aquí
+        // 🚩 INICIO DE LA MODIFICACIÓN PARA REDIRECCIÓN DE LOGIN 🚩
+        const toggleLoginBtn = document.getElementById('toggle-login-btn');
+        const authDisplayNameLink = document.getElementById('auth-display-name');
+        const googleLoginContainer = document.getElementById('google-login-btn');
+    
+        /**
+         * Guarda la URL actual en localStorage para que el script de login pueda 
+         * redirigir al usuario de vuelta a la página de pago después de iniciar sesión.
+         */
+        const setRedirectUrl = () => {
+            // Guardamos solo la URL base, sin hash ni query params de Plisio/etc.
+            const currentUrl = window.location.href.split(/[?#]/)[0]; 
+            localStorage.setItem('postLoginRedirect', currentUrl);
+            console.log('URL de redirección post-login guardada:', currentUrl);
+        };
+    
+        // Atar el evento a los elementos que inician el flujo de login
+        // Opción 1: Botón que abre el dropdown (por si inicia el flujo al abrir)
+        if (toggleLoginBtn) {
+            toggleLoginBtn.addEventListener('click', setRedirectUrl);
         }
-        // 🎯 FIN DE LA MODIFICACIÓN CLAVE
-
+        
+        // Opción 2: El enlace "Iniciar Sesión" dentro del dropdown
+        if (authDisplayNameLink && authDisplayNameLink.textContent.trim() === 'Iniciar Sesión') {
+            authDisplayNameLink.addEventListener('click', setRedirectUrl);
+        }
+        
+        // Opción 3: El contenedor del botón de Google (por si es dinámico y necesita el evento en el contenedor)
+        if (googleLoginContainer) {
+            googleLoginContainer.addEventListener('click', setRedirectUrl);
+        }
+        // 🚩 FIN DE LA MODIFICACIÓN PARA REDIRECCIÓN DE LOGIN 🚩
         
         const storedDetails = localStorage.getItem('transactionDetails');
         if (storedDetails) {
@@ -1385,6 +1402,35 @@
             finalizeBtn.textContent = 'Finalizar Recarga';
         }
     });
+
+    // 🚩 INICIO DE LA MODIFICACIÓN SOLICITADA (LÓGICA DE LIMPIEZA) 🚩
+
+    /**
+     * Lógica para reiniciar el contador y vaciar el carrito 
+     * si el usuario navega fuera de payment.html (al usar la flecha
+     * atrás o al hacer clic en un enlace como index.html o products.html).
+     */
+    window.addEventListener('unload', function (e) {
+        // Verificar si el mensaje de éxito ya se mostró. Si es así, no limpiamos.
+        // Esto evita borrar el carrito si el usuario está siendo redirigido después de un pago exitoso.
+        const paymentCompleted = successMessageDisplay.style.display === 'block';
+
+        if (!paymentCompleted) {
+            // Vacía las claves que guardan el estado de la transacción y el temporizador.
+            localStorage.removeItem('transactionDetails'); // Vacía los detalles de la transacción
+            localStorage.removeItem('cartItems'); // Vacía el carrito
+            localStorage.removeItem('paymentStartTime'); // Reinicia el contador/temporizador
+            
+            // Detener el intervalo del temporizador si está activo
+            if (timerInterval) {
+                clearInterval(timerInterval);
+            }
+            console.log("Sesión de pago incompleta limpiada debido a navegación fuera de la página.");
+        }
+    });
+
+    // 🚩 FIN DE LA MODIFICACIÓN SOLICITADA (LÓGICA DE LIMPIEZA) 🚩
+
 </script>
 </body>
 </html>
