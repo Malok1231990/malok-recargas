@@ -211,51 +211,57 @@ exports.handler = async (event, context) => {
                         const invoiceSubject = `✅ Factura de Pedido #${transactionId} - ${game}`;
                         
                         
-                        // 🚀 INICIO DE LA MODIFICACIÓN CLAVE PARA MOSTRAR MÚLTIPLES PRODUCTOS
-                        let productDetailHtml;
+                        // 🚀 INICIO DE LA MODIFICACIÓN CLAVE PARA MOSTRAR MÚLTIPLES PRODUCTOS (Basado en process-payment.js)
+                        let productDetailHtml = '';
+                        const cartItems = Array.isArray(productDetails) ? productDetails : (productDetails ? [productDetails] : []);
 
-                        if (Array.isArray(productDetails)) {
-                            // Caso 1: Array de productos (Carrito con múltiples ítems)
-                            productDetailHtml = productDetails.map((product, index) => {
-                                if (typeof product !== 'object' || product === null) return '';
-
-                                // Generar HTML para las propiedades de CADA producto
-                                const propertiesHtml = Object.entries(product)
-                                    .map(([key, value]) => 
-                                        // Filtramos valores que puedan ser objetos complejos o arrays anidados
-                                        (typeof value !== 'object' || value === null) 
-                                            ? `<li><b>${key.charAt(0).toUpperCase() + key.slice(1)}:</b> ${value}</li>` 
-                                            : ''
-                                    )
-                                    .join('');
+                        if (cartItems.length > 0) {
+                            cartItems.forEach((item, index) => {
+                                let playerInfoEmail = '';
+                                let gameName = item.game || 'Servicio';
+                                let packageName = item.packageName || 'Paquete Desconocido';
                                 
-                                // Nombre principal del producto, usando 'name' o 'product_name' si existe, sino 'Item'
-                                const productName = product.name || product.product_name || `Producto ${index + 1}`;
+                                // Construcción de detalles específicos (como en process-payment.js)
+                                if (gameName === 'Roblox') {
+                                    playerInfoEmail = `
+                                        <li><strong>Correo de Roblox:</strong> ${item.robloxEmail || 'N/A'}</li>
+                                        <li><strong>Contraseña de Roblox:</strong> ${item.robloxPassword || 'N/A'}</li>
+                                    `;
+                                } else if (gameName === 'Call of Duty Mobile') {
+                                    playerInfoEmail = `
+                                        <li><strong>Correo de CODM:</strong> ${item.codmEmail || 'N/A'}</li>
+                                        <li><strong>Contraseña de CODM:</strong> ${item.codmPassword || 'N/A'}</li>
+                                        <li><strong>Vinculación de CODM:</strong> ${item.codmVinculation || 'N/A'}</li>
+                                    `;
+                                } else if (gameName === 'Recarga de Saldo' && item.google_id) { 
+                                    playerInfoEmail = `
+                                        <li><strong>ID de Google (Billetera):</strong> ${item.google_id}</li>
+                                        <li><strong>Monto de Recarga (Paquete):</strong> ${packageName}</li>
+                                    `;
+                                } else {
+                                    playerInfoEmail = item.playerId ? `<li><strong>ID de Jugador:</strong> ${item.playerId}</li>` : '';
+                                }
+                                
+                                // Mostrar precio individual (si está disponible)
+                                const itemPrice = item.currency === 'VES' ? item.priceVES : item.priceUSD;
+                                const itemCurrency = item.currency || 'USD';
+                                if (itemPrice) {
+                                    playerInfoEmail += `<li><strong>Precio (Est.):</strong> ${parseFloat(itemPrice).toFixed(2)} ${itemCurrency}</li>`;
+                                }
 
-                                // Envolvemos los detalles de CADA producto en una lista separada
-                                return `<li style="margin-top: 10px;">
-                                            <strong>${productName}</strong>
-                                            <ul style="list-style: circle; padding-left: 20px;">
-                                                ${propertiesHtml}
-                                            </ul>
-                                        </li>`;
-                            }).join('');
-                            
-                            // Si el mapeo no produjo HTML (ej. array vacío), usamos un mensaje por defecto.
-                            if (productDetailHtml === '') {
-                                productDetailHtml = '<li>No se pudieron mostrar los detalles del carrito.</li>';
-                            }
-
-                        } else if (typeof productDetails === 'object' && productDetails !== null) {
-                            // Caso 2: Objeto simple de metadatos (Original, para 1 ítem o Recarga de Saldo)
-                            productDetailHtml = Object.entries(productDetails)
-                                .map(([key, value]) => 
-                                    `<li><b>${key.charAt(0).toUpperCase() + key.slice(1)}:</b> ${value}</li>`
-                                )
-                                .join('');
+                                // Agregando el bloque de producto al HTML final
+                                productDetailHtml += `
+                                    <div style="border: 1px solid #ddd; padding: 10px; margin-bottom: 10px; border-radius: 5px;">
+                                        <p style="margin-top: 0;"><strong>Producto ${index + 1}: ${gameName}</strong></p>
+                                        <ul style="list-style: none; padding: 0; margin: 0;">
+                                            <li><strong>Paquete:</strong> ${packageName}</li>
+                                            ${playerInfoEmail}
+                                        </ul>
+                                    </div>
+                                `;
+                            });
                         } else {
-                            // Caso 3: Nulo o vacío
-                            productDetailHtml = '<li>No hay detalles de producto adicionales registrados.</li>';
+                            productDetailHtml = '<div>No se pudieron recuperar los detalles completos de los productos.</div>';
                         }
                         // 🔚 FIN DE LA MODIFICACIÓN CLAVE
 
@@ -267,13 +273,13 @@ exports.handler = async (event, context) => {
                                 <h3 style="color: #007bff;">Resumen de la Factura:</h3>
                                 <ul style="list-style: none; padding: 0;">
                                     <li style="margin-bottom: 5px;"><b>ID Transacción:</b> <code>${transactionId}</code></li>
-                                    <li style="margin-bottom: 5px;"><b>Producto/Servicio:</b> ${game}</li>
+                                    <li style="margin-bottom: 5px;"><b>Producto/Servicio Principal:</b> ${game}</li>
                                     <li style="margin-bottom: 5px;"><b>Monto Total Pagado:</b> <b>${parseFloat(finalPrice).toFixed(2)} ${currency}</b></li>
                                     <li style="margin-bottom: 5px;"><b>Monto Inyectado (si aplica):</b> ${IS_WALLET_RECHARGE ? `$${amountToInject.toFixed(2)} USD` : 'N/A'}</li>
                                 </ul>
                                 <hr style="border-top: 1px solid #eee;"/>
-                                <h4 style="color: #6c757d;">Detalles de la Transacción:</h4>
-                                <ul style="list-style: none; padding: 0;">${productDetailHtml}</ul>
+                                <h3 style="color: #007bff;">Detalles de los Productos:</h3>
+                                ${productDetailHtml}
                                 <p style="margin-top: 20px; font-size: 0.9em; color: #999;"><i>Este es un correo automático de confirmación de servicio.</i></p>
                             </div>
                         `;
