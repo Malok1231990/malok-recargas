@@ -948,6 +948,15 @@ footer p {
         flex-grow: 1;
         max-width: 150px; /* Limitar para que no tome todo el espacio si solo hay 2 elementos */
     }
+
+    /* ********** INICIO DE LA CORRECCIÓN DE OCULTACIÓN ********** */
+    main {
+        /* Añadimos un margen superior al contenido principal (main) para que 
+           el header fijo no lo oculte. 180px es una estimación segura 
+           para el header de 3 filas en móvil. */
+        margin-top: 180px !important; 
+    }
+    /* ********** FIN DE LA CORRECCIÓN DE OCULTACIÓN ********** */
     
     /* *** FIN DE LA CORRECCIÓN PARA REDUCIR LA BARRA SUPERIOR EN MÓVIL *** */
 
