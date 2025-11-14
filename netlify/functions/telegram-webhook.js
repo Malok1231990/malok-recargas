@@ -65,16 +65,16 @@ exports.handler = async (event, context) => {
             const transactionId = callbackData.replace(transactionPrefix, '');
             const NEW_STATUS = 'REALIZADA'; 
             
-            console.log(`LOG: Callback recibido: Intentando marcar transacción ${transactionId} como ${NEW_STATUS}.`);
+            console.log(`LOG: >>> INICIO PROCESO DE MARCADO. Transacción ID: ${transactionId} <<<`);
             
             let emailCliente = null; 
 
             try {
-                // 2. BUSCAR LA TRANSACCIÓN (USANDO "cartDetails")
-                console.log(`LOG: Buscando datos para transacción ${transactionId} en tabla 'transactions'.`);
+                // 2. BUSCAR LA TRANSACCIÓN
+                console.log(`LOG: Buscando datos de transacción ${transactionId} en 'transactions'.`);
                 const { data: transactionData, error: fetchError } = await supabase
                     .from('transactions')
-                    .select('status, google_id, "finalPrice", currency, game, "cartDetails"') // 🚨 CORRECCIÓN: Usar "cartDetails"
+                    .select('status, google_id, "finalPrice", currency, game, "cartDetails"') 
                     .eq('id_transaccion', transactionId)
                     .maybeSingle();
 
@@ -90,11 +90,15 @@ exports.handler = async (event, context) => {
                     "finalPrice": finalPrice, 
                     currency,
                     game,
-                    "cartDetails": productDetails // 🚨 CORRECCIÓN: Renombrar para usarlo en la lógica de email
+                    "cartDetails": productDetails
                 } = transactionData;
                 
+                console.log(`LOG: Transacción encontrada. Google ID asociado: ${google_id}. Estado actual: ${currentStatus}.`);
+                
                 // 2.1. BUSCAR EMAIL DEL USUARIO USANDO GOOGLE_ID
-                if (google_id) {
+                if (!google_id) {
+                    console.warn(`WARN: google_id es nulo o vacío para la transacción ${transactionId}. Saltando búsqueda de email.`);
+                } else {
                     console.log(`LOG: Buscando email para google_id: ${google_id} en tabla 'usuarios'.`);
                     const { data: userData, error: userError } = await supabase
                         .from('usuarios')
@@ -103,10 +107,12 @@ exports.handler = async (event, context) => {
                         .maybeSingle();
 
                     if (userError) {
-                        console.error(`ERROR DB: Fallo al buscar el email del usuario ${google_id}.`, userError.message);
+                        console.error(`ERROR DB: Fallo al buscar el email del usuario ${google_id}. Mensaje: ${userError.message}`);
                     } else if (userData && userData.email) {
                         emailCliente = userData.email;
-                        console.log(`LOG: Email de cliente encontrado: ${emailCliente}`);
+                        console.log(`LOG: ✅ Email de cliente encontrado: ${emailCliente}`);
+                    } else {
+                        console.warn(`WARN: El google_id ${google_id} NO tiene registro en la tabla 'usuarios'.`);
                     }
                 }
                 
@@ -117,10 +123,7 @@ exports.handler = async (event, context) => {
                 let injectionMessage = ""; 
                 let updateDBSuccess = true; 
 
-
-                // -------------------------------------------------------------
-                // 3. LÓGICA DE INYECCIÓN CONDICIONAL
-                // -------------------------------------------------------------
+                // --- (El resto de la lógica de inyección y actualización permanece igual) ---
                 
                 if (currentStatus === NEW_STATUS) {
                     injectionMessage = "\n\n⚠️ <b>NOTA:</b> La transacción ya estaba en estado 'REALIZADA'. El saldo no fue inyectado de nuevo.";
@@ -192,46 +195,47 @@ exports.handler = async (event, context) => {
                     }
                 }
                 
-                // 5.5. 📧 LÓGICA DE ENVÍO DE CORREO DE FACTURA (USA emailCliente y productDetails)
-                if (currentStatus !== NEW_STATUS && updateDBSuccess && emailCliente) {
-                    console.log(`LOG: Procediendo a generar y enviar factura por correo a ${emailCliente}.`);
+                // 5.5. 📧 LÓGICA DE ENVÍO DE CORREO DE FACTURA (USO DE emailCliente)
+                if (currentStatus !== NEW_STATUS && updateDBSuccess) {
+                    console.log(`LOG: Preparando envío de email. Email cliente: ${emailCliente || 'NO ENCONTRADO'}.`);
 
-                    const invoiceSubject = `✅ Factura de Pedido #${transactionId} - ${game}`;
-                    
-                    // Crea una lista HTML de los detalles del producto usando productDetails (cartDetails)
-                    const productDetailHtml = typeof productDetails === 'object' && productDetails !== null
-                        ? Object.entries(productDetails).map(([key, value]) => `<li><b>${key.charAt(0).toUpperCase() + key.slice(1)}:</b> ${value}</li>`).join('')
-                        : '<li>No hay detalles de producto adicionales registrados.</li>';
+                    if (emailCliente) {
+                        const invoiceSubject = `✅ Factura de Pedido #${transactionId} - ${game}`;
+                        
+                        const productDetailHtml = typeof productDetails === 'object' && productDetails !== null
+                            ? Object.entries(productDetails).map(([key, value]) => `<li><b>${key.charAt(0).toUpperCase() + key.slice(1)}:</b> ${value}</li>`).join('')
+                            : '<li>No hay detalles de producto adicionales registrados.</li>';
 
-                    const invoiceBody = `
-                        <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
-                            <h2 style="color: #28a745;">✅ Transacción REALIZADA y Confirmada</h2>
-                            <p>¡Hola! Tu pedido <b>${transactionId}</b> ha sido procesado con éxito y marcado como <b>REALIZADO</b> por el operador.</p>
-                            <hr style="border-top: 1px solid #eee;"/>
-                            <h3 style="color: #007bff;">Resumen de la Factura:</h3>
-                            <ul style="list-style: none; padding: 0;">
-                                <li style="margin-bottom: 5px;"><b>ID Transacción:</b> <code>${transactionId}</code></li>
-                                <li style="margin-bottom: 5px;"><b>Producto/Servicio:</b> ${game}</li>
-                                <li style="margin-bottom: 5px;"><b>Monto Total Pagado:</b> <b>${parseFloat(finalPrice).toFixed(2)} ${currency}</b></li>
-                                <li style="margin-bottom: 5px;"><b>Monto Inyectado (si aplica):</b> ${IS_WALLET_RECHARGE ? `$${amountToInject.toFixed(2)} USD` : 'N/A'}</li>
-                            </ul>
-                            <hr style="border-top: 1px solid #eee;"/>
-                            <h4 style="color: #6c757d;">Detalles de la Transacción:</h4>
-                            <ul style="list-style: none; padding: 0;">${productDetailHtml}</ul>
-                            <p style="margin-top: 20px; font-size: 0.9em; color: #999;"><i>Este es un correo automático de confirmación de servicio.</i></p>
-                        </div>
-                    `;
+                        const invoiceBody = `
+                            <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+                                <h2 style="color: #28a745;">✅ Transacción REALIZADA y Confirmada</h2>
+                                <p>¡Hola! Tu pedido <b>${transactionId}</b> ha sido procesado con éxito y marcado como <b>REALIZADO</b> por el operador.</p>
+                                <hr style="border-top: 1px solid #eee;"/>
+                                <h3 style="color: #007bff;">Resumen de la Factura:</h3>
+                                <ul style="list-style: none; padding: 0;">
+                                    <li style="margin-bottom: 5px;"><b>ID Transacción:</b> <code>${transactionId}</code></li>
+                                    <li style="margin-bottom: 5px;"><b>Producto/Servicio:</b> ${game}</li>
+                                    <li style="margin-bottom: 5px;"><b>Monto Total Pagado:</b> <b>${parseFloat(finalPrice).toFixed(2)} ${currency}</b></li>
+                                    <li style="margin-bottom: 5px;"><b>Monto Inyectado (si aplica):</b> ${IS_WALLET_RECHARGE ? `$${amountToInject.toFixed(2)} USD` : 'N/A'}</li>
+                                </ul>
+                                <hr style="border-top: 1px solid #eee;"/>
+                                <h4 style="color: #6c757d;">Detalles de la Transacción:</h4>
+                                <ul style="list-style: none; padding: 0;">${productDetailHtml}</ul>
+                                <p style="margin-top: 20px; font-size: 0.9em; color: #999;"><i>Este es un correo automático de confirmación de servicio.</i></p>
+                            </div>
+                        `;
 
-                    // LLAMAR A LA FUNCIÓN DE ENVÍO
-                    const emailSent = await sendInvoiceEmail(transactionId, emailCliente, invoiceSubject, invoiceBody);
-                    
-                    if (emailSent) {
-                        injectionMessage += `\n\n📧 <b>CORREO ENVIADO:</b> Factura enviada a <code>${emailCliente}</code>.`;
+                        // LLAMAR A LA FUNCIÓN DE ENVÍO
+                        const emailSent = await sendInvoiceEmail(transactionId, emailCliente, invoiceSubject, invoiceBody);
+                        
+                        if (emailSent) {
+                            injectionMessage += `\n\n📧 <b>CORREO ENVIADO:</b> Factura enviada a <code>${emailCliente}</code>.`;
+                        } else {
+                            injectionMessage += `\n\n⚠️ <b>ERROR DE CORREO:</b> No se pudo enviar la factura. Revisar logs SMTP.`;
+                        }
                     } else {
-                        injectionMessage += `\n\n⚠️ <b>ERROR DE CORREO:</b> No se pudo enviar la factura. Revisar logs SMTP.`;
+                        injectionMessage += `\n\n⚠️ <b>ADVERTENCIA DE CORREO:</b> Email no encontrado (Google ID: ${google_id}). No se pudo enviar la factura.`;
                     }
-                } else if (currentStatus !== NEW_STATUS && updateDBSuccess && !emailCliente) {
-                    injectionMessage += `\n\n⚠️ <b>ADVERTENCIA:</b> No se pudo enviar el correo, el email del cliente (Google ID: ${google_id}) no fue encontrado en la tabla <b>usuarios</b>.`;
                 }
                 
                 // Si ya estaba REALIZADA, aún se considera un éxito en el marcado
@@ -256,6 +260,8 @@ exports.handler = async (event, context) => {
                     {}
                 );
                 
+                console.log(`LOG: >>> FIN PROCESO DE MARCADO. Transacción ID: ${transactionId} <<<`);
+                
             } catch (e) {
                 console.error("ERROR FATAL en callback_query handler (Catch block):", e.message);
                 await editTelegramMessage(
@@ -275,7 +281,7 @@ exports.handler = async (event, context) => {
 // --- FUNCIONES AUXILIARES ---
 // ----------------------------------------------------------------------
 
-// 📧 FUNCIÓN: Envío de correo con Nodemailer
+// 📧 FUNCIÓN: Envío de correo con Nodemailer (con log de error detallado)
 async function sendInvoiceEmail(transactionId, userEmail, emailSubject, emailBody) {
     // 1. Configurar el transporter de Nodemailer
     const transporter = nodemailer.createTransport({
@@ -297,12 +303,17 @@ async function sendInvoiceEmail(transactionId, userEmail, emailSubject, emailBod
 
     // 3. Enviar el correo
     try {
-        console.log(`LOG: Intentando enviar correo de factura para transacción ${transactionId} a ${userEmail}.`);
+        console.log(`LOG EMAIL: Intentando enviar correo de factura para transacción ${transactionId} a ${userEmail}.`);
         let info = await transporter.sendMail(mailOptions);
-        console.log(`LOG: Correo enviado. Message ID: ${info.messageId}`);
+        console.log(`LOG EMAIL: ✅ Correo enviado con éxito. Message ID: ${info.messageId}`);
         return true;
     } catch (e) {
-        console.error(`ERROR EMAIL: Fallo al enviar el correo de factura para ${transactionId}. Mensaje: ${e.message}`);
+        // Log detallado en caso de fallo de Nodemailer
+        console.error(`ERROR EMAIL: ❌ Fallo al enviar el correo para ${transactionId}. Receptor: ${userEmail}`);
+        console.error(`ERROR EMAIL DETALLE: ${e.message}`);
+        if (e.response) {
+            console.error(`ERROR EMAIL RESPUESTA SMTP: ${e.response}`);
+        }
         return false;
     }
 }
