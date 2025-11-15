@@ -267,7 +267,7 @@ exports.handler = async function(event, context) {
             messageText += `👤 ID de Jugador: *${item.playerId}*\n`;
         }
         
-        // --- INICIO DE LÓGICA DE PRECIOS CON DEBUGGING ---
+        // --- INICIO DE LÓGICA DE PRECIOS CON DEBUGGING Y CORRECCIÓN ---
         console.log(`\n[DEBUG - ITEM ${index + 1}] --- PRECIOS EN CARRO ---`);
         console.log(`[DEBUG] item.currency (Inicial): ${item.currency}`);
         console.log(`[DEBUG] item.priceUSD: ${item.priceUSD}`);
@@ -275,26 +275,28 @@ exports.handler = async function(event, context) {
         console.log(`[DEBUG] item.priceVES: ${item.priceVES}`);
         
         let itemPrice;
-        let itemCurrency = item.currency || 'USD'; 
-        console.log(`[DEBUG] itemCurrency (Normalizada): ${itemCurrency}`);
+        // 🚀 CORRECCIÓN: Usamos la moneda de la transacción global para seleccionar el precio
+        // ya que la moneda individual del item está undefined.
+        let itemCurrency = currency; // AHORA USA LA MONEDA GLOBAL ('USDM', 'VES', o 'USD')
+        console.log(`[DEBUG] itemCurrency (Seleccionada - Global): ${itemCurrency}`);
 
 
         if (itemCurrency === 'USDM') { 
-            // 🚀 Lógica USDM: Fuerza a usar priceUSDM
+            // Lógica USDM: Fuerza a usar priceUSDM
             itemPrice = item.priceUSDM;
-            console.log(`[DEBUG] LÓGICA APLICADA: USDM. Price usado: ${itemPrice}. Fuente: item.priceUSDM`);
+            console.log(`[DEBUG] LÓGICA APLICADA: GLOBAL USDM. Price usado: ${itemPrice}. Fuente: item.priceUSDM`);
         } else if (itemCurrency === 'VES') {
             // Lógica VES
             itemPrice = item.priceVES;
-            console.log(`[DEBUG] LÓGICA APLICADA: VES. Price usado: ${itemPrice}. Fuente: item.priceVES`);
+            console.log(`[DEBUG] LÓGICA APLICADA: GLOBAL VES. Price usado: ${itemPrice}. Fuente: item.priceVES`);
         } else {
-            // Lógica USD (o fallback)
+            // Lógica USD (o fallback si la moneda global no es USDM ni VES)
             itemPrice = item.priceUSD;
-            console.log(`[DEBUG] LÓGICA APLICADA: USD/Fallback. Price usado: ${itemPrice}. Fuente: item.priceUSD`);
+            console.log(`[DEBUG] LÓGICA APLICADA: GLOBAL USD/Fallback. Price usado: ${itemPrice}. Fuente: item.priceUSD`);
         }
         
         console.log(`[DEBUG - ITEM ${index + 1}] Final itemPrice (Raw): ${itemPrice}`);
-        // --- FIN DE LÓGICA DE PRECIOS CON DEBUGGING ---
+        // --- FIN DE LÓGICA DE PRECIOS CON DEBUGGING Y CORRECCIÓN ---
         
         if (itemPrice) {
             messageText += `💲 Precio (Est.): ${parseFloat(itemPrice).toFixed(2)} ${itemCurrency}\n`;
