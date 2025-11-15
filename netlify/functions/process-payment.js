@@ -263,17 +263,18 @@ exports.handler = async function(event, context) {
             messageText += `👤 ID de Jugador: *${item.playerId}*\n`;
         }
         
-        // 🚀 CORRECCIÓN APLICADA AQUÍ: Lógica de manejo de moneda USDM/Precios
+        // 🚀 CORRECCIÓN CLAVE APLICADA AQUÍ: Lógica de manejo de moneda USDM/Precios
         let itemPrice;
         let itemCurrency = item.currency || 'USD'; 
 
-        if (itemCurrency === 'VES') {
+        if (itemCurrency === 'USDM') { 
+            // Si la moneda es USDM, usamos SÓLO priceUSDM. 
+            // Esto asegura que nunca se tome el precio USD más caro si falta el USDM.
+            itemPrice = item.priceUSDM; 
+        } else if (itemCurrency === 'VES') {
             itemPrice = item.priceVES;
-        } else if (itemCurrency === 'USDM') { 
-            // Si la moneda es USDM, intenta usar priceUSDM. Si no existe, usa priceUSD como fallback.
-            itemPrice = item.priceUSDM || item.priceUSD;
         } else {
-            // Para USD o si no existe priceUSDM, usa priceUSD.
+            // Para USD o cualquier otra moneda
             itemPrice = item.priceUSD;
         }
         
