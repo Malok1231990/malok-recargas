@@ -65,7 +65,7 @@ exports.handler = async function(event, context) {
     const supabaseServiceKey = process.env.SUPABASE_SERVICE_KEY;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // --- Parsing de FormData con formidable (código omitido para brevedad, es el mismo) ---
+    // --- Parsing de FormData con formidable ---
     const form = new Formidable({ multiples: true });
 
     let bodyBuffer;
@@ -94,8 +94,10 @@ exports.handler = async function(event, context) {
                 });
             });
 
-            // Procesar campos, tratando arrays de un solo elemento como strings (comportamiento por defecto)
+            // Procesar campos, tratando arrays de un solo elemento como strings
             data = Object.fromEntries(Object.entries(fields).map(([key, value]) => [key, Array.isArray(value) ? value[0] : value]));
+            
+            // Aquí se toma el archivo de comprobante del campo 'paymentReceipt'
             paymentReceiptFile = files['paymentReceipt'] ? files['paymentReceipt'][0] : null;
 
         } else if (event.headers['content-type'] && event.headers['content-type'].includes('application/json')) {
@@ -111,8 +113,6 @@ exports.handler = async function(event, context) {
             body: JSON.stringify({ message: `Error al procesar los datos de la solicitud: ${parseError.message || 'Unknown error'}. Por favor, verifica tus datos e inténtalo de nuevo.` })
         };
     }
-
-    // Asegúrate de que las variables de entorno estén configuradas (código omitido)
 
     const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
     const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID;
@@ -135,12 +135,11 @@ exports.handler = async function(event, context) {
     
     // Normalizar el número de WhatsApp aquí
     const normalizedWhatsapp = normalizeWhatsappNumber(whatsappNumber);
-    // Usar el número normalizado en el objeto data para el resto del procesamiento (opcional, pero buena práctica)
     if (normalizedWhatsapp) {
         data.whatsappNumber = normalizedWhatsapp;
     }
     
-    // Parsear el JSON del carrito (código omitido)
+    // Parsear el JSON del carrito
     let cartItems = [];
     if (cartDetails) {
         try {
@@ -161,7 +160,7 @@ exports.handler = async function(event, context) {
         };
     }
     
-    // Obtener detalles específicos del método de pago (código omitido)
+    // Obtener detalles específicos del método de pago
     let methodSpecificDetails = {};
     if (paymentMethod === 'pago-movil') {
         methodSpecificDetails.phone = data.phone;
@@ -172,7 +171,7 @@ exports.handler = async function(event, context) {
         methodSpecificDetails.reference = data.reference;
     }
     
-    // --- Guardar Transacción Inicial en Supabase (código omitido) ---
+    // --- Guardar Transacción Inicial en Supabase ---
     let newTransactionData;
     let id_transaccion_generado;
 
@@ -187,16 +186,17 @@ exports.handler = async function(event, context) {
             currency: currency,
             paymentMethod: paymentMethod,
             email: email,
-            whatsappNumber: normalizedWhatsapp || whatsappNumber || null, // Guardar el número normalizado si existe
+            whatsappNumber: normalizedWhatsapp || whatsappNumber || null,
             methodDetails: methodSpecificDetails,
             status: 'pendiente',
             telegram_chat_id: TELEGRAM_CHAT_ID,
+            // 🚨 Corrección: Asegura que el receipt_url se guarde correctamente
             receipt_url: paymentReceiptFile ? paymentReceiptFile.filepath : null,
             
-            // ⭐️ MODIFICACIÓN CLAVE: Campo para el Google ID de la billetera ⭐️
+            // Campo para el Google ID de la billetera
             google_id: firstItem.google_id || null, 
             
-            // Campos de compatibilidad usando el primer producto del carrito
+            // Campos de compatibilidad
             game: firstItem.game || 'Carrito Múltiple',
             packageName: firstItem.packageName || 'Múltiples Paquetes',
             playerId: firstItem.playerId || null,
@@ -226,7 +226,7 @@ exports.handler = async function(event, context) {
         };
     }
 
-    // --- Generar Notificación para Telegram (código omitido) ---
+    // --- Generar Notificación para Telegram ---
     
     const firstItem = cartItems[0] || {};
     const isWalletRecharge = cartItems.length === 1 && firstItem.game === 'Recarga de Saldo';
@@ -245,7 +245,7 @@ exports.handler = async function(event, context) {
     
     messageText += `------------------------------------------------\n`;
 
-    // Iterar sobre los productos del carrito para el detalle (código omitido)
+    // Iterar sobre los productos del carrito para el detalle
     cartItems.forEach((item, index) => {
         messageText += `*📦 Producto ${index + 1}:*\n`;
         messageText += `🎮 Juego/Servicio: *${item.game || 'N/A'}*\n`;
@@ -263,19 +263,17 @@ exports.handler = async function(event, context) {
             messageText += `👤 ID de Jugador: *${item.playerId}*\n`;
         }
         
-        // Mostrar precio individual (si está disponible)
-        
-        // ⭐️ CORRECCIÓN #2: Lógica de manejo de moneda USDM/Precios ⭐️
+        // 🚀 CORRECCIÓN APLICADA AQUÍ: Lógica de manejo de moneda USDM/Precios
         let itemPrice;
         let itemCurrency = item.currency || 'USD'; 
 
         if (itemCurrency === 'VES') {
             itemPrice = item.priceVES;
-        } else if (itemCurrency === 'USDM' && item.priceUSDM) { 
-            // Si la moneda es USDM y existe el campo priceUSDM, usar ese precio.
-            itemPrice = item.priceUSDM;
+        } else if (itemCurrency === 'USDM') { 
+            // Si la moneda es USDM, intenta usar priceUSDM. Si no existe, usa priceUSD como fallback.
+            itemPrice = item.priceUSDM || item.priceUSD;
         } else {
-            // Para USD o cualquier otro caso, usa priceUSD.
+            // Para USD o si no existe priceUSDM, usa priceUSD.
             itemPrice = item.priceUSD;
         }
         
@@ -300,7 +298,7 @@ exports.handler = async function(event, context) {
         }
     }
 
-    // Detalles específicos del método de pago (código omitido)
+    // Detalles específicos del método de pago
     if (paymentMethod === 'pago-movil') {
         messageText += `📞 Teléfono Pago Móvil: ${methodSpecificDetails.phone || 'N/A'}\n`;
         messageText += `📊 Referencia Pago Móvil: ${methodSpecificDetails.reference || 'N/A'}\n`;
@@ -311,7 +309,7 @@ exports.handler = async function(event, context) {
     }
 
 
-    // ⭐️ MODIFICACIÓN CLAVE: Construcción de Botones Inline para Telegram ⭐️
+    // Construcción de Botones Inline para Telegram
     const inlineKeyboard = [
         [{ text: "✅ Marcar como Realizada", callback_data: `mark_done_${id_transaccion_generado}` }]
     ];
@@ -340,8 +338,8 @@ exports.handler = async function(event, context) {
         });
         console.log("Mensaje de Telegram enviado con éxito.");
         
-        // ⭐️ CORRECCIÓN #1: Enviar comprobante de pago a Telegram si existe ⭐️
-        if (paymentReceiptFile) {
+        // 🚨 Corrección #1: Enviar comprobante de pago a Telegram (sendDocument)
+        if (paymentReceiptFile && paymentReceiptFile.filepath) {
             console.log("Comprobante de pago detectado. Preparando envío a Telegram...");
             
             // Asegúrate de que el archivo exista antes de intentar leerlo
@@ -353,6 +351,7 @@ exports.handler = async function(event, context) {
                 form.append('chat_id', TELEGRAM_CHAT_ID);
                 form.append('caption', captionText);
                 form.append('parse_mode', 'Markdown');
+                // 'document' es el campo necesario para enviar archivos.
                 form.append('document', fileStream, paymentReceiptFile.originalFilename || 'comprobante_pago.jpg'); 
 
                 const telegramDocumentApiUrl = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendDocument`;
@@ -384,11 +383,10 @@ exports.handler = async function(event, context) {
 
     } catch (telegramError) {
         console.error("Error al enviar mensaje de Telegram o comprobante:", telegramError.response ? telegramError.response.data : telegramError.message);
+        // Si hay un error, el archivo temporal debe ser eliminado para evitar llenado de espacio.
     }
 
-    // --- Enviar Confirmación por Correo Electrónico al Cliente (código omitido, no requiere cambios de normalización) ---
-    // ... (El resto del código de Nodemailer y limpieza de archivos) ...
-
+    // --- Enviar Confirmación por Correo Electrónico al Cliente ---
     if (email) {
         let transporter;
         try {
@@ -427,7 +425,7 @@ exports.handler = async function(event, context) {
                     <li><strong>Vinculación de CODM:</strong> ${item.codmVinculation || 'N/A'}</li>
                 `;
             } else if (game === 'Recarga de Saldo' && item.google_id) { 
-                // ⭐️ MODIFICACIÓN CLAVE: Agregar Google ID y Monto de recarga ⭐️
+                // Agrega Google ID y Monto de recarga
                 playerInfoEmail = `
                     <li><strong>ID de Google (Billetera):</strong> ${item.google_id}</li>
                     <li><strong>Monto de Recarga (Paquete):</strong> ${packageName}</li>
@@ -472,8 +470,12 @@ exports.handler = async function(event, context) {
         };
 
         try {
-            await transporter.sendMail(mailOptions);
-            console.log("Correo de confirmación inicial enviado al cliente:", email);
+            if (transporter) {
+                await transporter.sendMail(mailOptions);
+                console.log("Correo de confirmación inicial enviado al cliente:", email);
+            } else {
+                 console.error("Transporter no inicializado, omitiendo envío de correo.");
+            }
         } catch (emailError) {
             console.error("Error al enviar el correo de confirmación inicial:", emailError.message);
             if (emailError.response) {
