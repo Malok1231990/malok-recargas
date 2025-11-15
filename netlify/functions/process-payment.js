@@ -264,8 +264,21 @@ exports.handler = async function(event, context) {
         }
         
         // Mostrar precio individual (si está disponible)
-        const itemPrice = item.currency === 'VES' ? item.priceVES : item.priceUSD;
-        const itemCurrency = item.currency || 'USD';
+        
+        // ⭐️ CORRECCIÓN #2: Lógica de manejo de moneda USDM/Precios ⭐️
+        let itemPrice;
+        let itemCurrency = item.currency || 'USD'; 
+
+        if (itemCurrency === 'VES') {
+            itemPrice = item.priceVES;
+        } else if (itemCurrency === 'USDM' && item.priceUSDM) { 
+            // Si la moneda es USDM y existe el campo priceUSDM, usar ese precio.
+            itemPrice = item.priceUSDM;
+        } else {
+            // Para USD o cualquier otro caso, usa priceUSD.
+            itemPrice = item.priceUSD;
+        }
+        
         if (itemPrice) {
             messageText += `💲 Precio (Est.): ${parseFloat(itemPrice).toFixed(2)} ${itemCurrency}\n`;
         }
@@ -327,9 +340,34 @@ exports.handler = async function(event, context) {
         });
         console.log("Mensaje de Telegram enviado con éxito.");
         
-        // --- Enviar comprobante de pago a Telegram si existe (código omitido) ---
-        // ... (el resto de la lógica de envío de comprobante y actualización en Supabase) ...
+        // ⭐️ CORRECCIÓN #1: Enviar comprobante de pago a Telegram si existe ⭐️
+        if (paymentReceiptFile) {
+            console.log("Comprobante de pago detectado. Preparando envío a Telegram...");
+            
+            // Asegúrate de que el archivo exista antes de intentar leerlo
+            if (fs.existsSync(paymentReceiptFile.filepath)) {
+                const fileStream = fs.createReadStream(paymentReceiptFile.filepath);
+                const captionText = `*Comprobante de Pago* para Transacción \`${id_transaccion_generado}\`\n\n*Método:* ${paymentMethod.replace('-', ' ').toUpperCase()}\n*Monto:* ${finalPrice} ${currency}`;
 
+                const form = new FormData();
+                form.append('chat_id', TELEGRAM_CHAT_ID);
+                form.append('caption', captionText);
+                form.append('parse_mode', 'Markdown');
+                form.append('document', fileStream, paymentReceiptFile.originalFilename || 'comprobante_pago.jpg'); 
+
+                const telegramDocumentApiUrl = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendDocument`;
+
+                const documentResponse = await axios.post(telegramDocumentApiUrl, form, {
+                    headers: form.getHeaders(),
+                    maxContentLength: Infinity,
+                    maxBodyLength: Infinity,
+                });
+                console.log("Comprobante enviado a Telegram con éxito.");
+            } else {
+                console.warn("ADVERTENCIA: Archivo de comprobante temporal no encontrado en la ruta:", paymentReceiptFile.filepath);
+            }
+        }
+        
         // --- Actualizar Transaction en Supabase con el Message ID de Telegram ---
         if (newTransactionData && telegramMessageResponse && telegramMessageResponse.data && telegramMessageResponse.data.result) {
             const { data: updatedData, error: updateError } = await supabase
